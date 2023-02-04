@@ -170,8 +170,7 @@ class MeanParameters:
 
         import json
         param_dict = json.loads(file)
-        # ...
-        raise NotImplementedError('JSON file compatability has not been implemented yet.')
+        return cls(**param_dict)
             
     def sample(self, ensemble:str='NNE'):
         """
@@ -211,11 +210,11 @@ class MeanParameters:
             # Gn = np.concatenate((Gn,np.ones((len(Et[-1]),1))), axis=0)
             # Gg = np.concatenate((Gg,np.ones((len(Et[-1]),1))), axis=0)
 
-        # Sorting Indices:
-        idx = np.argsort(E)
-        E  = E[idx]
-        Gn = Gn[idx]
-        Gg = Gg[idx]
+        # # Sorting Indices:
+        # idx = np.argsort(E)
+        # E  = E[idx]
+        # Gn = Gn[idx]
+        # Gg = Gg[idx]
 
         # Spin-group indices:
         if self.FreqF != 0.0:
