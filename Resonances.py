@@ -189,7 +189,7 @@ class MeanParameters:
         return np.array(self.sg.L).reshape(1,-1)
     @property
     def J(self):
-        '...'
+        'Total Spin Quantum Number'
         return np.array(self.sg.J).reshape(1,-1)
     @property
     def S(self):
@@ -229,7 +229,7 @@ class MeanParameters:
         for g in range(n):
             w = self.w[0,g] if self.w is not None else None
             et = RMatrix.SampleEnergies(self.EB, self.Freq[0,g], w=w, ensemble=ensemble)
-            # Attach to group:
+            # Append to group:
             Et.append(et)
         if self.FreqF != 0.0:
             Et += [RMatrix.SampleEnergies(self.EB, self.FreqF, w=None, ensemble='Poisson')]
@@ -316,23 +316,23 @@ class Resonances:
     def __init__(self, E, Gn=None, Gg=None, GfA=None, GfB=None, SG=None):
         self.properties = ['E']
 
-        Idx = np.argsort(E)
-        self.E = np.array(E).reshape(-1)[Idx]
+        indices = np.argsort(E)
+        self.E = np.array(E).reshape(-1)[indices]
         if Gn  is not None:
             self.properties.append('Gn')
-            self.Gn  = np.array(Gn ).reshape(-1)[Idx]
+            self.Gn  = np.array(Gn ).reshape(-1)[indices]
         if Gg  is not None:
             self.properties.append('Gg')
-            self.Gg  = np.array(Gg ).reshape(-1)[Idx]
+            self.Gg  = np.array(Gg ).reshape(-1)[indices]
         if GfA is not None:
             self.properties.append('GfA')
-            self.GfA = np.array(GfA).reshape(-1)[Idx]
+            self.GfA = np.array(GfA).reshape(-1)[indices]
         if GfB is not None:
             self.properties.append('GfB')
-            self.GfB = np.array(GfB).reshape(-1)[Idx]
+            self.GfB = np.array(GfB).reshape(-1)[indices]
         if SG  is not None:
             self.properties.append('SG')
-            self.SG  = np.array(SG ).reshape(-1)[Idx]
+            self.SG  = np.array(SG ).reshape(-1)[indices]
 
     # Get resonances by indexing the "Resonances" object:
     def __getitem__(self, indices):
