@@ -4,7 +4,7 @@ import Resonances
 
 def readENDF(file):
     with open(file, 'r') as contents:
-        pass
+        raise NotImplementedError('readENDF has not been implemented yet.')
 
 def readSammyPar(file):
     with open(file, 'r') as contents:

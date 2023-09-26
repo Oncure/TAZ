@@ -520,3 +520,12 @@ class Encore:
         exponent    = math.floor(log_total_probability)
         significand = 10 ** (log_total_probability % 1.0)
         return out_str.format(significand, exponent)
+
+# ==================================================================================
+# Brute Force Algorithms
+# ==================================================================================
+def wigBayesBruteForce(E, distributions, freqF:float, prior=None):
+    """
+    ...
+    """
+    raise NotImplementedError()
