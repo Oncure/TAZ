@@ -2,24 +2,24 @@ from numpy import uint8
 
 class halfint:
     """
-    Data type for half-integers to represent spins
+    Data type for half-integers to represent spins.
     """
 
     def __init__(self, value):
         if (2*value) % 1:
             raise ValueError(f'The number, {value}, is not a half-integer.')
-        self.__2xValue = uint8(2*value)
+        self.__2x_value = uint8(2*value)
     
     @property
-    def parity(self):   return '+' if self.__2xValue >= 0 else '-'
+    def parity(self):   return '+' if self.__2x_value >= 0 else '-'
     @property
-    def value(self):    return self.__2xValue / 2
+    def value(self):    return self.__2x_value / 2
 
     def __str__(self):
-        if self.__2xValue % 2 == 0:
-            return '{:2i}'.format(self.__2xValue//2)
+        if self.__2x_value % 2 == 0:
+            return '{:2i}'.format(self.__2x_value//2)
         else:
-            return '{:2i}/2'.format(self.__2xValue)
+            return '{:2i}/2'.format(self.__2x_value)
 
     # Arithmetic:
     def __eq__(self, other) -> bool:
@@ -72,18 +72,16 @@ class halfint:
 class SpinGroup:
     """
     A class containing the orbital angular momentum, "L", and the total spin, "J", for the
-    reaction. The quantum number "s" can also be given.
-
-    ...
+    reaction. The quantum number, "s", can also be given optionally.
     """
 
-    def __init__(self, l, j, s=None):
+    def __init__(self, l:int, j:halfint, s:halfint=None):
         self.L = uint8(l)
         self.J = halfint(j)
-        if s != None:   self.S = halfint(s)
-        else:           self.S = None
+        if s is not None:   self.S = halfint(s)
+        else:               self.S = None
 
-    def name(self, option='j^pi') -> str:
+    def name(self, option:str='j^pi') -> str:
         """
         Returns the string written form of the spingroup.
 
@@ -119,7 +117,7 @@ class SpinGroups:
     @classmethod
     def make(cls, Ls, Js, Ss = None):
         """
-        ...
+        Generates spingroups from the provided "Ls", "Js" and "Ss" quantities.
         """
         
         if (Ss != None) and (len(Ls) == len(Js) == len(Ss)):
@@ -128,13 +126,13 @@ class SpinGroups:
             sgs = [SpinGroup(Ls[g], Js[g], None) for g in range(len(Ls))]
         else:
             raise ValueError('The number of "L", "J", and "S" values for spin-groups are not equal.')
-        l_max = max(*Ls)
+        l_max = max(*Ls, 0) # I need to add another l-value in case len(Ls)=1; otherwise, max(*Ls) will break
         return cls(sgs, l_max)
 
     @classmethod
     def find(cls, spin_target, spin_proj, l_max:int=1):
         """
-        ...
+        Finds all of the valid spingroups with "l" less than or equal to "l_max".
         """
 
         l_max = int(l_max)

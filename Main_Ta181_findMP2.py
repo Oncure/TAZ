@@ -81,7 +81,7 @@ if __name__ == "__main__":
         # E = Res.E
 
         runMaster = Levels.RunMaster(E, MP.EB, Prior, TPPrior, MP.FreqAll)
-        Posterior, LTP = runMaster.WigBayesPartitionMaster(True, verbose=True)
+        Posterior, LTP = runMaster.WigBayes(True, verbose=True)
 
         # print()
         # print(Posterior)

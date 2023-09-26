@@ -1,102 +1,189 @@
-from math import pi, exp
+from math import pi
 import numpy as np
 from numpy import ndarray
+import pandas as pd
 import matplotlib.pyplot as plt
 
 __doc__ = """
-Results module ...
-
-...
+This module is used to analyze the data created by TAZ with scores, confusion matrices, probability
+distributions, etc.
 """
 
-def PrintScore(Probability:ndarray, Answer:ndarray, run_name:str='', metric:str='best guess'):
+def __fractionEstimation(N:int, n:int):
+    """
+    A function used to estimate the fraction of coorect counts when restricted between 0 and 1.
+
+    Inputs:
+    ------
+    N : int
+        The total number of trials.
+
+    n : int
+        The number of successful results from the `N` trials.
+
+    Returns:
+    -------
+    frac_est : float
+        The estimated fraction of successful counts.
+
+    frac_std : float
+        The standard deviation on the estimated fraction.
+    """
+
+    frac_est = (n+1)/(N+2)
+    frac_var = ((n+1)*(n+2))/((N+2)*(N+3)) - frac_est**2
+    frac_std = np.sqrt(frac_var)
+    return frac_est, frac_std
+
+def _spinGroupNames(num_groups:int, last_false:bool=True):
+    """
+    A function that provides default names for each of the `num_groups` spingroup. The spingroup
+    names are given by letters, provided alphabetically, excluding "F", "I", and "O" to avoid
+    confusion. If `last_false` is True, then the last group will have the name, "False".
+    """
+
+    # Error checking:
+    if type(num_groups) == float:
+        if (num_groups % 1.0 != 0.0) or (num_groups <= 0):
+            raise ValueError(f'Only a positive integer number of spingroups are allowed, not {num_groups}.')
+        else:
+            num_groups = int(num_groups)
+    if num_groups > 24:
+        raise ValueError(f'You are implying you have {num_groups} groups. I do not have enough letters in the alphabet to differentiate each spingroup!')
+    
+    # Assigning spingroup names:
+    letters = 'ABCDEGHJKLMNPQRSTUVWXYZ'
+    if last_false:
+        sg_names = [*letters[:num_groups-1], 'False']
+    else:
+        sg_names = [*letters[:num_groups]]
+    return sg_names
+
+def PrintScore(pred_probs:ndarray, answer:ndarray,
+               run_name:str='', metric:str='best guess'):
     """
     ...
     """
 
     metric = metric.lower()
     if   metric == 'best guess':
-        Guess = np.argmax(Probability, axis=1)
-        Score = np.count_nonzero(Answer == Guess) / np.size(Answer)
+        guess = np.argmax(pred_probs, axis=1)
+        score = np.count_nonzero(answer == guess) / np.size(answer)
     elif metric == 'probability score':
-        Score = np.mean(Probability[:,Answer])
+        score = np.mean(pred_probs[:,answer])
     else:
         raise NotImplementedError(f'Unknown metric, "{metric}"')
 
-    if run_name:    print(f'{run_name} score = {100*Score:7.2f}%')
-    else:           print(f'Score = {100*Score:7.2f}%')
-    return Score
+    if run_name:    print(f'{run_name} score = {score:7.2%}')
+    else:           print(f'Score = {score:7.2%}')
+    return score
 
-def PrintPredScore(Probability:ndarray, run_name:str='', metric:str='best guess'):
+def PrintPredScore(pred_probs:ndarray,
+                   run_name:str='', metric:str='best guess'):
     """
     ...
     """
 
     metric = metric.lower()
     if   metric == 'best guess':
-        Guess = np.argmax(Probability, axis=1)
-        Score = np.mean(Probability[:,Guess])
+        guess = np.argmax(pred_probs, axis=1)
+        score = np.mean(pred_probs[:,guess])
     elif metric == 'probability score':
-        Score = np.mean(np.sum(Probability**2, axis=1))
+        score = np.mean(np.sum(pred_probs**2, axis=1))
     else:
         raise NotImplementedError(f'Unknown metric, "{metric}"')
 
-    if run_name:    print(f'Predicted {run_name} score = {100*Score:7.2f}%')
-    else:           print(f'Predicted score = {100*Score:7.2f}%')
-    return Score
+    if run_name:    print(f'Predicted {run_name} score = {score:7.2%}')
+    else:           print(f'Predicted score = {score:7.2%}')
+    return score
 
-def ConfusionMatrix(Probability:ndarray, Answer:ndarray):
+def ConfusionMatrix(pred_probs:ndarray, answer:ndarray, sg_names:list=None):
+    """
+    Calculate and print the confusion matrix with proper labels.
+
+    ...
+    """
+
+    num_groups = pred_probs.shape[1]
+    pred_ids = np.argmax(pred_probs, axis=1)
+    true_ids = answer
+    
+    # Ensure the input arrays have the same length:
+    if len(pred_ids) != len(true_ids):
+        raise ValueError("Input arrays must have the same length.")
+
+    # Determine the number of groups:
+    if sg_names is None:
+        sg_names = _spinGroupNames(num_groups)
+    elif len(sg_names) != num_groups:
+        raise ValueError('The length of the list of spingroup names must equal the number of spingroups, given by the rows of `pred_probs`.')
+
+    # Initialize the confusion matrix:
+    confusion_matrix = np.zeros((num_groups, num_groups), dtype=int)
+
+    # Fill in the confusion matrix:
+    for pred_id, true_id in zip(pred_ids, true_ids):
+        confusion_matrix[pred_id, true_id] += 1
+
+    # Print the confusion matrix:
+    print("Confusion Matrix:")
+    confusion_matrix_table = pd.DataFrame(confusion_matrix, index=sg_names, columns=sg_names)
+    # confusion_matrix_table.index.name = "Predicted"
+    # confusion_matrix_table.columns.name = "Correct"
+    print(confusion_matrix_table)
+
+    return confusion_matrix
+
+def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
+                 sg_names:list=None, fig_name:str='', fig_num:int=None):
     """
     ...
     """
 
-    predc = np.argmax(Probability, axis=1)
-    truec = Answer
-    ConfusionM = np.zeros((2,2))
-    ConfusionM[0,0] = np.sum((1-predc) * (1-truec))
-    ConfusionM[0,1] = np.sum((1-predc) * truec    )
-    ConfusionM[1,0] = np.sum(predc     * (1-truec))
-    ConfusionM[1,1] = np.sum(predc     * truec    )
+    num_groups = pred_probs.shape[1]
+    if sg_names is None:
+        sg_names = _spinGroupNames(num_groups)
 
-    print('\nConfusion Matrix:')
-    print(ConfusionM)
-
-def ProbCorrPlot(Prob_Guess_All, Answer, sg_name, figName:str='', figPath:str=''):
-    """
-    ...
-    """
-
-    nBin = round(np.sqrt(len(Answer)))
+    nBin = round(np.sqrt(len(answer)))
     edges = np.linspace(0.0, 1.0, nBin+1)
-    X = (edges[:-1] + edges[1:])/2
-    for t in range(Prob_Guess_All.shape[1]):
-        Prob_Guess_Type = Prob_Guess_All[:,t]
-        Prob_Guess_Cor  = Prob_Guess_Type[Answer == t]
-        Count_All = np.histogram(Prob_Guess_Type, bins=edges)[0]
-        Count_Cor = np.histogram(Prob_Guess_Cor , bins=edges)[0]
+    X = (edges[:-1] + edges[1:])/2 # the center of each bin
+    for t in range(num_groups):
+        prob_guess_type = pred_probs[:,t]
+        prob_guess_cor  = prob_guess_type[answer == t]
+        count_all = np.histogram(prob_guess_type, bins=edges)[0]
+        count_cor = np.histogram(prob_guess_cor , bins=edges)[0]
 
-        X2         = X[Count_All != 0]
-        Count_All2 = Count_All[Count_All != 0]
-        Count_Cor2 = Count_Cor[Count_All != 0]
-        Prob_Ans_Cor = Count_Cor2/Count_All2
-        Prob_Ans_Cor_SD = 1.0 / np.sqrt(Count_All2)
+        # Only plot the cases where counts exist:
+        X2         = X[count_all != 0]
+        count_all2 = count_all[count_all != 0]
+        count_cor2 = count_cor[count_all != 0]
+
+        # Estimating probability and confidence:
+        prob_ans_cor_est, prob_ans_cor_std = __fractionEstimation(count_all2, count_cor2)
 
         # Plotting:
-        plt.errorbar(X2,Prob_Ans_Cor,Prob_Ans_Cor_SD,capsize=3,ls='none',c='k')
-        plt.scatter(X2,Prob_Ans_Cor,marker='.',s=14,c='k')
-        plt.plot([0,1],[0,1],':b',lw=2,label='Ideal Correlation')
-        Norm = 0.25/np.max(Count_All)
-        plt.fill_between(X,Norm*Count_All,alpha=0.8,color=(0.1,0.5,0.1),label='Probability Density')
+        plt.figure(fig_num)
+        plt.clf()
+        plt.errorbar(X2,prob_ans_cor_est, prob_ans_cor_std, capsize=3, ls='none', c='k')
+        plt.scatter(X2,prob_ans_cor_est, marker='.', s=14, c='k')
+        plt.plot([0,1], [0,1], ':b', lw=2, label='Ideal Correlation')
+
+        # Probability density on the guessed probability:
+        norm = 0.25/np.max(count_all)
+        plt.fill_between(X,norm*count_all, alpha=0.8, color=(0.1,0.5,0.1), label='Probability Density')
         
         plt.xlim(0,1)
         plt.ylim(0,1)
-        plt.title(f'Probability Accuracy for Spin Group {sg_name[t]}',fontsize=18)
-        plt.xlabel('Predicted Probability',fontsize=15)
-        plt.ylabel('Fraction of Correct Assignments',fontsize=15)
+        plt.title(f'Probability Accuracy for Spin Group {sg_names[t]}', fontsize=18)
+        plt.xlabel('Predicted Probability', fontsize=15)
+        plt.ylabel('Fraction of Correct Assignments', fontsize=15)
         plt.legend(fontsize=10)
 
-        if figName:     plt.savefig(f'{figPath}{figName.format(sgn=sg_name[t])}.png')
-        else:           plt.show()
+        if fig_name:
+            fig_name = str(fig_name).format(sgn=sg_names[t])
+            plt.savefig(f'{fig_name}.png')
+        else:
+            plt.show()
 
 def Plot(Data:ndarray, *args, **kwargs):
     """
@@ -130,11 +217,11 @@ def Plot(Data:ndarray, *args, **kwargs):
         plt.xlim(*xlim)
 
         if   hist == 'pdf':
-            Y = (pi/2) * X*exp(-(pi/4) * X**2)
+            Y = (pi/2) * X*np.exp(-(pi/4) * X**2)
         elif hist == 'cdf':
-            Y = 1. - exp(-(pi/4) * X**2)
+            Y = 1. - np.exp(-(pi/4) * X**2)
         elif hist == 'sf':
-            Y = exp(-(pi/4) * X**2)
+            Y = np.exp(-(pi/4) * X**2)
         else:
             raise ValueError('Unknown value for "hist".')
         
@@ -145,16 +232,25 @@ def Plot(Data:ndarray, *args, **kwargs):
     else:
         raise ValueError('Unknown distribution.')
 
-def PlotECDF(X, E0=None, E_end=None):
-    if E0 is not None:
-        plt.plot([E0, X[0]], [0.0, 0.0], '-k')
+def PlotECDF(X, E0:float=None, E_end:float=None, fmt:str='-k', ax=None):
+    """
+    Plots the empirical CDF of data 
+    """
+
+    if ax is None:
+        ax = plt
+
+    if E0    is not None:
+        ax.plot([E0, X[0]], [0.0, 0.0], fmt)
     if E_end is not None:
-        plt.plot([X[-1], E_end], [1.0, 1.0], '-k')
+        ax.plot([X[-1], E_end], [1.0, 1.0], fmt)
 
     N = len(X)
-    [plt.plot([X[idx-1],X[idx]], [idx/N, idx/N], '-k') for idx in range(1,N)]
-    [plt.plot([x, x], [idx/N, (idx+1)/N], '-k') for idx, x in enumerate(X)]
-    plt.plot([E0, X[0]], [0.0, 0.0], '-k')
+    # Horizontal 
+    [ax.plot([X[idx-1],X[idx]], [idx/N, idx/N], fmt)
+     for idx in range(1,N)]
+    [ax.plot([x, x], [idx/N, (idx+1)/N], fmt)
+     for idx, x in enumerate(X)]
 
 
         

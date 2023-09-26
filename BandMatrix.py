@@ -7,11 +7,11 @@ class BandMatrix:
     ...
     """
 
-    bl:  int
-    bu:  int
-    N:   int
-    K:   int
-    mtx: np.ndarray
+    # bl:  int
+    # bu:  int
+    # N:   int
+    # K:   int
+    # mtx: np.ndarray
 
     """ Methods: """
     def __init__(self, N:int, bl:int, bu:int, K:int = None, dtype='float', order='C'):

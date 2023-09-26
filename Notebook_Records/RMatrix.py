@@ -237,4 +237,3 @@ def FalsePDF(*args, PDF_type='step'):
         return prob * float(Gn < lim)
     else:
         raise NotImplementedError()
-

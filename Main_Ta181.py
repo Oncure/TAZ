@@ -6,6 +6,7 @@ import numpy as np
 from copy import copy
 import math
 
+# import Levels_rework2 as Levels
 import Levels
 import FileReader
 import Results
@@ -50,7 +51,7 @@ if __name__ == "__main__":
     EB = (1e-5,2550)
 
     pM   = [0.12547, 0.14404]
-    FreqF = 0
+    FreqF = 1/15
     Freq = [1/8.9868, 1/8.3065]
     Gnm  = [44.11355, 33.38697]
     Ggm  = [55.00000, 55.00000]
@@ -67,13 +68,9 @@ if __name__ == "__main__":
 
     Prior, TPPrior = PTBayes(Res, MP)
 
-    # runMaster = Levels.RunMaster(Res.E, MP.EB, Prior, TPPrior, MP.FreqAll, 'Missing', MissingFrac=np.array(pM).reshape(1,-1))
-    runMaster = Levels.RunMaster(Res.E, MP.EB, Prior, TPPrior, MP.FreqAll)
-    Posterior, LTP = runMaster.WigBayesPartitionMaster(True, verbose=True)
-
-    # NOTE: MANUAL CORRECTION!!!!
-    Posterior[:,-1] = 0
-    Posterior /= np.sum(Posterior, axis=1).reshape(-1,1)
+    runMaster = Levels.RunMaster(Res.E, MP.EB, Prior, TPPrior, MP.FreqAll, 'Missing', MissingFrac=np.array(pM).reshape(1,-1))
+    # runMaster = Levels.RunMaster(Res.E, MP.EB, Prior, TPPrior, MP.FreqAll)
+    Posterior, LTP = runMaster.WigBayes(True, verbose=True)
 
     print()
     print(Posterior)
