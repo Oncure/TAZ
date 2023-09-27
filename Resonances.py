@@ -78,7 +78,7 @@ class MeanParameters:
             elif len(param_list) == 1:
                 param = param_list[0]
                 if param_type == 'array1':
-                    param_value = np.array(kwargs[param]).reshape(1,-1)
+                    param_value = np.array(kwargs[param]).reshape(1,self.num_sgs)
                 elif param_type == 'float':
                     param_value = float(kwargs[param])
                 elif param_type == 'int':
@@ -92,45 +92,45 @@ class MeanParameters:
                 return param_value, True
             else:
                 return None, False
+            
+        # Spin-Groups:
+        self.sg, sgExists = paramsIn('sg', 'SG', 'spingroups', type='pass')
+        if not sgExists:
+            raise ValueError('The spingroups are a required argument for MeanParameters.')
+        self.num_sgs = self.sg.num_sgs
+
 
         # Isotope Spin:
         self.I, IExists = paramsIn('I', 'S', 'spin', 'isotope_spin', type='halfint')
-
         # Atomic Number:
         self.Z, ZExists = paramsIn('Z', 'atomic_number', type='int')
-
         # Atomic Mass:
         self.A, AExists = paramsIn('A', 'atomic_mass', type='int')
-
         # Mass:
         mass, massExists = paramsIn('mass', 'Mass', 'm', 'M', type='float')
         if massExists:  self.mass = mass
         elif AExists:   self.mass = float(self.A)
-
+        else:           self.mass = None
         # Atomic Radius:
         ac, acExists = paramsIn('Ac', 'ac', 'atomic_radius', 'scatter_radius', type='float')
         if acExists:    self.ac = ac
         elif AExists:   self.ac = RMatrix.NuclearRadius(self.A)
-
+        else:           self.ac = None
         # Energy Range:
         EB, EBExists = paramsIn('EB', 'energy_bounds', 'energy_range', type='tuple')
         if EBExists:
             self.EB = EB
-            if len(self.EB) != 2:
-                raise ValueError('"EB" can only have two values for an interval')
-            elif self.EB[0] > self.EB[1]:
-                raise ValueError('"EB" must be a valid increasing interval')
-
+            if len(self.EB) != 2:           raise ValueError('"EB" can only have two values for an interval')
+            elif self.EB[0] > self.EB[1]:   raise ValueError('"EB" must be a valid increasing interval')
+        else:
+            self.EB = None
         # False Frequency:
         FreqF, FalseFreqExists = paramsIn('freqF', 'FreqF', 'false_frequency', type='float')
         self.FreqF = FreqF if FalseFreqExists else 0.0
-
-        # Spin-Groups:
-        self.sg, sgExists = paramsIn('sg', 'SG', 'spin-group', type='pass')
-
+        
         # Frequencies:
         self.Freq, FreqExists = paramsIn('freq', 'Freq', 'frequency', 'Frequency')
-
+        
         # Mean Level Spacings:
         MLS, MLSExists = paramsIn('mean_spacing', 'mean_level_spacing', 'mls', 'MLS')
         if FreqExists & MLSExists:
@@ -138,46 +138,42 @@ class MeanParameters:
         elif MLSExists:
             self.Freq = 1.0 / MLS
 
-        # Truncation Width:
-        num_sgs = self.Freq.size
-        Gn_trunc, truncExists = paramsIn('trunc', 'Gn_trunc', 'truncation_width')
-        if truncExists:
-            if Gn_trunc.size == 1:
-                self.Gn_trunc = Gn_trunc * np.ones((1,num_sgs))
-            else:
-                self.Gn_trunc = Gn_trunc # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
+        # Brody Parameter:
+        w, wExists = paramsIn('w', 'brody', 'Brody', 'brody_parameter')
+        if wExists:
+            if w.size == 1:     self.w = w * np.ones((1,self.num_sgs))
+            else:               self.w = w
         else:
-            self.Gn_trunc = np.zeros((1,num_sgs))
-
-        # Missing Fraction:
-        MissFrac, MissFracExists = paramsIn('MissFrac', 'miss_frac', 'pM')
-        if MissFracExists:
-            self.MissFrac = MissFrac
-        else:
-            self.MissFrac = RMatrix.FractionMissing(self.Gn_trunc)
+            self.w = np.ones((1,self.num_sgs))
 
         # Mean Neutron Widths:
         self.Gnm, GnmExists = paramsIn('mean_neutron_width', 'Gnm')
 
         # Neutron Channel Degrees of Freedom:
         nDOF, nDOFExists = paramsIn('nDOF', 'nDF')
-        if nDOFExists:
-            self.nDOF = nDOF
-        elif GnmExists:
-            self.nDOF = np.ones((self.Gnm.shape[1],)) # Assume that there is one DOF
+        if nDOFExists:      self.nDOF = nDOF
+        else:               self.nDOF = np.ones((1,self.num_sgs)) # Assume that there is one DOF
 
         # Mean Gamma Widths:
         self.Ggm, GgmExists = paramsIn('mean_gamma_width', 'Ggm')
 
         # Gamma Channel Degrees of Freedom:
         gDOF, gDOFExists = paramsIn('gDOF', 'gDF')
-        if gDOFExists:
-            self.gDOF = gDOF
-        elif GgmExists:
-            self.gDOF = self.DEFAULT_GDOF * np.ones((self.Ggm.shape[1],)) # Arbitrarily high DOF
-        
-        # Brody Parameter:
-        self.w, wExists = paramsIn('w', 'brody', 'Brody', 'brody_parameter')
+        if gDOFExists:      self.gDOF = gDOF
+        else:               self.gDOF = self.DEFAULT_GDOF * np.ones((1,self.num_sgs)) # Arbitrarily high DOF
+
+        # Truncation Width:
+        Gn_trunc, truncExists = paramsIn('trunc', 'Gn_trunc', 'truncation_width')
+        if truncExists:
+            if Gn_trunc.size == 1:      self.Gn_trunc = Gn_trunc * np.ones((1,self.num_sgs))
+            else:                       self.Gn_trunc = Gn_trunc # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
+        else:
+            self.Gn_trunc = np.zeros((1,self.num_sgs))
+
+        # Missing Fraction:
+        MissFrac, MissFracExists = paramsIn('MissFrac', 'miss_frac', 'pM')
+        if MissFracExists:      self.MissFrac = MissFrac
+        else:                   self.MissFrac = RMatrix.FractionMissing(self.Gn_trunc)
 
     @property
     def n(self):
@@ -204,8 +200,30 @@ class MeanParameters:
         'Frequencies, including False Frequency'
         return np.append(self.Freq, np.array(self.FreqF, ndmin=2), axis=1)
     
+    def __repr__(self):
+        # raise NotImplementedError('String representation of "MeanParameters" has not been implemented yet.')
+        txt = ''
+        txt += f'Nuclear Spin        = {self.I}\n'
+        txt += f'Atomic Number       = {self.Z}\n'
+        txt += f'Atomic Mass Number  = {self.A}\n'
+        txt += f'Atomic Mass         = {self.mass:.5f} (amu)\n'
+        txt += f'Channel Radius      = {self.ac:.7f} (fm)\n'
+        txt += f'Energy Bounds       = {self.EB[0]:.3e} < E < {self.EB[1]:.3e} (eV)\n'
+        txt += f'False Level Density = {self.FreqF:.7f} (1/eV)\n'
+        txt += '\n'
+        properties = ['Level Densities', \
+                      'Brody Parameters', \
+                      'Mean Neutron Width', \
+                      'Neutron Width DOF', \
+                      'Mean Gamma Width', \
+                      'Gamma Width DOF', \
+                      'Truncation N Width', \
+                      'Missing Fraction']
+        data = np.concatenate((self.Freq, self.w, self.Gnm, self.nDOF, self.Ggm, self.gDOF, self.Gn_trunc, self.MissFrac), axis=0)
+        txt += str(pd.DataFrame(data=data, index=properties, columns=self.sg.SGs))
+        return txt
     def __str__(self):
-        raise NotImplementedError('String representation of "MeanParameters" has not been implemented yet.')
+        return self.__repr__()
 
     @classmethod
     def readJSON(cls, file:str):
@@ -220,6 +238,7 @@ class MeanParameters:
     def sample(self, ensemble:str='NNE'):
         """
         Samples resonance parameters based on the given information.
+        
         ...
         """
 

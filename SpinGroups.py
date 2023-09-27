@@ -17,9 +17,9 @@ class halfint:
 
     def __str__(self):
         if self.__2x_value % 2 == 0:
-            return '{:2i}'.format(self.__2x_value//2)
+            return '{:2}'.format(self.__2x_value//2)
         else:
-            return '{:2i}/2'.format(self.__2x_value)
+            return '{:2}/2'.format(self.__2x_value)
 
     # Arithmetic:
     def __eq__(self, other) -> bool:

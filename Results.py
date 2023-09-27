@@ -185,72 +185,29 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
         else:
             plt.show()
 
-def Plot(Data:ndarray, *args, **kwargs):
+def PlotECDF(X, E0:int=None, E_end:float=None,
+             color:str='k', linestyle:str='-',
+             density:bool=False, label:str=None):
     """
-    ...
+    Plots the empirical cumulative density function of the given data.
     """
-
-    def arg_manager(name:str, required=True, default=None):
-        if name in kwargs.keys():
-            return kwargs[name]
-        elif len(args) >= 1:
-            return args.pop(0)
-        elif required:
-            raise ValueError(f'Missing "{name}" argument.')
-        else:
-            return default
-
-    distribution = arg_manager('distribution').lower()
-    hist         = arg_manager('hist').lower()
     
-    if   distribution == 'level spacing':
-        if len(Data.shape) == 2:
-            mls = float(arg_manager('mean', False, np.mean(Data[:,0])))
-        else:
-            mls = float(arg_manager('mean', False, np.mean(Data)))
-        w    = float(arg_manager('w', False, 1.0))
-        xlim = tuple(arg_manager('xlim', False, (0., max(*Data))))
-
-        Data /= mls
-        X = np.linspace(xlim)
-
-        plt.xlim(*xlim)
-
-        if   hist == 'pdf':
-            Y = (pi/2) * X*np.exp(-(pi/4) * X**2)
-        elif hist == 'cdf':
-            Y = 1. - np.exp(-(pi/4) * X**2)
-        elif hist == 'sf':
-            Y = np.exp(-(pi/4) * X**2)
-        else:
-            raise ValueError('Unknown value for "hist".')
-        
-    elif distribution == 'energy':
-        pass
-    elif distribution == 'width':
-        pass
-    else:
-        raise ValueError('Unknown distribution.')
-
-def PlotECDF(X, E0:float=None, E_end:float=None, fmt:str='-k', ax=None):
-    """
-    Plots the empirical CDF of data 
-    """
-
     if ax is None:
         ax = plt
 
-    if E0    is not None:
-        ax.plot([E0, X[0]], [0.0, 0.0], fmt)
-    if E_end is not None:
-        ax.plot([X[-1], E_end], [1.0, 1.0], fmt)
-
     N = len(X)
-    # Horizontal 
-    [ax.plot([X[idx-1],X[idx]], [idx/N, idx/N], fmt)
-     for idx in range(1,N)]
-    [ax.plot([x, x], [idx/N, (idx+1)/N], fmt)
-     for idx, x in enumerate(X)]
-
-
+    if density:     coef = 1.0 / N
+    else:           coef = 1.0
+    
+    # Edge cases:
+    if E0    is not None:
+        ax.hlines(0.0, E0, X[0], color, linestyle)
+    if E_end is not None:
+        ax.hlines(coef*N, X[-1], E_end, color, linestyle)
+    # Main lines:
+    Y = coef * np.arange(N+1)
+    if label is None:   options = {}
+    else:               options = {'label': label}
+    ax.hlines(Y[1:-1], X[:-1], X[1:], color, linestyle, **options) # horizontal lines
+    ax.vlines(X, Y[:-1], Y[1:], color, linestyle) # vertical lines
         
