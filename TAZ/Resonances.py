@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 
-import SpinGroups
-import RMatrix
+from . import halfint, RMatrix
 
 __doc__ = """
 This file keeps the "MeanParameters" class and "Resonances" class. The "MeanParameters" class
@@ -85,7 +84,7 @@ class MeanParameters:
                 elif param_type == 'int':
                     param_value = int(kwargs[param])
                 elif param_type == 'halfint':
-                    param_value = SpinGroups.halfint(kwargs[param])
+                    param_value = halfint(kwargs[param])
                 elif param_type == 'tuple':
                     param_value = tuple(kwargs[param])
                 elif param_type == 'pass':

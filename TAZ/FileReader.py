@@ -1,6 +1,6 @@
 import numpy as np
 
-import Resonances
+from . import Resonances
 
 def readENDF(file):
     with open(file, 'r') as contents:
@@ -20,7 +20,7 @@ def readSammyPar(file):
     Gn     = resonances[:,2]
     SGType = np.int_(resonances[:,-1]) - 1
 
-    return Resonances.Resonances(E=E, Gn=Gn, Gg=Gg), SGType
+    return Resonances(E=E, Gn=Gn, Gg=Gg), SGType
 
 if __name__ == '__main__':
     res, SGType = readSammyPar('/Users/colefritsch/ENCORE/Python_ENCORE/SAMQUA.PAR')

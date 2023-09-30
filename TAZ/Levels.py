@@ -2,25 +2,21 @@ import numpy as np
 from scipy.integrate import quad as integrate
 from scipy.optimize import root_scalar
 
-from Encore import Encore
-from RMatrix import Distributions
+from .Encore import Encore
+from .RMatrix import Distributions
 
-from os.path import basename
-THIS_FILE = basename(__file__)
-ENCORE_FILE = 'Encore.py'
-
-__doc__ = f"""
+__doc__ = """
 This module serves as a preprocessor and postprocessor for the 2-spingroup assignment algorithm,
-"{ENCORE_FILE}". "{THIS_FILE}" extends the 2-spingroup algorithm to multiple-spingroups by
-"merging" spingroups. {THIS_FILE} finds the probabilities for various merge cases and combines
+"Encore.py". This module extends the 2-spingroup algorithm to multiple-spingroups by "merging"
+spingroups. This module finds the probabilities for various merge cases and combines
 the expected probabilities. Unlike the 2-spingroup case that gives the best answer given its
 information (i.e. mean level spacings, reduced widths, false resonance probabilities, etc.), the
 multiple-spingroup case is an approximation.
 """
 
-# ==================================================================================
+# =================================================================================================
 # Merger:
-# ==================================================================================
+# =================================================================================================
 class Merger:
     """
     This class provides the level-spacing distribution of spingroups that have been merged.
@@ -414,7 +410,7 @@ class Merger:
 
 class RunMaster:
     f"""
-    A wrapper for {ENCORE_FILE} responsible for partitioning spingroup merging, and combining the
+    A wrapper for "Encore.py" responsible for partitioning spingroup merging, and combining the
     spingroups.
 
     ...
@@ -641,8 +637,8 @@ class RunMaster:
 
         return np.sum(LogProbs) - (self.G-1)*base_LogProb
 
-# ==================================================================================
+# =================================================================================================
 # Missing/False Resonances:
-# ==================================================================================
+# =================================================================================================
 
 # ...
