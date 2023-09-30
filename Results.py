@@ -185,15 +185,18 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
         else:
             plt.show()
 
-def PlotECDF(X, E0:int=None, E_end:float=None,
-             color:str='k', linestyle:str='-',
-             density:bool=False, label:str=None):
+def ecdf(X, E0:int=None, E_end:float=None,
+         color:str='k', linestyle:str='-',
+         density:bool=True, label:str=None,
+         ax=None):
     """
     Plots the empirical cumulative density function of the given data.
     """
-    
+
     if ax is None:
         ax = plt
+
+    X = np.sort(X)
 
     N = len(X)
     if density:     coef = 1.0 / N

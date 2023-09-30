@@ -4,6 +4,7 @@ from numpy import ndarray
 from scipy.special import gamma, gammainc, gammaincc, gammainccinv, erfc, erfcx, erfcinv
 from scipy.stats import norm, chi2
 from scipy.optimize import minimize
+from scipy.linalg import eigvalsh_tridiagonal
 
 __doc__ = """
 This module is the collection of relevant R-Matrix Theory quantities, distributions, and more.
@@ -67,14 +68,14 @@ def PenetrationFactor(rho, l:int):
 
     Parameters:
     -----------
-    rho : array-like, float
+    rho :: float, array-like
         Momentum factor.
-    l : array-like, int
+    l   :: int, array-like
         Orbital angular momentum quantum number.
 
     Returns:
     --------
-    array-like, float
+    Pen :: float, array-like
         Penetration factor.
     """
 
@@ -114,42 +115,78 @@ def PenetrationFactor(rho, l:int):
 #    Width Probability Distributions
 # =================================================================================================
 
-def PorterThomasPDF(G, Gm, trunc:float=0.0, DOF:int=1):
+def FractionMissing(trunc:float, Gm:float=1.0, dof:int=1):
+    """
+    Gives the fraction of missing resonances due to the truncation in neutron width.
+    """
+    return gammainc(dof/2, dof*trunc/(2*Gm))
+
+def PorterThomasPDF(G, Gm:float, trunc:float=0.0, dof:int=1):
     """
     The probability density function (PDF) for Porter-Thomas Distribution on the width. There is
     an additional width truncation factor, `trunc`, that ignores widths below the truncation
     threshold (meant for missing resonances hidden in the statistical noise).
+
+    Inputs:
+    ------
+    G     :: float [n]
+        Partial resonance widths.
+    Gm    :: float
+        Mean partial resonance width.
+    trunc :: float
+        Width truncation factor for the distribution. Resonance widths below `trunc` are not
+        considered in the distribution. Default = 0.0 (no truncation).
+    dof   :: int
+        Chi-squared degrees of freedom for the partial widths, `G`.
+
+    Returns:
+    -------
+    prob  :: float [n]
+        Probability density at the specified partial resonance widths.
     """
     
     if trunc == 0.0:
-        prob = DOF*(DOF*G/(2*Gm))**(DOF/2-1) * np.exp(-DOF*G/(2*Gm)) / (2 * Gm * gamma(DOF/2))
+        prob = chi2.pdf(G, df=dof, scale=Gm/dof)
     else:
         prob = np.zeros(len(G))
-        prob[G >  trunc] = DOF*(DOF*G[G >  trunc]/(2*Gm))**(DOF/2-1) * np.exp(-DOF*G[G > trunc]/(2*Gm)) / (2 * Gm * gamma(DOF/2) * gammaincc(DOF/2, DOF*trunc/(2*Gm)))
+        prob[G >  trunc] = chi2.pdf(G[G > trunc], df=dof, scale=Gm/dof) / (1 - FractionMissing(trunc, Gm, dof))
         prob[G <= trunc] = 0.0
     return prob
 
-def PorterThomasCDF(G, Gm:float=1.0, trunc:float=0.0, DOF:int=1):
+def PorterThomasCDF(G, Gm:float=1.0, trunc:float=0.0, dof:int=1):
     """
     The cumulative density function (CDF) for Porter-Thomas Distribution on the width. There is
     an additional width truncation factor, `trunc`, that ignores widths below the truncation
     threshold (meant for missing resonances hidden in the statistical noise).
+
+    Inputs:
+    ------
+    G     :: float [n]
+        Partial resonance widths.
+    Gm    :: float
+        Mean partial resonance width.
+    trunc :: float
+        Width truncation factor for the distribution. Resonance widths below `trunc` are not
+        considered in the distribution. Default = 0.0 (no truncation).
+    dof   :: int
+        Chi-squared degrees of freedom for the partial widths.
+
+    Returns:
+    -------
+    prob  :: float [n]
+        Cumulative probability at the specified partial resonance widths, `G`.
     """
+    
     if trunc == 0.0:
-        prob = gammainc(DOF/2, DOF*G/(2*Gm))
+        prob = chi2.cdf(G, df=dof, scale=Gm/dof)
     else:
+        fraction_missing = FractionMissing(trunc, Gm, dof)
         prob = np.zeros(len(G))
-        prob[G >  trunc] = (gammainc(DOF/2, DOF*G[G>=trunc]/(2*Gm)) - gammainc(DOF/2, DOF*trunc/(2*Gm))) / gammaincc(DOF/2, DOF*trunc/(2*Gm))
+        prob[G >  trunc] = (chi2.cdf(G, df=dof, scale=Gm/dof) - fraction_missing) / (1 - fraction_missing)
         prob[G <= trunc] = 0.0
     return prob
-
-def FractionMissing(trunc:float, Gm:float=1.0, DOF:int=1):
-    """
-    Gives the fraction of missing resonances due to the truncation in neutron width.
-    """
-    return gammainc(DOF/2, DOF*trunc/(2*Gm))
     
-def ReduceFactor(E:ndarray, l, A:float, ac:float) -> ndarray:
+def ReduceFactor(E:ndarray, l:float, A:float, ac:float) -> ndarray:
     """
     Multiplication factor to convert from neutron width to reduced neutron width.
     """
@@ -159,43 +196,34 @@ def ReduceFactor(E:ndarray, l, A:float, ac:float) -> ndarray:
 
 def PTBayes(Res, MeanParam, FalseWidthDist=None, Prior=None, GammaWidthOn:bool=False):
     """
-    ...
+    Performs a Bayesian update on the spingroup probabilities of resonances, based on Porter-Thomas
+    Distribution on the neutron widths (and gamma widths if specified).
+
+    Let `L` be the number of resonances and `G` be the number of (true) spingroups.
 
     Inputs:
     ------
-    L = number of resonances
-
-    G = number of (true) spingroups
-
     Res            : Resonances
         The resonance data.
-
     MeanParam      : MeanParameters
         The mean parameters for the reaction.
-
     FalseWidthDist : function
-        default = None
         The PDF for the neutron widths of false resonances. If none are given, false widths are
-        sampled from the joint neutron width PDF of all spingroups.
-
+        sampled from the joint neutron width PDF of all spingroups. Default is `None`.
     Prior          : float [L,G+1]
-        default = None
         Optional prior spingroup probabilities. Such probabilities may include information on
         statistical fits. However, the probabilities must be independent of the information
-        provided by the width distributions.
-
+        provided by the width distributions. Default is `None`.
     GammaWidthOn   : bool
-        default = False
         Determines whether the gamma-width probabilities are calculated based on the theoretical
         distribution. Many RRR evaluations assume the gamma widths are more or less constant. This
         theory is controversial, which is why the gamma width distribution is not considered by
-        default.
+        default. Default is `None`.
 
     Returns:
     -------
     Posterior         : float [L,G+1]
         The posterior spingroup probabilities.
-    
     Total_Probability : float [L]
         Likelihoods for each resonance. These likelihoods are used for the log-likelihoods.
     """
@@ -205,12 +233,12 @@ def PTBayes(Res, MeanParam, FalseWidthDist=None, Prior=None, GammaWidthOn:bool=F
         Prior = np.repeat(prob, repeats=Res.E.size, axis=0)
     Posterior = Prior
 
-    MultFactor = (MeanParam.nDOF/MeanParam.Gnm) * ReduceFactor(Res.E, MeanParam.L, MeanParam.A, MeanParam.ac)
-    Posterior[:,:-1] *= MultFactor * chi2.pdf(MultFactor * Res.Gn.reshape(-1,1), MeanParam.nDOF)
+    mult_factor = (MeanParam.nDOF/MeanParam.Gnm) * ReduceFactor(Res.E, MeanParam.L, MeanParam.A, MeanParam.ac)
+    Posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * Res.Gn.reshape(-1,1), MeanParam.nDOF)
 
     if GammaWidthOn:
-        MultFactor = MeanParam.gDOF/MeanParam.Ggm
-        Posterior[:,:-1] *= MultFactor * chi2.pdf(MultFactor * Res.Gg.reshape(-1,1), MeanParam.gDOF)
+        mult_factor = MeanParam.gDOF/MeanParam.Ggm
+        Posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * Res.Gg.reshape(-1,1), MeanParam.gDOF)
 
     if (MeanParam.FreqF != 0.0) and (FalseWidthDist is not None):
         Posterior[:,-1] *= FalseWidthDist(Res.E, Res.Gn, Res.Gg)
@@ -273,10 +301,10 @@ def _high_order_level_spacing_parts(X, n:int, orders:tuple=(0,1,2)):
                 F0 = coef * rBX**a * np.exp(-rBX**2) # (Eq. 11)
                 out.append(F0)
             elif order == 1: # First Integral
-                F1 = (coef/2) * gammaincc((a+1)/2, rBX**2)
+                F1 = gammaincc((a+1)/2, rBX**2)
                 out.append(F1)
             elif order == 2: # Second Integral
-                F2 = (coef/2) * gammaincc((a+2)/2, rBX**2)
+                F2 = gammaincc((a+2)/2, rBX**2)
                 out.append(F2)
     else: # Higher n --> Gaussian Approximation
         sig = np.sqrt(_high_order_variance(n))
@@ -348,16 +376,16 @@ class Distribution:
     def cdf(self):
         return lambda _X: 1.0 - self.f1(_X)
 
-    def sample_f0(self, size:tuple=None, rng=None):
+    def sample_f0(self, size:tuple=None, rng=None, seed:int=None):
         'Inverse CDF Sampling on f0.'
         if rng is None:
-            rng = np.random.default_rng()
+            rng = np.random.default_rng(seed)
         return self.if1(rng.random(size))
     
-    def sample_f1(self, size:tuple=None, rng=None):
+    def sample_f1(self, size:tuple=None, rng=None, seed:int=None):
         'Inverse CDF Sampling on f1.'
         if rng is None:
-            rng = np.random.default_rng()
+            rng = np.random.default_rng(seed)
         return self.if2(rng.random(size))
 
     @classmethod
@@ -542,39 +570,225 @@ class Distributions:
 #    Sampling
 # =================================================================================================
 
-def SampleNeutronWidth(E, Gnm:float, dof:int, l:int, A:float, ac:float) -> ndarray:
+def SampleNeutronWidth(E, Gnm:float, dof:int, l:int, A:float, ac:float,
+                       rng=None, seed:int=None):
     """
-    ...
+    Samples neutron widths according to the chi-squared distribution.
+
+    Inputs:
+    ------
+    E    :: float [n]
+        Resonance energies, where `n` is the number of resonances.
+
+    Gnm  :: float
+        Mean reduced neutron width.
+
+    dof  :: int
+        Chi-squared degrees of freedom.
+
+    l    :: int
+        Quantum angular momentum number for the spingroup.
+
+    A    :: float
+        Atomic mass of the target isotope.
+
+    ac   :: float
+        Nuclear radius of the target isotope.
+
+    rng  :: default_rng
+        A provided `default_rng`. Default is `None`.
+    
+    seed :: int
+        If no `rng` is provided, then a random number seed can be specified.
+
+    Returns:
+    -------
+    Gn   :: float [n]
+        Randomly sampled neutron widths, where `n` is the number of resonances.
     """
 
-    MultFactor = (dof/Gnm)*ReduceFactor(np.array(E), l, A, ac)
-    return np.random.chisquare(dof, (len(E),1)) / MultFactor.reshape(-1,1)
+    if rng is None:
+        rng = np.random.default_rng(seed)
 
-def SampleGammaWidth(L:int, Ggm:float, dof:int):
+    rGn = (Gnm/dof) * rng.chisquare(dof, (len(E),)) # reduced neutron widths
+    Gn = rGn / ReduceFactor(np.array(E), l, A, ac) # neutron widths
+    return Gn
+
+def SampleGammaWidth(L:int, Ggm:float, dof:int,
+                     rng=None, seed:int=None):
     """
-    ...
+    Samples gamma (capture) widths according to the chi-squared distribution.
+
+    Inputs:
+    -------
+    L    :: int
+        Number of gamma (capture) widths to sample.
+
+    Gnm  :: float
+        Mean reduced neutron width.
+
+    dof  :: int
+        Chi-squared degrees of freedom.
+
+    rng  :: default_rng
+        A provided `default_rng`. Default is `None`.
+    
+    seed :: int
+        If no `rng` is provided, then a random number seed can be specified.
+
+    Returns:
+    -------
+    Gg   :: float [n]
+        Randomly sampled gamma (capture) widths, where `n` is the number of resonances.
     """
     
-    MultFactor = dof/Ggm
-    return np.random.chisquare(dof, (L,1)) / MultFactor
+    if rng is None:
+        rng = np.random.default_rng(seed)
+
+    return (Ggm/dof) * rng.chisquare(dof, (L,))
 
 def wigSemicircleCDF(x):
     """
-    CDF of Wigner's semicircle law distribution
+    CDF of Wigner's semicircle law distribution.
     """
+
     return (x/pi) * np.sqrt(1.0 - x**2) + np.arcsin(x)/pi + 0.5
 
-def SampleEnergies(EB:tuple, Freq:float, w:float=None, ensemble:str='NNE', rng=None, seed:int=None):
+def sampleGEEigs(n:int, beta:int=1,
+                 rng=None, seed:int=None):
+    """
+    Samples the eigenvalues of n by n Gaussian Ensemble random matrices efficiently using the
+    tridiagonal representation. The time complexity of this method is `O( n**2 )` using scipy's
+    `eigvalsh_tridiagonal` function. However, there exist `O( n log(n) )` algorithms that have more
+    low `n` cost and higher error. Unfortunately, no implementation of that algorithm has been made
+    in Python.
+
+    Source: https://people.math.wisc.edu/~valko/courses/833/2009f/lec_8_9.pdf
+
+    Inputs:
+    ------
+    n    :: int
+        The rank of the random matrix. This is also the number of eigenvalues to sample.
+    
+    beta :: 1, 2, or 4
+        The ensemble to consider, corresponding to GOE, GUE, and GSE respectively.
+
+    rng  :: default_rng
+        A provided `default_rng`. Default is `None`.
+    
+    seed :: int
+        If no `rng` is provided, then a random number seed can be specified.
+
+    Returns:
+    -------
+    eigs :: float [n]
+        The eigenvalues of the random matrix.
+    """
+
+    if rng is None:
+        rng = np.random.default_rng(seed)
+
+    # Tridiagonal Matrix Coefficients:
+    # Using Householder transformations (orthogonal transformations), we can
+    # transform GOE-sampled matrices into a tridiagonal symmetric matrix.
+    # Instead of performing the transformation, we can sample the transformed matrix directly.
+    # Let `a` be the central diagonal elements and `b` be the offdiagonal diagonal elements.
+    # We can define the following:
+    a = sqrt(2) * rng.normal(size=(n,))
+    b = np.sqrt(rng.chisquare(beta*np.arange(1,n)))
+
+    # Now we sample the eigenvalues of the tridiagonal symmetric matrix:
+    eigs = eigvalsh_tridiagonal(a, b)
+    eigs /= sqrt(beta)
+    eigs.sort()
+    return eigs
+
+def sampleGEEnergies(EB:tuple, freq:float=1.0, beta:int=1,
+                     rng=None, seed:int=None):
+    """
+    Samples GOE (β = 1), GUE (β = 2), or GSE (β = 4) resonance energies within a given energy
+    range, `EB` and with a specified mean level-density, `freq`.
+
+    Inputs:
+    ------
+    EB   :: float [2]
+        The energy range for sampling.
+
+    freq :: float
+        The mean level-density.
+    
+    beta :: 1, 2, or 4
+        The ensemble parameter, where β = 1 is GOE, β = 2 is GUE, and β = 4 is GSE.
+
+    rng  :: default_rng
+        A provided `default_rng`. Default is `None`.
+    
+    seed :: int
+        If no `rng` is provided, then a random number seed can be specified.
+
+    Returns:
+    -------
+    E    :: float [n]
+        The sampled resonance energies, where `n` is the number of resonances.
+    """
+
+    if rng is None:
+        rng = np.random.default_rng(seed)
+
+    margin = 0.1 # a margin of safety where we consider the GOE samples to properly follow the semicircle law. This removes the uncooperative tails
+    N_res_est = (EB[1]-EB[0]) * freq # estimate number of resonances
+    N_Tot = round((1 + 2*margin) * N_res_est) # buffer number of resonances
+
+    eigs = sampleGEEigs(N_Tot, beta=beta, rng=rng)
+    eigs /= 2*sqrt(N_Tot)
+    eigs = eigs[eigs > -1.0+margin]
+    eigs = eigs[eigs <  1.0-margin]
+
+    # Using semicircle law CDF to make the resonances uniformly spaced:
+    # Source: https://github.com/LLNL/fudge/blob/master/brownies/BNL/restools/level_generator.py
+    E = EB[0] + (N_Tot / freq) * (wigSemicircleCDF(eigs) - wigSemicircleCDF(-1.0+margin))
+    E = E[E < EB[1]]
+    E = np.sort(E)
+    return E
+
+def SampleEnergies(EB:tuple, Freq:float, w:float=1.0, ensemble:str='NNE',
+                   rng=None, seed:int=None):
     """
     Sampler for the resonance energies according to the selected ensemble.
 
-    ...
+    Inputs:
+    ------
+    EB       :: float [2]
+        The energy range for sampling.
+
+    Freq     :: float
+        The mean level-density.
+
+    w        :: float or None
+        The brody parameter. Default is 1.0, giving a Wigner distribution.
+
+    ensemble :: NNE, GOE, GUE, GSE, or Poisson
+        The level-spacing distribution to sample from:
+        NNE     : Nearest Neighbor Ensemble
+        GOE     : Gaussian Orthogonal Ensemble
+        GUE     : Gaussian Unitary Ensemble
+        GSE     : Gaussian Symplectic Ensemble
+        Poisson : Poisson Ensemble
+
+    rng      :: default_rng
+        A provided `default_rng`. Default is `None`.
+    
+    seed     :: int
+        If no `rng` is provided, then a random number seed can be specified.
+
+    Returns:
+    -------
+    E        :: float [n]
+        Sampled resonance energies, where `n` is the number of resonances.
     """
 
-    MULTIPLIER = 5
+    MULTIPLIER = 5 # a multiplication factor for conservative estimate of the number of resonances
     
-    if w == None:
-        w = 1.0
     if rng is None:
         rng = np.random.default_rng(seed)
 
@@ -582,7 +796,8 @@ def SampleEnergies(EB:tuple, Freq:float, w:float=None, ensemble:str='NNE', rng=N
     if (ensemble in ('GOE','GUE','GSE')) and (w != 1.0):
         raise NotImplementedError(f'Cannot sample "{ensemble}" with Brody parameters')
 
-    if ensemble == 'NNE': # Nearest Neighbor Ensemble
+    # Sampling based on ensemble:
+    if   ensemble == 'NNE': # Nearest Neighbor Ensemble
         L_Guess = round( Freq * (EB[1] - EB[0]) * MULTIPLIER )
         LS = np.zeros(L_Guess+1, dtype='f8')
         if w == 1.0:
@@ -593,33 +808,15 @@ def SampleEnergies(EB:tuple, Freq:float, w:float=None, ensemble:str='NNE', rng=N
         LS[1:] = distribution.sample_f0(size=(L_Guess,), rng=rng)
         E = np.cumsum(LS)
         E = E[E < EB[1]]
-
     elif ensemble == 'GOE': # Gaussian Orthogonal Ensemble
-        # Since the eigenvalues do not follow the semicircle distribution
-        # exactly, there is a small chance for some values that would never
-        # occur with semicircle distribution. Therefore, we make extra
-        # eigenvalues and use the ones that are needed. As extra precaution,
-        # we select eigenvalues within a margin of the edges of the semicircle
-        # distribution.
-        margin = 0.1
-        N_res_est = Freq*(EB[1]-EB[0])
-        N_Tot = round((1 + 2*margin) * N_res_est)
-
-        H = rng.normal(size=(N_Tot,N_Tot)) / sqrt(2)
-        H += H.T
-        H += sqrt(2) * np.diag(rng.normal(size=(N_Tot,)) - np.diag(H))
-        eigs = np.linalg.eigvalsh(H) / (2*np.sqrt(N_Tot))
-        eigs.sort()
-        eigs = eigs[eigs >= -1.0+margin]
-        eigs = eigs[eigs <=  1.0-margin]
-
-        E = EB[0] + N_Tot * (wigSemicircleCDF(eigs) - wigSemicircleCDF(-1.0+margin)) / Freq
-        E = E[E < EB[1]]
-
-    elif ensemble == 'Poisson':
-        NumSamples = rng.poisson(Freq * (EB[1]-EB[0]))
-        E = rng.uniform(*EB, size=NumSamples)
-
+        E = sampleGEEnergies(EB, Freq, beta=1)
+    elif ensemble == 'GUE': # Gaussian Unitary Ensemble
+        E = sampleGEEnergies(EB, Freq, beta=2)
+    elif ensemble == 'GSE': # Gaussian Symplectic Ensemble
+        E = sampleGEEnergies(EB, Freq, beta=4)
+    elif ensemble == 'Poisson': # Poisson Ensemble
+        num_samples = rng.poisson(Freq * (EB[1]-EB[0]))
+        E = rng.uniform(*EB, size=num_samples)
     else:
         raise NotImplementedError(f'The {ensemble} ensemble has not been implemented yet.')
 
@@ -806,6 +1003,7 @@ def levelSpacingRatioPDF(ratio:float, beta:int=1):
         The probability density (or densities) evaluated at the the provided level-spacing
         ratio(s).
     """
+    
     if   beta == 1:
         C_beta = 27/8
     elif beta == 2:

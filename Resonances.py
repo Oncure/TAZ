@@ -14,6 +14,7 @@ information such as Energy, widths, and spin-group assignments.
 # =================================================================================================
 #    Mean Parameters:
 # =================================================================================================
+
 class MeanParameters:
     """
     MeanParameters is a class that contains information about a particular reaction, such as the
@@ -172,8 +173,14 @@ class MeanParameters:
 
         # Missing Fraction:
         MissFrac, MissFracExists = paramsIn('MissFrac', 'miss_frac', 'pM')
-        if MissFracExists:      self.MissFrac = MissFrac
-        else:                   self.MissFrac = RMatrix.FractionMissing(self.Gn_trunc)
+        if MissFracExists:
+            if truncExists:
+                raise ValueError('One cannot specify "MissFrac" and "Gn_trunc" at the same time.')
+            self.MissFrac = MissFrac
+            self.given_miss_frac = True
+        else:
+            self.MissFrac = RMatrix.FractionMissing(self.Gn_trunc)
+            self.given_miss_frac = False
 
     @property
     def n(self):
@@ -235,68 +242,98 @@ class MeanParameters:
         param_dict = json.loads(file)
         return cls(**param_dict)
             
-    def sample(self, ensemble:str='NNE'):
+    def sample(self, ensemble:str='NNE', rng=None, seed:int=None):
         """
         Samples resonance parameters based on the given information.
         
         ...
         """
 
+        if rng is None:
+            rng = np.random.default_rng(seed)
+
         # Energy Sampling:
         n = self.Freq.shape[1]
-        Et = []
+        E          = np.zeros((0,))
+        Gn         = np.zeros((0,))
+        Gg         = np.zeros((0,))
+        spingroups = np.zeros((0,), dtype=int)
         for g in range(n):
+            # Energy sampling:
             w = self.w[0,g] if self.w is not None else None
-            et = RMatrix.SampleEnergies(self.EB, self.Freq[0,g], w=w, ensemble=ensemble)
+            E_group  = RMatrix.SampleEnergies(self.EB, self.Freq[0,g], w=w, ensemble=ensemble, rng=rng)
+            
+            # Width sampling:
+            num_group = len(E_group)
+            Gn_group = RMatrix.SampleNeutronWidth(E_group, self.Gnm[0,g], self.nDOF[0,g], self.L[0,g], self.A, self.ac, rng=rng)
+            Gg_group = RMatrix.SampleGammaWidth(num_group, self.Ggm[0,g], self.gDOF[0,g], rng=rng)
+            
             # Append to group:
-            Et.append(et)
-        if self.FreqF != 0.0:
-            Et += [RMatrix.SampleEnergies(self.EB, self.FreqF, w=None, ensemble='Poisson')]
-        
-        E = np.array([e for Etg in Et for e in Etg])
+            E          = np.concatenate((E         , E_group ))
+            Gn         = np.concatenate((Gn        , Gn_group))
+            Gg         = np.concatenate((Gg        , Gg_group))
+            spingroups = np.concatenate((spingroups, g*np.ones((num_group,), dtype=int)))
 
-        # Width Sampling:
-        Gn = np.array([ele for g in range(n) \
-                       for ele in RMatrix.SampleNeutronWidth(Et[g], self.Gnm[0,g], self.nDOF[0,g], self.L[0,g], self.A, self.ac)])
-        Gg = np.array([ele for g in range(n) \
-                       for ele in RMatrix.SampleGammaWidth(len(Et[g]), self.Ggm[0,g], self.gDOF[0,g])])
-        # False Width sampling:
-        # False widths are sampled by taking the frequency-weighted average of each spingroup's width distributions.
+        # False Resonances:
         if self.FreqF != 0.0:
-            # raise NotImplementedError('The width sampling for false resonances has not been worked out yet.')
-            N_F = len(Et[-1])
-
+            # Energy sampling:
+            E_false = RMatrix.SampleEnergies(self.EB, self.FreqF, w=None, ensemble='Poisson')
+            
+            # False width sampling:
+            # False widths are sampled by taking the frequency-weighted average of each spingroup's width distributions.
+            num_false = len(E_false)
+            Gn_false_group = np.zeros((num_false,n))
+            Gg_false_group = np.zeros((num_false,n))
+            for g in range(n):
+                Gn_false_group[:,g] = RMatrix.SampleNeutronWidth(E_false, self.Gnm[0,g], self.nDOF[0,g], self.L[0,g], self.A, self.ac, rng=rng)
+                Gg_false_group[:,g] = RMatrix.SampleGammaWidth(num_false, self.Ggm[0,g], self.gDOF[0,g], rng=rng)
             cumprobs = np.cumsum(self.Freq[0,:]) / np.sum(self.Freq[0,:])
-            R = np.random.rand(N_F,1)
-            F_idx = np.sum(cumprobs <= R, axis=1)
+            R = rng.uniform(size=(num_false,1))
+            idx = np.arange(num_false)
+            group_idx = np.sum(cumprobs <= R, axis=1)
+            Gn_false = Gn_false_group[idx,group_idx]
+            Gg_false = Gg_false_group[idx,group_idx]
 
-            GnF = np.zeros((N_F,1))
-            GgF = np.zeros((N_F,1))
-            for i in range(N_F):
-                GnF[i,0] = RMatrix.SampleNeutronWidth(Et[-1][i:i+1], self.Gnm[0,F_idx[i]], self.nDOF[0,F_idx[i]], self.L[0,F_idx[i]], self.A, self.ac)
-                GgF[i,0] = RMatrix.SampleGammaWidth(len(Et[-1][i:i+1]), self.Ggm[0,F_idx[i]], self.gDOF[0,F_idx[i]])
+            # Append to group:
+            E          = np.concatenate((E         , E_false ))
+            Gn         = np.concatenate((Gn        , Gn_false))
+            Gg         = np.concatenate((Gg        , Gg_false))
+            spingroups = np.concatenate((spingroups, n*np.ones((num_false,), dtype=int)))
 
-            Gn = np.concatenate((Gn,GnF), axis=0)
-            Gg = np.concatenate((Gg,GgF), axis=0)
-            # Gn = np.concatenate((Gn,np.ones((len(Et[-1]),1))), axis=0)
-            # Gg = np.concatenate((Gg,np.ones((len(Et[-1]),1))), axis=0)
-
-        # # Sorting Indices:
+        # Sorting Indices:
         idx = np.argsort(E)
         E  = E[idx]
         Gn = Gn[idx]
         Gg = Gg[idx]
-
-        # Spin-group indices:
-        if self.FreqF != 0.0:
-            spingroups = np.array([g for g in range(n+1) for e in Et[g]], dtype=int)[idx]
-        else:
-            spingroups = np.array([g for g in range(n) for e in Et[g]], dtype=int)[idx]
+        spingroups = spingroups[idx]
 
         # Missing Resonances:
         if self.MissFrac is not None:
-            miss_frac = np.concatenate((self.MissFrac, np.zeros((1,1))), axis=1)
-            missed_idx = (np.random.rand(*E.shape) < miss_frac[0,spingroups])
+            if self.given_miss_frac:
+                miss_frac = np.concatenate((self.MissFrac, np.zeros((1,1))), axis=1)
+                missed_idx = (rng.uniform(size=E.shape) < miss_frac[0,spingroups])
+
+            else: # given Gn_trunc
+                Gn_trunc = np.concatenate((self.Gn_trunc, np.zeros((1,1))), axis=1)
+                rGn = np.zeros(Gn.shape)
+                for g in range(n):
+                    spingroup_g = (spingroups == g)
+                    rGn[spingroup_g] = Gn[spingroup_g] * RMatrix.ReduceFactor(E[spingroup_g], self.L[0,g], self.A, self.ac)
+                missed_idx = (rGn <= Gn_trunc[0,spingroups])
+
+        # Caught resonances:
+        E_caught  =  E[~missed_idx]
+        Gn_caught = Gn[~missed_idx]
+        Gg_caught = Gg[~missed_idx]
+        resonances_caught = Resonances(E=E_caught, Gn=Gn_caught, Gg=Gg_caught)
+        spingroups_caught = spingroups[~missed_idx]
+        
+        # Missing resonances:
+        E_missed  =  E[missed_idx]
+        Gn_missed = Gn[missed_idx]
+        Gg_missed = Gg[missed_idx]
+        resonances_missed = Resonances(E=E_missed, Gn=Gn_missed, Gg=Gg_missed)
+        spingroups_missed = spingroups[missed_idx]
 
         # =================================================
         # def frac(e, g):
@@ -306,9 +343,8 @@ class MeanParameters:
         # missed_idx = np.random.rand(*E.shape) < 0.0
         # =================================================
 
-        # Returning Resonance Data:
-        resonances = Resonances(E=E, Gn=Gn, Gg=Gg)
-        return resonances[~missed_idx], spingroups[~missed_idx], resonances[missed_idx], spingroups[missed_idx]
+        # Returning resonance data:
+        return resonances_caught, spingroups_caught, resonances_missed, spingroups_missed
     
     def distributions(self, dist_type:str='Wigner', err:float=5e-3):
         """
@@ -323,10 +359,49 @@ class MeanParameters:
             return RMatrix.Distributions.missing(self.Freq, self.MissFrac, err)
         else:
             raise NotImplementedError(f'The distribution type, "{dist_type}", has not been implemented yet.')
+        
+    def fit(self, quantity:str, spingroup:int, cdf:bool=False):
+        """
+        ...
+        """
+
+        if   quantity == 'energies':
+            if not cdf: # PDF
+                f = lambda e: 1.0 / (self.EB[1] - self.EB[0])
+            else: # CDF
+                f = lambda e: (e - self.EB[0]) / (self.EB[1] - self.EB[0])
+        elif quantity == 'level spacing':
+            if np.all(self.w == 1.0):
+                if self.MissFrac == 0.0:
+                    dist_type = 'Wigner'
+                else:
+                    dist_type = 'Missing'
+            else:
+                if self.MissFrac == 0.0:
+                    dist_type = 'Brody'
+                else:
+                    raise NotImplementedError('The level-spacing distribution for Brody distribution with missing levels has not been implemented yet.')
+            if not cdf: # PDF
+                f = self.distributions(dist_type)[spingroup].f0
+            else: # CDF
+                f = lambda x: 1.0 - self.distributions(dist_type)[spingroup].f1(x)
+        elif quantity == 'neutron width':
+            if not cdf: # PDF
+                f = lambda rGn: RMatrix.PorterThomasPDF(rGn, self.Gnm[spingroup], trunc=self.Gn_trunc[spingroup], dof=self.nDOF[spingroup])
+            else: # CDF
+                f = lambda rGn: RMatrix.PorterThomasCDF(rGn,  self.Gnm[spingroup], trunc=self.Gn_trunc[spingroup], dof=self.nDOF[spingroup])
+        elif quantity in ('gamma width', 'capture width'):
+            if not cdf: # PDF
+                f = lambda rGg: RMatrix.PorterThomasPDF(rGg, self.Ggm[spingroup], trunc=0.0, dof=self.gDOF[spingroup])
+            else: # CDF
+                f = lambda rGg: RMatrix.PorterThomasCDF(rGg,  self.Ggm[spingroup], trunc=0.0, dof=self.gDOF[spingroup])
+
+        return f
 
 # =================================================================================================
 # Resonances:
 # =================================================================================================
+
 class Resonances:
     """
     ...
