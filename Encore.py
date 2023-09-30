@@ -5,12 +5,13 @@ import math
 import numpy as np
 
 __doc__ = """
-This file is responsible for the 2-spingroup classification algorithm.
+This file is responsible for the 1 and 2 spingroup classification algorithm. For more than 2
+spingroups, the `Merger` class must be used to combine spingroups.
 """
 
 class Encore:
     """
-    A class for 2-spingroup classification. This class has many features.
+    A class for 1 or 2 spingroup classification. This class has many features:
 
     1. WigBayes: spingroup probabilities for each resonance, given the resonance ladder and mean
     parameters.
@@ -23,8 +24,6 @@ class Encore:
     4. LogTotProb: log of the probability of sampling the resonance ladder regardless
     of spingroup, given the mean parameters. This is used for log-likelihood estimation for mean
     parameter estimation.
-
-    ...
 
     Let `L` be the number of resonances in the ladder and `G` be the number of spingroups
     (excuding the false group).
@@ -524,6 +523,7 @@ class Encore:
 # ==================================================================================
 # Brute Force Algorithms
 # ==================================================================================
+
 def wigBayesBruteForce(E, distributions, freqF:float, prior=None):
     """
     ...

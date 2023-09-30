@@ -11,10 +11,12 @@ distributions, etc.
 
 def __fractionEstimation(N:int, n:int):
     """
-    A function used to estimate the fraction of coorect counts when restricted between 0 and 1.
+    A function used to estimate the fraction of successful counts when restricted between 0 and 1.
+    The estimated fraction and standard deviation are derived from the expectation value and
+    variance of the binomial probability distribution.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     N : int
         The total number of trials.
 
@@ -35,7 +37,7 @@ def __fractionEstimation(N:int, n:int):
     frac_std = np.sqrt(frac_var)
     return frac_est, frac_std
 
-def _spinGroupNames(num_groups:int, last_false:bool=True):
+def spinGroupNames(num_groups:int, last_false:bool=True):
     """
     A function that provides default names for each of the `num_groups` spingroup. The spingroup
     names are given by letters, provided alphabetically, excluding "F", "I", and "O" to avoid
@@ -114,7 +116,7 @@ def ConfusionMatrix(pred_probs:ndarray, answer:ndarray, sg_names:list=None):
 
     # Determine the number of groups:
     if sg_names is None:
-        sg_names = _spinGroupNames(num_groups)
+        sg_names = spinGroupNames(num_groups)
     elif len(sg_names) != num_groups:
         raise ValueError('The length of the list of spingroup names must equal the number of spingroups, given by the rows of `pred_probs`.')
 
@@ -142,7 +144,7 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
 
     num_groups = pred_probs.shape[1]
     if sg_names is None:
-        sg_names = _spinGroupNames(num_groups)
+        sg_names = spinGroupNames(num_groups)
 
     nBin = round(np.sqrt(len(answer)))
     edges = np.linspace(0.0, 1.0, nBin+1)
@@ -185,32 +187,59 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
         else:
             plt.show()
 
-def ecdf(X, E0:int=None, E_end:float=None,
+def ecdf(X, lb:float=None, ub:float=None,
          color:str='k', linestyle:str='-',
-         density:bool=True, label:str=None,
-         ax=None):
+         density:bool=True, label:str=None, ax=None):
     """
-    Plots the empirical cumulative density function of the given data.
+    Plots the empirical cumulative distribution function (ECDF) of a float array, `X`.
+
+    Parameters:
+    ----------
+    X         :: float, array-like
+        Values to plot the emiprical CDF for.
+    
+    lb        :: float
+        Optional lower bound.
+
+    ub        :: float
+        Optional upper bound.
+
+    color     :: str
+        The line color.
+
+    linestyle :: str
+        The line style.
+
+    density   :: bool
+        Determines whether cumulative densities are plotted (highest value is 1.0), or cumulative
+        counts are plotted (highest value is the total number of values). Default is True.
+
+    label     :: str
+        The legend label for the line.
+    
+    ax        :: plt.axes
+        Optional ax option. If not provided, `plt.gca()` is used.
     """
 
     if ax is None:
-        ax = plt
+        ax = plt.gca()
 
-    X = np.sort(X)
+    # Sort the data in ascending order
+    X_sorted = np.sort(X)
 
-    N = len(X)
-    if density:     coef = 1.0 / N
-    else:           coef = 1.0
-    
-    # Edge cases:
-    if E0    is not None:
-        ax.hlines(0.0, E0, X[0], color, linestyle)
-    if E_end is not None:
-        ax.hlines(coef*N, X[-1], E_end, color, linestyle)
-    # Main lines:
-    Y = coef * np.arange(N+1)
-    if label is None:   options = {}
-    else:               options = {'label': label}
-    ax.hlines(Y[1:-1], X[:-1], X[1:], color, linestyle, **options) # horizontal lines
-    ax.vlines(X, Y[:-1], Y[1:], color, linestyle) # vertical lines
+    # Create an array of unique values and their corresponding cumulative probabilities
+    X_unique, counts = np.unique(X_sorted, return_counts=True)
+    Y = np.cumsum(counts)
+    if density:
+        Y = Y / len(X)
+
+    # Plot the ECDF
+    ax.vlines(X_unique[0], 0.0, Y[0], color=color, linestyle=linestyle)
+    ax.step(X_unique, Y, where='post', color=color, linestyle=linestyle, label=label)
+
+    # Optional bounds:
+    if lb is not None:
+        ax.hlines(0.0, lb, X_unique[0], color=color, linestyle=linestyle)
+    if ub is not None:
+        ax.hlines(1.0, X_unique[-1], ub, color=color, linestyle=linestyle)
         

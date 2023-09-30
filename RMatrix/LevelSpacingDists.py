@@ -336,8 +336,8 @@ def deltaMehta3(E, EB:tuple):
 
     Let `L` be the number of recorded resonances in the ladder.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     E  : float [L]
         The recorded resonance energies.
     
@@ -366,8 +366,8 @@ def deltaMehtaPredict(L:int, ensemble:str='GOE'):
 
     Source: https://www.osti.gov/servlets/purl/1478482 (Eq. 31 & 32 & 33)
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     L        : int
         The number of resonances.
 
@@ -431,8 +431,8 @@ def levelSpacingRatioPDF(ratio:float, beta:int=1):
 
     Source: https://arxiv.org/pdf/1806.05958.pdf (Eq. 1)
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     ratio :: float or float array
         The nearest level-spacing ratio(s).
 

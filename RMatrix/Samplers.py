@@ -19,8 +19,8 @@ def SampleNeutronWidth(E, Gnm:float, dof:int, l:int, A:float, ac:float,
     """
     Samples neutron widths according to the chi-squared distribution.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     E    :: float [n]
         Resonance energies, where `n` is the number of resonances.
 
@@ -63,8 +63,8 @@ def SampleGammaWidth(L:int, Ggm:float, dof:int,
     """
     Samples gamma (capture) widths according to the chi-squared distribution.
 
-    Inputs:
-    -------
+    Parameters:
+    ----------
     L    :: int
         Number of gamma (capture) widths to sample.
 
@@ -109,8 +109,8 @@ def sampleGEEigs(n:int, beta:int=1,
 
     Source: https://people.math.wisc.edu/~valko/courses/833/2009f/lec_8_9.pdf
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     n    :: int
         The rank of the random matrix. This is also the number of eigenvalues to sample.
     
@@ -153,8 +153,8 @@ def sampleGEEnergies(EB:tuple, freq:float=1.0, beta:int=1,
     Samples GOE (β = 1), GUE (β = 2), or GSE (β = 4) resonance energies within a given energy
     range, `EB` and with a specified mean level-density, `freq`.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     EB   :: float [2]
         The energy range for sampling.
 
@@ -200,8 +200,8 @@ def SampleEnergies(EB:tuple, Freq:float, w:float=1.0, ensemble:str='NNE',
     """
     Sampler for the resonance energies according to the selected ensemble.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     EB       :: float [2]
         The energy range for sampling.
 

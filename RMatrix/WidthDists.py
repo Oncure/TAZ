@@ -24,8 +24,8 @@ def PorterThomasPDF(G, Gm:float, trunc:float=0.0, dof:int=1):
     an additional width truncation factor, `trunc`, that ignores widths below the truncation
     threshold (meant for missing resonances hidden in the statistical noise).
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     G     :: float [n]
         Partial resonance widths.
     Gm    :: float
@@ -56,8 +56,8 @@ def PorterThomasCDF(G, Gm:float=1.0, trunc:float=0.0, dof:int=1):
     an additional width truncation factor, `trunc`, that ignores widths below the truncation
     threshold (meant for missing resonances hidden in the statistical noise).
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     G     :: float [n]
         Partial resonance widths.
     Gm    :: float
@@ -98,8 +98,8 @@ def PTBayes(Res, MeanParam, FalseWidthDist=None, Prior=None, GammaWidthOn:bool=F
 
     Let `L` be the number of resonances and `G` be the number of (true) spingroups.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     Res            : Resonances
         The resonance data.
     MeanParam      : MeanParameters

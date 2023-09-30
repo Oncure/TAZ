@@ -11,8 +11,8 @@ def NuclearRadius(A:float) -> float:
 
     Based on equation D.14 in ENDF manual.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     A  :: float
         Atomic mass of the isotope.
 
@@ -29,8 +29,8 @@ def Rho(A:float, ac:float, E, E_thres:float=0.0):
 
     Based on equation II A.9 in the SAMMY manual.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     A       :: float
         Atomic mass of the isotope.
     ac      :: float
@@ -56,8 +56,8 @@ def PenetrationFactor(rho, l:int):
 
     Based on table II A.1 in the SAMMY manual.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     rho :: float, array-like
         Momentum factor.
     l   :: int, array-like

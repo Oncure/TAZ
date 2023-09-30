@@ -3,6 +3,7 @@ from scipy.integrate import quad as integrate
 from scipy.optimize import root_scalar
 
 from Encore import Encore
+from RMatrix import Distributions
 
 from os.path import basename
 THIS_FILE = basename(__file__)
@@ -61,21 +62,24 @@ class Merger:
         unknown except that we know it is not inside the ladder energy bounds.
     """
 
-    def __init__(self, level_spacing_dists, err:float=1e-9):
+    def __init__(self, level_spacing_dists:Distributions, err:float=1e-9):
         """
         Creates a Merger object from the level-spacing distributions of all (true) spingroups.
 
-        Inputs:
-        ------
-        level_spacing_dists : Distributions
+        Parameters:
+        ----------
+        level_spacing_dists :: Distributions
             The level-spacing distributions of all (true) spingroups as provided by the
             level-spacing distribution class in `RMatrix.py`.
-        err                 : float
+
+        err                 :: float
             A probability threshold where resonances are considered to be too far apart to be
             nearest neighbors.
         """
 
         # Error Checking:
+        if type(level_spacing_dists) != Distributions:
+            raise TypeError('The level-spacing distributions must be a "Distributions" object.')
         if not (0.0 < err < 1.0):
             raise ValueError('The probability threshold, "err", must be strictly between 0 and 1.')
 
@@ -99,7 +103,7 @@ class Merger:
         'Gives the combined mean level-spacing for the group.'
         return 1.0 / self.FreqTot
 
-    def findLevelSpacings(self, E, EB, prior, verbose:bool=False):
+    def findLevelSpacings(self, E, EB:tuple, prior, verbose:bool=False):
         """
         Finds the level-spacing probabilities, `level_spacing_probs` between each resonance,
         including resonance outside the left and right ladder energy bounds. It is unnecessary
@@ -110,8 +114,8 @@ class Merger:
 
         Let `L` be the number of resonances and `G` be the number of spingroups.
 
-        Inputs:
-        ------
+        Parameters:
+        ----------
         E       :: float [L]
             All recorded resonance energies within the selected energy range, provided by `EB`.
 
@@ -132,7 +136,74 @@ class Merger:
             beyond the upper boundary (second index = L+1).
 
         iMax                :: int [L+2,2]
-            ...
+            An array of indices representing the outermost resonances where the level-spacing is
+            not negligible as determined by `xMax` and `xMaxB`. `iMax[i,0]` is returns the lowest
+            index, `j`, less than `i`, where `E[j-1] - E[i-1] < xMax`. `iMax[i,1]` is returns the
+            highest index, `j`, greater than `i`, where `E[i-1] - E[j-1] < xMax`. Indices 0 and L+1
+            are reserved for the lower and upper energy range, `EB[0]` and `EB[1]`.
+        """
+
+        L  = E.shape[0]
+        
+        # Find iMax:
+        iMax = self.findIMax(E, EB)
+        
+        # Level-spacing calculation:
+        level_spacing_probs = np.zeros((L+2,L+2), dtype='f8')
+        if self.G == 1:     # one spingroup --> no merge needed
+            for i in range(L-1):
+                X = E[i+1:iMax[i+1,0]-1] - E[i]
+                level_spacing_probs[i+1,i+2:iMax[i+1,0]] = self.level_spacing_dists.f0(X)[:,0]
+            # Boundary distribution:
+            level_spacing_probs[0,1:-1]  = self.level_spacing_dists.f1(E - EB[0])[:,0]
+            level_spacing_probs[1:-1,-1] = self.level_spacing_dists.f1(EB[1] - E)[:,0]
+        else:               # multiple spingroups --> merge needed
+            for i in range(L-1):
+                X = E[i+1:iMax[i+1,0]-1] - E[i]
+                prior_L = np.tile(prior[i,:], (iMax[i+1,0]-i-2, 1))
+                prior_R = prior[i+1:iMax[i+1,0]-1,:]
+                level_spacing_probs[i+1,i+2:iMax[i+1,0]] = self.levelSpacingMerge(X, prior_L, prior_R)
+            # Boundary distribution:
+            level_spacing_probs[0,1:-1]  = self.levelSpacingMergeBounds(E - EB[0], prior)
+            level_spacing_probs[1:-1,-1] = self.levelSpacingMergeBounds(EB[1] - E, prior)
+
+        # Error checking:
+        if (level_spacing_probs == np.nan).any():
+            raise RuntimeError('Level-spacing probabilities have "NaN" values.')
+        if (level_spacing_probs == np.inf).any():
+            raise RuntimeError('Level-spacing probabilities have "Inf" values.')
+        if (level_spacing_probs <  0.0).any():
+            raise RuntimeError('Level-spacing probabilities have negative values.')
+        
+        # Verbose:
+        if verbose: print('Finished level-spacing calculations')
+
+        # The normalization factor is duplicated in the prior. One must be removed: FIXME!!!!!
+        level_spacing_probs /= self.FreqTot
+
+        return level_spacing_probs, iMax
+    
+    def findIMax(self, E, EB:tuple):
+        """
+        Finds the approximation threshold indices, where the level-spacing probabilities are
+        negligible according to `xMax` and `xMaxB`.
+
+        Parameters:
+        ----------
+        E       :: float [L]
+            All recorded resonance energies within the selected energy range, provided by `EB`.
+
+        EB      :: float [2]
+            The lower and upper boundaries on the recorded energy range.
+
+        Returns:
+        -------
+        iMax    :: int [L+2,2]
+            An array of indices representing the outermost resonances where the level-spacing is
+            not negligible as determined by `xMax` and `xMaxB`. `iMax[i,0]` is returns the lowest
+            index, `j`, less than `i`, where `E[j-1] - E[i-1] < xMax`. `iMax[i,1]` is returns the
+            highest index, `j`, greater than `i`, where `E[i-1] - E[j-1] < xMax`. Indices 0 and L+1
+            are reserved for the lower and upper energy range, `EB[0]` and `EB[1]`.
         """
 
         L  = E.shape[0]
@@ -160,40 +231,7 @@ class Merger:
                 iMax[j:,0] = L+1
                 break
         
-        # Level-spacing calculation:
-        level_spacing_probs = np.zeros((L+2,L+2), dtype='f8')
-        if self.G == 1:
-            for i in range(L-1):
-                X = E[i+1:iMax[i+1,0]-1] - E[i]
-                level_spacing_probs[i+1,i+2:iMax[i+1,0]] = self.level_spacing_dists.f0(X)[:,0]
-            # Boundary distribution:
-            level_spacing_probs[0,1:-1]  = self.level_spacing_dists.f1(E - EB[0])[:,0]
-            level_spacing_probs[1:-1,-1] = self.level_spacing_dists.f1(EB[1] - E)[:,0]
-        else:
-            for i in range(L-1):
-                X = E[i+1:iMax[i+1,0]-1] - E[i]
-                prior_L = np.tile(prior[i,:], (iMax[i+1,0]-i-2, 1))
-                prior_R = prior[i+1:iMax[i+1,0]-1,:]
-                level_spacing_probs[i+1,i+2:iMax[i+1,0]] = self.levelSpacingMerge(X, prior_L, prior_R)
-            # Boundary distribution:
-            level_spacing_probs[0,1:-1]  = self.levelSpacingMergeBounds(E - EB[0], prior)
-            level_spacing_probs[1:-1,-1] = self.levelSpacingMergeBounds(EB[1] - E, prior)
-
-        # Error checking:
-        if (level_spacing_probs == np.nan).any():
-            raise RuntimeError('Level-spacing probabilities have "NaN" values.')
-        if (level_spacing_probs == np.inf).any():
-            raise RuntimeError('Level-spacing probabilities have "Inf" values.')
-        if (level_spacing_probs <  0.0).any():
-            raise RuntimeError('Level-spacing probabilities have negative values.')
-        
-        # Verbose:
-        if verbose: print('Finished level-spacing calculations')
-
-        # The normalization factor is duplicated in the prior. One must be removed: FIXME!!!!!
-        level_spacing_probs /= self.FreqTot
-
-        return level_spacing_probs, iMax
+        return iMax
 
     def levelSpacingMerge(s, X, prior_L, prior_R):
         """
@@ -207,8 +245,8 @@ class Merger:
 
         Let `L` be the number of resonances and `G` be the number of (true) spingroups.
 
-        Inputs:
-        ------
+        Parameters:
+        ----------
         X       :: float [L]
             Nearest-neighbor level-spacings.
         
@@ -252,8 +290,8 @@ class Merger:
 
         Let `L` be the number of resonances and `G` be the number of (true) spingroups.
 
-        Inputs:
-        ------
+        Parameters:
+        ----------
         X       :: float [L]
             Distance between the resonance and the boundary of the recorded energy range.
         
@@ -384,18 +422,43 @@ class RunMaster:
 
     # FIXME: THERE MAY BE AN TYPOS WITH FREQ AND FALSE RESONANCES (SPECIFICALLY FREQTOT)
 
-    def __init__(self, E, EB, Prior, TPPrior, level_spacing_dists, FreqF:float=0.0, err:float=1e-9):
-        self.E       = E
-        self.EB      = EB
-        self.Prior   = Prior
-        self.TPPrior = TPPrior
-        self.err     = err
+    def __init__(self, E, EB:tuple,
+                 level_spacing_dists:Distributions, FreqF:float=0.0,
+                 Prior=None, TPPrior=None,
+                 err:float=1e-9):
+        """
+        ...
+        """
+        
+        # Error Checking:
+        if type(level_spacing_dists) != Distributions:
+            raise TypeError('The level-spacing distributions must be a "Distributions" object.')
+        if not (0.0 < err < 1.0):
+            raise ValueError('The probability threshold, "err", must be strictly between 0 and 1.')
+        EB = tuple(EB)
+        if len(EB) != 2:
+            raise ValueError('"EB" must be a tuple with two elements: an lower and upper bound on the resonance ladder energies.')
+        if EB[0] >= EB[1]:
+            raise ValueError('EB[0] must be strictly less than EB[1].')
+        
+        self.E  = np.sort(E)
+        self.EB = EB
         self.level_spacing_dists = level_spacing_dists
 
         self.Freq = np.concatenate((self.level_spacing_dists.Freq, [[FreqF]]), axis=1)
 
         self.L = E.size
         self.G = self.Freq.size - 1
+
+        if Prior is None:
+            self.Prior = np.repeat(self.Freq/self.FreqTot, self.L, axis=0)
+        else:
+            self.Prior = Prior
+        if TPPrior is None:
+            self.TPPrior = None
+        else:
+            self.TPPrior = TPPrior
+        self.err = err
     
     @property
     def FreqTot(self):
