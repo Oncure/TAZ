@@ -305,7 +305,7 @@ class Merger:
         c = np.prod(f2, axis=1)
 
         # Calculating normalization factor:
-        norm = prior @ s.ZB.T
+        norm = (prior @ s.ZB.T)[:,0]
 
         # Full probability calculation:
         probs = (c / norm) * np.sum(prior*r2, axis=1)
@@ -577,7 +577,7 @@ class RunMaster:
         combined_sg_probs /= np.sum(combined_sg_probs, axis=1).reshape((-1,1))
         return combined_sg_probs
 
-    def WigSample(s, Trials:int=1, verbose=False):
+    def WigSample(s, trials:int=1, verbose=False):
         """
         Spingroup partitioner for merging spingroups for the WigSample algorithm.
 
@@ -591,7 +591,7 @@ class RunMaster:
             if verbose: print(f'Finished level-spacing calculations')
             ENCORE = Encore(prior_g, level_spacing_probs_g, iMax_g)
             if verbose: print(f'Finished CP calculation')
-            Samples = ENCORE.WigSample(Trials)
+            Samples = ENCORE.WigSample(trials)
             if verbose: print(f'Finished WigBayes calculation')
             return Samples
 
@@ -630,7 +630,7 @@ class RunMaster:
                 if verbose: print('Finished!')
                 return NewProbs
 
-    def logTotProbCombinator(self, LogProbs, base_LogProb):
+    def logTotProbCombinator(self, LogProbs, base_LogProb:float):
         """
         Combines log total probabilities from from various partitions.
         """

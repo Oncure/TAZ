@@ -1,4 +1,3 @@
-from math import pi
 import numpy as np
 from numpy import ndarray
 import pandas as pd

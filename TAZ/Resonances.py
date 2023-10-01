@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from . import halfint, RMatrix
+from . import halfint, RMatrix, SpinGroup
 
 __doc__ = """
 This file keeps the "MeanParameters" class and "Resonances" class. The "MeanParameters" class
@@ -98,7 +98,6 @@ class MeanParameters:
         if not sgExists:
             raise ValueError('The spingroups are a required argument for MeanParameters.')
         self.num_sgs = self.sg.num_sgs
-
 
         # Isotope Spin:
         self.I, IExists = paramsIn('I', 'S', 'spin', 'isotope_spin', type='halfint')
@@ -245,7 +244,30 @@ class MeanParameters:
         """
         Samples resonance parameters based on the given information.
         
-        ...
+        Parameters:
+        ----------
+        ensemble :: 'NNE', 'GOE', 'GUE', 'GSE', or 'Poisson'
+            The ensemble to use for resonance energy sampling. Default is 'NNE'.
+        
+        rng      :: default_rng
+            A provided `default_rng`. Default is `None`.
+    
+        seed     :: int
+            If no `rng` is provided, then a random number seed can be specified.
+
+        Returns:
+        -------
+        resonances_caught :: Resonances
+            The recorded resonances.
+        
+        spingroups_caught :: int, array-like
+            An ID for the recorded resonances' spingroups.
+
+        resonances_missing :: Resonances
+            The missed resonances.
+        
+        spingroups_missed :: int, array-like
+            An ID for the missed resonances' spingroups.
         """
 
         if rng is None:
@@ -263,15 +285,15 @@ class MeanParameters:
             E_group  = RMatrix.SampleEnergies(self.EB, self.Freq[0,g], w=w, ensemble=ensemble, rng=rng)
             
             # Width sampling:
-            num_group = len(E_group)
+            len_group = len(E_group)
             Gn_group = RMatrix.SampleNeutronWidth(E_group, self.Gnm[0,g], self.nDOF[0,g], self.L[0,g], self.A, self.ac, rng=rng)
-            Gg_group = RMatrix.SampleGammaWidth(num_group, self.Ggm[0,g], self.gDOF[0,g], rng=rng)
+            Gg_group = RMatrix.SampleGammaWidth(len_group, self.Ggm[0,g], self.gDOF[0,g], rng=rng)
             
             # Append to group:
             E          = np.concatenate((E         , E_group ))
             Gn         = np.concatenate((Gn        , Gn_group))
             Gg         = np.concatenate((Gg        , Gg_group))
-            spingroups = np.concatenate((spingroups, g*np.ones((num_group,), dtype=int)))
+            spingroups = np.concatenate((spingroups, g*np.ones((len_group,), dtype=int)))
 
         # False Resonances:
         if self.FreqF != 0.0:
@@ -334,35 +356,68 @@ class MeanParameters:
         resonances_missed = Resonances(E=E_missed, Gn=Gn_missed, Gg=Gg_missed)
         spingroups_missed = spingroups[missed_idx]
 
-        # =================================================
-        # def frac(e, g):
-        #     f = np.concatenate((self.Freq[0,:], np.array([0.0])), axis=0)
-        #     return ((0.0 + 0.0000022*e**2)/29) * f[g]/np.sum(f)
-        # missed_idx = np.random.rand(*E.shape) < frac(E, spingroups)
-        # missed_idx = np.random.rand(*E.shape) < 0.0
-        # =================================================
-
         # Returning resonance data:
         return resonances_caught, spingroups_caught, resonances_missed, spingroups_missed
     
     def distributions(self, dist_type:str='Wigner', err:float=5e-3):
         """
-        ...
+        Returns the `Distributions` object for the level-spacing, based on the mean parameters
+        and provided distribution type, `dist_type`.
+
+        Parameters:
+        ----------
+        dist_type :: 'Wigner', 'Brody', or 'Missing'
+            the level-spacings distribution type. Default is 'Wigner'.
+        
+        err       :: float
+            A probability threshold in which any more missing resonances would be unlikely.
+
+        Returns:
+        -------
+        distributions :: Distributions
+            The `Distributions` object for level-spacings, based on the mean parameters.
         """
 
         if   dist_type == 'Wigner':
-            return RMatrix.Distributions.wigner(self.Freq)
+            distributions = RMatrix.Distributions.wigner(self.Freq)
         elif dist_type == 'Brody':
-            return RMatrix.Distributions.brody(self.Freq, self.w)
+            distributions = RMatrix.Distributions.brody(self.Freq, self.w)
         elif dist_type == 'Missing':
-            return RMatrix.Distributions.missing(self.Freq, self.MissFrac, err)
+            distributions = RMatrix.Distributions.missing(self.Freq, self.MissFrac, err)
         else:
             raise NotImplementedError(f'The distribution type, "{dist_type}", has not been implemented yet.')
+        return distributions
         
-    def fit(self, quantity:str, spingroup:int, cdf:bool=False):
+    def fit(self, quantity:str, spingroup, cdf:bool=False):
         """
-        ...
+        The expected distribution fit for the specified quantity, `quantity`, for the specified
+        spingroup, `spingroup`.
+
+        Parameters:
+        ----------
+        quantity  :: 'energies', 'level spacing', 'neutron width', 'gamma width', or 'capture width'
+            The quantity for which the expected distribution is given.
+
+        spingroup :: int or SpinGroup
+            The spingroup for the expected distribution.
+
+        cdf       :: bool
+            If true, the expected cumulative density function is provided; else, the probability
+            density function is provided. Default = False.
         """
+
+        # Matching spingroup:
+        if spingroup in ('false', 'False'):
+            spingroup = self.num_sgs
+        elif type(spingroup) == SpinGroup:
+            for g in range(self.num_sgs):
+                if spingroup == self.sg[g]:
+                    spingroup = g
+                    break
+            else:
+                raise ValueError(f'The provided spingroup, {spingroup}, does not match any of the recorded spingroups.')
+        elif type(spingroup) != int:
+            raise TypeError('The provided spingroup is not an integer ID nor is it a "SpinGroup" object.')
 
         if   quantity == 'energies':
             if not cdf: # PDF
@@ -403,7 +458,23 @@ class MeanParameters:
 
 class Resonances:
     """
-    ...
+    A data storage object for the resonance parameters, such as resonance energies, and partial
+    widths.
+
+    Attributes:
+    ----------
+    E   :: float, array-like
+        Resonance energies.
+    Gn  :: float, array-like
+        Resonance neutron widths. Default is None.
+    Gg  :: float, array-like
+        Resonance gamma (capture) widths. Default is None.
+    GfA :: float, array-like
+        Resonance fission A widths. Default is None.
+    GfB :: float, array-like
+        Resonance fission B widths. Default is None.
+    SG  :: int or SpinGroup, array-like
+        Resonance spingroup assignments. Default is None.
     """
 
     def __init__(self, E, Gn=None, Gg=None, GfA=None, GfB=None, SG=None):
