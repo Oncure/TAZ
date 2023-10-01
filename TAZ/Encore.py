@@ -489,9 +489,9 @@ class Encore:
     # ==================================================================================
     # Log Total Probability
     # ==================================================================================
-    def LogTotProb(self, EB:tuple, freq:float, TP_prior=None) -> float:
+    def LogLikelihood(self, EB:tuple, freq:float, TP_prior=None) -> float:
         """
-        `LogTotProb` gives a criterion for the likelihood of sampling the given energies and
+        `LogLikelihood` gives a criterion for the likelihood of sampling the given energies and
         widths, assuming correct information was given (i.e. mean level spacing, mean neutron
         width, etc.). This can be used with gradient descent to optimize mean parameters.
         """
@@ -509,11 +509,10 @@ class Encore:
         return log_total_probability
 
     @staticmethod
-    def LogTotProbString(log_total_probability:float, sigfigs:int=3) -> str:
+    def LikelihoodString(log_total_probability:float, sigfigs:int=3) -> str:
         """
-        Prints the total probability given the log_total probabilty. The total probability
-        sometimes cannot be given directly since the exponential term could exceed floating-point
-        limitations.
+        Prints the likelihood given the log likelihood. The total probability sometimes cannot be
+        given directly since the exponential term could exceed floating-point limitations.
         """
         out_str = f'{{0:.{sigfigs}f}}e{{1}}'
         exponent    = math.floor(log_total_probability)

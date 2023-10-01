@@ -37,12 +37,9 @@ class Merger:
     Freq  :: float [G]
         Level densities for each spingroup. Inverse of mean level spacing.
 
-    a     :: float [G]
-        Coefficient for level spacing distributions.
-
     Z     :: float [G,G]
         Matrix used to calculate the normalization factor for the merged group level-spacing
-        distribution. See the `Z` variable in the merged level-spacing equation.
+        distribution. See the "Z" variable in the merged level-spacing equation.
 
     ZB    :: float [G]
         A special variation of `Z` used for the level-spacing with one resonance that exists
@@ -50,7 +47,8 @@ class Merger:
         unknown except that we know it is not inside the ladder energy bounds.
 
     xMax  :: float
-        The maximum level spacings that give a probability above a threshold error, `err`.
+        The maximum level spacings that give a probability above a threshold error, `err`. No
+        level-spacings are calculated 
 
     xMaxB :: float
         A special variation of `xMax` used for the level-spacing with one resonance that exists
@@ -204,14 +202,17 @@ class Merger:
 
         L  = E.shape[0]
         
-        # Calculating the approximation thresholds:
         iMax = np.full((L+2,2), -1, dtype='i4')
-        for j in range(L):  # left edge case
+
+        # Lower boundary cases:
+        for j in range(L):
             if E[j] - EB[0] >= self.xMaxB:
                 iMax[0,0]    = j
                 iMax[:j+1,1] = 0
                 break
-        for i in range(L-1):  # intermediate case
+
+        # Intermediate cases:
+        for i in range(L-1):
             for j in range(iMax[i,0]+1,L):
                 if E[j] - E[i] >= self.xMax:
                     iMax[i+1,0] = j
@@ -221,12 +222,14 @@ class Merger:
                 iMax[i:,0] = L+1
                 iMax[iMax[i-1,0]:,1] = i+1
                 break
-        for j in range(L-1,-1,-1):  # right edge case
+
+        # Upper boundary cases:
+        for j in range(L-1,-1,-1):
             if EB[1] - E[j] >= self.xMaxB:
                 iMax[-1,1] = j
                 iMax[j:,0] = L+1
                 break
-        
+
         return iMax
 
     def levelSpacingMerge(s, X, prior_L, prior_R):
@@ -305,7 +308,7 @@ class Merger:
         c = np.prod(f2, axis=1)
 
         # Calculating normalization factor:
-        norm = (prior @ s.ZB.T)[:,0]
+        norm = (prior @ s.ZB)
 
         # Full probability calculation:
         probs = (c / norm) * np.sum(prior*r2, axis=1)
@@ -342,8 +345,8 @@ class Merger:
             Z[i,i] = integrate(lambda _x: mainDiag(_x,i), a=0.0, b=xMax_limit[0,i])[0]
         
         # Level Spacing Normalization at Boundaries:
-        ZB = np.zeros((1,s.G), dtype='f8')
-        ZB[0,:] = [integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limit[0,i])[0] for i in range(s.G)]
+        ZB = np.zeros((s.G,), dtype='f8')
+        ZB[:] = [integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limit[0,i])[0] for i in range(s.G)]
 
         # Error Checking:
         if (Z == np.nan).any():
@@ -410,13 +413,12 @@ class Merger:
 
 class RunMaster:
     f"""
-    A wrapper for "Encore.py" responsible for partitioning spingroup merging, and combining the
-    spingroups.
+    A wrapper for Encore responsible for partitioning spingroups, merging distributions, and
+    combining spingroup probabilities. For 1 or 2 spingroups, partitioning and merging
+    distributions is not necessary, but RunMaster will pass it to Encore anyway.
 
     ...
     """
-
-    # FIXME: THERE MAY BE AN TYPOS WITH FREQ AND FALSE RESONANCES (SPECIFICALLY FREQTOT)
 
     def __init__(self, E, EB:tuple,
                  level_spacing_dists:Distributions, FreqF:float=0.0,
@@ -485,11 +487,23 @@ class RunMaster:
 
         return level_spacing_probs, iMax, prior_merged
 
-    def WigBayes(s, return_log_tot_prob=False, verbose=False):
+    def WigBayes(s, return_log_likelihood=False, verbose=False):
         """
-        Spingroup partitioner for merging spingroups for the WigBayes algorithm.
+        Returns spingroup probabilities for each resonance based on level-spacing distributions,
+        and any provided prior.
 
-        ...
+        Parameters:
+        ----------
+        return_log_likelihood :: bool
+            Determines whether to return the resonance ladder log-likelihood. Default = False.
+
+        verbose :: bool
+            The verbosity controller. Default = False.
+
+        Returns:
+        -------
+        sg_probs :: int [L,G]
+            The sampled IDs for each resonance and trial.
         """
 
         # Only 1 spingroup (merge not needed):
@@ -502,9 +516,9 @@ class RunMaster:
             sg_probs = ENCORE.WigBayes()
             if verbose: print(f'Finished WigBayes calculation')
 
-            if return_log_tot_prob:
-                log_tot_prob = ENCORE.LogTotProb(s.EB, s.Freq, s.TPPrior)
-                return sg_probs, log_tot_prob
+            if return_log_likelihood:
+                log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.TPPrior)
+                return sg_probs, log_likelihood
             else:
                 return sg_probs
         
@@ -518,21 +532,21 @@ class RunMaster:
             sg_probs = ENCORE.WigBayes()
             if verbose: print(f'Finished WigBayes calculation')
 
-            if return_log_tot_prob:
-                log_tot_prob = ENCORE.LogTotProb(s.EB, s.Freq, s.TPPrior)
-                return sg_probs, log_tot_prob
+            if return_log_likelihood:
+                log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.TPPrior)
+                return sg_probs, log_likelihood
             else:
                 return sg_probs
 
         # More than 2 spingroups (merge needed):
         else:
             sg_probs = np.zeros((s.L,3,s.G),dtype='f8')
-            if return_log_tot_prob:
-                log_tot_prob = np.zeros(s.G, dtype='f8')
+            if return_log_likelihood:
+                log_likelihood = np.zeros(s.G, dtype='f8')
 
             # Partitioning:
             for g in range(s.G):
-                partition = [[g], [g_ for g_ in range(s.G) if g_ != g]]
+                partition = [[g_ for g_ in range(s.G) if g_ != g], [g]]
                 if verbose: print(f'Preparing for Merge group, {g}')
                 level_spacing_probs_g, iMax_g, prior_g = s.mergePartitioner(partition)
                 if verbose: print(f'Finished spingroup {g} level-spacing calculation')
@@ -541,26 +555,70 @@ class RunMaster:
                 sg_probs[:,:,g] = ENCORE.WigBayes()
                 if verbose: print(f'Finished spingroup {g} WigBayes calculation')
 
-                if return_log_tot_prob:
-                    # FIXME: I DON'T KNOW LOG TOT PROB CORRECTION FACTOR FOR MERGED CASES! 
+                if return_log_likelihood:
+                    # FIXME: I DON'T KNOW LOG Likelihood CORRECTION FACTOR FOR MERGED CASES! 
                     Freq_comb = np.array([s.Freq[0,g], s.FreqTot-s.Freq[0,g]]).reshape(1,-1)
-                    log_tot_prob[g] = ENCORE.LogTotProb(s.EB, Freq_comb, s.TPPrior)
+                    log_likelihood[g] = ENCORE.LogLikelihood(s.EB, Freq_comb, s.TPPrior)
 
             # Combine probabilities for each merge case:
             combined_sg_probs = s.probCombinator(sg_probs)
-            if return_log_tot_prob:
-                if verbose: print('Preparing for Merge group, 1000!!!')
+            if return_log_likelihood:
+                if verbose: print('Preparing for Merge group, 999!!!')
                 level_spacing_probs_1, iMax_1, prior_1 = s.mergePartitioner([tuple(range(s.G))])
-                if verbose: print('Finished spingroup 1000 level-spacing calculation')
+                if verbose: print('Finished spingroup 999 level-spacing calculation')
                 ENCORE = Encore(prior_1, level_spacing_probs_1, iMax_1)
-                if verbose: print('Finished spingroup 1000 CP calculation')
-                base_LogProb = ENCORE.LogTotProb(s.EB, s.Freq, s.TPPrior)
-                combined_log_tot_prob = s.logTotProbCombinator(log_tot_prob, base_LogProb)
+                if verbose: print('Finished spingroup 999 CP calculation')
+                base_log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.TPPrior)
+                combined_log_likelihood = s.logLikelihoodCombinator(log_likelihood, base_log_likelihood)
                 if verbose: print('Finished!')
-                return combined_sg_probs, combined_log_tot_prob
+                return combined_sg_probs, combined_log_likelihood
             else:
                 if verbose: print('Finished!')
                 return combined_sg_probs
+            
+    def WigSample(s, trials:int=1, verbose=False):
+        """
+        Returns random spingroup assignment samples based on its Bayesian probability.
+
+        Parameters:
+        ----------
+        trials  :: int
+            The number of trials of sampling the resonance ladder. Default = 1.
+
+        verbose :: bool
+            The verbosity controller. Default = False.
+
+        Returns:
+        -------
+        samples :: int [L,trials]
+            The sampled IDs for each resonance and trial.
+        """
+
+        # Only 1 spingroup (merge not needed):
+        if s.G == 1:
+            if verbose: print(f'Preparing level-spacings')
+            level_spacing_probs_g, iMax_g, prior_g = s.mergePartitioner([[0]])
+            if verbose: print(f'Finished level-spacing calculations')
+            ENCORE = Encore(prior_g, level_spacing_probs_g, iMax_g)
+            if verbose: print(f'Finished CP calculation')
+            samples = ENCORE.WigSample(trials)
+            if verbose: print(f'Finished WigBayes calculation')
+            return samples
+        
+        # Only 2 spingroups (merge not needed):
+        elif s.G == 2:
+            if verbose: print(f'Preparing level-spacings')
+            level_spacing_probs_g, iMax_g, prior_g = s.mergePartitioner([[0], [1]])
+            if verbose: print(f'Finished level-spacing calculations')
+            ENCORE = Encore(prior_g, level_spacing_probs_g, iMax_g)
+            if verbose: print(f'Finished CP calculation')
+            samples = ENCORE.WigSample(trials)
+            if verbose: print(f'Finished WigBayes calculation')
+            return samples
+
+        # More than 2 spingroups (Merge needed):
+        else:
+            raise NotImplementedError('WigSample for more than two spingroups has not been implemented yet.')
 
     def probCombinator(self, sg_probs):
         """
@@ -577,65 +635,12 @@ class RunMaster:
         combined_sg_probs /= np.sum(combined_sg_probs, axis=1).reshape((-1,1))
         return combined_sg_probs
 
-    def WigSample(s, trials:int=1, verbose=False):
-        """
-        Spingroup partitioner for merging spingroups for the WigSample algorithm.
-
-        ...
-        """
-        
-        # Only 2 spingroups (merge not needed):
-        if s.G == 2:
-            if verbose: print(f'Preparing level-spacings')
-            level_spacing_probs_g, iMax_g, prior_g = s.mergePartitioner([[0], [1]])
-            if verbose: print(f'Finished level-spacing calculations')
-            ENCORE = Encore(prior_g, level_spacing_probs_g, iMax_g)
-            if verbose: print(f'Finished CP calculation')
-            Samples = ENCORE.WigSample(trials)
-            if verbose: print(f'Finished WigBayes calculation')
-            return Samples
-
-        # More than 2 spingroups (Merge needed):
-        else:
-            raise NotImplementedError('WigSample for more than two spingroups has not been implemented yet.')
-            Probs = np.zeros((s.L,3,s.G),dtype='f8')
-            if log_total_probability:
-                ltp = np.zeros(s.G, dtype='f8')
-            for g in range(s.G):
-                partition = [[g], [g_ for g_ in range(s.G) if g_ != g]]
-                if verbose: print(f'Preparing for Merge group, {g}')
-                level_spacing_probs_g, iMax_g, prior_g = s.mergePartitioner(partition)
-                if verbose: print(f'Finished spingroup {g} level-spacing calculation')
-                ENCORE = Encore(prior_g, level_spacing_probs_g, iMax_g)
-                if verbose: print(f'Finished spingroup {g} CP calculation')
-                Probs[:,:,g] = ENCORE.WigBayes()
-                if verbose: print(f'Finished spingroup {g} WigBayes calculation')
-
-                if log_total_probability:
-                    ltp[g] = ENCORE.LogTotProb(s.EB, s.Freq, s.TPPrior)
-
-            # Combine probabilities for each merge case:
-            NewProbs = s.probCombinator(Probs)
-            if log_total_probability:
-                if verbose: print(f'Preparing for Merge group, 1000!!!')
-                level_spacing_probs_1, iMax_1, prior_1 = s.mergePartitioner([tuple(range(s.G))])
-                if verbose: print(f'Finished spingroup 1000 level-spacing calculation')
-                ENCORE = Encore(prior_1, level_spacing_probs_1, iMax_1)
-                if verbose: print(f'Finished spingroup {g} CP calculation')
-                base_LogProb = ENCORE.LogTotProb(s.EB, s.Freq, s.TPPrior)
-                NewLTP = s.logTotProbCombinator(ltp, base_LogProb)
-                if verbose: print('Finished!')
-                return NewProbs, NewLTP
-            else:
-                if verbose: print('Finished!')
-                return NewProbs
-
-    def logTotProbCombinator(self, LogProbs, base_LogProb:float):
+    def logLikelihoodCombinator(self, partition_log_likelihoods, base_log_likelihoods:float):
         """
         Combines log total probabilities from from various partitions.
         """
 
-        return np.sum(LogProbs) - (self.G-1)*base_LogProb
+        return np.sum(partition_log_likelihoods) - (self.G-1)*base_log_likelihoods
 
 # =================================================================================================
 # Missing/False Resonances:
