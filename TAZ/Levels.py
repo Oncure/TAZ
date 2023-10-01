@@ -422,7 +422,7 @@ class RunMaster:
 
     def __init__(self, E, EB:tuple,
                  level_spacing_dists:Distributions, FreqF:float=0.0,
-                 Prior=None, TPPrior=None,
+                 Prior=None, log_likelihood_prior=None,
                  err:float=1e-9):
         """
         ...
@@ -452,10 +452,7 @@ class RunMaster:
             self.Prior = np.repeat(self.Freq/self.FreqTot, self.L, axis=0)
         else:
             self.Prior = Prior
-        if TPPrior is None:
-            self.TPPrior = None
-        else:
-            self.TPPrior = TPPrior
+        self.log_likelihood_prior = log_likelihood_prior
         self.err = err
     
     @property
@@ -517,7 +514,7 @@ class RunMaster:
             if verbose: print(f'Finished WigBayes calculation')
 
             if return_log_likelihood:
-                log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.TPPrior)
+                log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.log_likelihood_prior)
                 return sg_probs, log_likelihood
             else:
                 return sg_probs
@@ -533,7 +530,7 @@ class RunMaster:
             if verbose: print(f'Finished WigBayes calculation')
 
             if return_log_likelihood:
-                log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.TPPrior)
+                log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.log_likelihood_prior)
                 return sg_probs, log_likelihood
             else:
                 return sg_probs
@@ -558,7 +555,7 @@ class RunMaster:
                 if return_log_likelihood:
                     # FIXME: I DON'T KNOW LOG Likelihood CORRECTION FACTOR FOR MERGED CASES! 
                     Freq_comb = np.array([s.Freq[0,g], s.FreqTot-s.Freq[0,g]]).reshape(1,-1)
-                    log_likelihood[g] = ENCORE.LogLikelihood(s.EB, Freq_comb, s.TPPrior)
+                    log_likelihood[g] = ENCORE.LogLikelihood(s.EB, Freq_comb, s.log_likelihood_prior)
 
             # Combine probabilities for each merge case:
             combined_sg_probs = s.probCombinator(sg_probs)
@@ -568,7 +565,7 @@ class RunMaster:
                 if verbose: print('Finished spingroup 999 level-spacing calculation')
                 ENCORE = Encore(prior_1, level_spacing_probs_1, iMax_1)
                 if verbose: print('Finished spingroup 999 CP calculation')
-                base_log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.TPPrior)
+                base_log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.log_likelihood_prior)
                 combined_log_likelihood = s.logLikelihoodCombinator(log_likelihood, base_log_likelihood)
                 if verbose: print('Finished!')
                 return combined_sg_probs, combined_log_likelihood
@@ -637,7 +634,7 @@ class RunMaster:
 
     def logLikelihoodCombinator(self, partition_log_likelihoods, base_log_likelihoods:float):
         """
-        Combines log total probabilities from from various partitions.
+        Combines log-likelihoods from from various partitions.
         """
 
         return np.sum(partition_log_likelihoods) - (self.G-1)*base_log_likelihoods

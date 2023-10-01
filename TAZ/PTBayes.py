@@ -18,22 +18,22 @@ def PTBayes(res:Resonances, mean_params:MeanParameters, false_width_dist=None, p
 
     Parameters:
     ----------
-    res              : Resonances
+    res              :: Resonances
         The resonance data object.
     
-    mean_params      : MeanParameters
+    mean_params      :: MeanParameters
         The mean parameters for the reaction.
     
-    false_width_dist : function
+    false_width_dist :: function
         The PDF for the neutron widths of false resonances. If none are given, false widths are
         sampled from the joint neutron width PDF of all spingroups. Default is `None`.
     
-    prior            : float [L,G+1]
+    prior            :: float [L,G+1]
         Optional prior spingroup probabilities. Such probabilities may include information on
         statistical fits. However, the probabilities must be independent of the information
         provided by the width distributions. Default is `None`.
     
-    gamma_width_on   : bool
+    gamma_width_on   :: bool
         Determines whether the gamma-width probabilities are calculated based on the theoretical
         distribution. Many RRR evaluations assume the gamma widths are more or less constant. This
         theory is controversial, which is why the gamma width distribution is not considered by
@@ -41,11 +41,11 @@ def PTBayes(res:Resonances, mean_params:MeanParameters, false_width_dist=None, p
 
     Returns:
     -------
-    Posterior         : float [L,G+1]
+    posterior        :: float [L,G+1]
         The posterior spingroup probabilities.
-        
-    Total_Probability : float [L]
-        Likelihoods for each resonance. These likelihoods are used for the log-likelihoods.
+
+    log_likelihood   :: float
+        Calculated log-likelihood.
     """
 
     # Error Checking:
@@ -54,23 +54,32 @@ def PTBayes(res:Resonances, mean_params:MeanParameters, false_width_dist=None, p
     if type(mean_params) is not MeanParameters:
         raise TypeError('The "MeanParam" argument must be a "MeanParameters" object.')
     
+    # Setting prior:
     if prior == None:
         prob = mean_params.FreqAll / np.sum(mean_params.FreqAll)
         prior = np.repeat(prob, repeats=res.E.size, axis=0)
-    Posterior = prior
+    posterior = prior
 
+    # Neutron widths:
     mult_factor = (mean_params.nDOF/mean_params.Gnm) * ReduceFactor(res.E, mean_params.L, mean_params.A, mean_params.ac)
-    Posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gn.reshape(-1,1), mean_params.nDOF)
+    posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gn.reshape(-1,1), mean_params.nDOF)
 
+    # Gamma widths: (if gamma_width_on is True)
     if gamma_width_on:
         mult_factor = mean_params.gDOF/mean_params.Ggm
-        Posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg.reshape(-1,1), mean_params.gDOF)
+        posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg.reshape(-1,1), mean_params.gDOF)
 
+    # False distribution:
     if (mean_params.FreqF != 0.0) and (false_width_dist is not None):
-        Posterior[:,-1] *= false_width_dist(res.E, res.Gn, res.Gg)
+        posterior[:,-1] *= false_width_dist(res.E, res.Gn, res.Gg)
     else:
-        Posterior[:,-1] *= np.sum(Posterior[:,:-1], axis=1) / np.sum(prob[0,:-1])
+        posterior[:,-1] *= np.sum(posterior[:,:-1], axis=1) / np.sum(prob[0,:-1])
 
-    Total_Probability = np.sum(Posterior, axis=1)
-    Posterior /= Total_Probability.reshape(-1,1)
-    return Posterior, Total_Probability
+    # Normalization:
+    total_probability = np.sum(posterior, axis=1)
+    posterior /= total_probability.reshape(-1,1)
+
+    # Log likelihood:
+    log_likelihood = np.sum(np.log(total_probability))
+
+    return posterior, log_likelihood

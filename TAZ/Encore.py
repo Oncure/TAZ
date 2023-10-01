@@ -489,7 +489,7 @@ class Encore:
     # ==================================================================================
     # Log Total Probability
     # ==================================================================================
-    def LogLikelihood(self, EB:tuple, freq:float, TP_prior=None) -> float:
+    def LogLikelihood(self, EB:tuple, freq:float, log_likelihood_prior=None) -> float:
         """
         `LogLikelihood` gives a criterion for the likelihood of sampling the given energies and
         widths, assuming correct information was given (i.e. mean level spacing, mean neutron
@@ -497,26 +497,28 @@ class Encore:
         """
 
         dE = EB[1]-EB[0]
-        log_total_probability = math.log(self.TP) - np.sum(np.log(self.PW)) - freq[0,-1] * dE
-        
-        # TP prior component:
-        if TP_prior is not None:
-            log_total_probability += np.sum(np.log(TP_prior))
+        log_likelihood = math.log(self.TP) - np.sum(np.log(self.PW)) - freq[0,-1] * dE
 
-        # Turn to into log10:
-        log_total_probability /= math.log(10)
+        # Prior log likelihood:
+        if log_likelihood_prior is not None:
+            log_likelihood += log_likelihood_prior
 
-        return log_total_probability
+        return log_likelihood
 
     @staticmethod
-    def LikelihoodString(log_total_probability:float, sigfigs:int=3) -> str:
+    def LikelihoodString(log_likelihood:float, sigfigs:int=3) -> str:
         """
-        Prints the likelihood given the log likelihood. The total probability sometimes cannot be
-        given directly since the exponential term could exceed floating-point limitations.
+        Prints the likelihood given the log likelihood. The likelihood sometimes cannot be
+        given directly since the exponential term could exceed floating-point limitations;
+        for this reason, likelihood is given by a custom scientific notation.
         """
+
+        # Turn to into log10:
+        log_likelihood /= math.log(10)
+
         out_str = f'{{0:.{sigfigs}f}}e{{1}}'
-        exponent    = math.floor(log_total_probability)
-        significand = 10 ** (log_total_probability % 1.0)
+        exponent    = math.floor(log_likelihood)
+        significand = 10 ** (log_likelihood % 1.0)
         return out_str.format(significand, exponent)
 
 # ==================================================================================
