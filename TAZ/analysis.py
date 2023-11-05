@@ -41,6 +41,8 @@ def spinGroupNames(num_groups:int, last_false:bool=True):
     A function that provides default names for each of the `num_groups` spingroup. The spingroup
     names are given by letters, provided alphabetically, excluding "F", "I", and "O" to avoid
     confusion. If `last_false` is True, then the last group will have the name, "False".
+
+    ...
     """
 
     # Error checking:

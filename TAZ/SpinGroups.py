@@ -86,6 +86,19 @@ class SpinGroup:
     """
 
     def __init__(self, l:int, j:halfint, s:halfint=None):
+        """
+        Creates a SpinGroup object based on the quantum numbers for the reaction.
+
+        Parameters:
+        ----------
+        l :: int
+            The orbital angular momentum.
+        j :: halfint
+            Total angular momentum.
+        s :: halfint
+            Channel spin.
+        """
+
         self.L = uint8(l)
         
         if type(j) == halfint:      self.J = j

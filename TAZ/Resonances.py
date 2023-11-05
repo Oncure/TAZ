@@ -19,8 +19,10 @@ class MeanParameters:
     MeanParameters is a class that contains information about a particular reaction, such as the
     target nuclei mass, nuclear radius, spin, mean level spacing, and more.
 
-    Attributes:
-    ----------
+    Let "G" be the number of spingroups.
+
+    Target Isotope Attributes:
+    -------------------------
     I        :: int
         target particle spin.
     Z        :: int
@@ -31,22 +33,21 @@ class MeanParameters:
         target nuclei mass.
     ac       :: float
         target nuclear radius.
+    
+    Resonance Attributes:
+    --------------------
+    sg       :: SpinGroups
+        Spingroups for the reaction.
     EB       :: float [2]
         Energy range for evaluation.
     FreqF    :: float
         False resonance level density.
-    Gn_trunc :: float
-        Lowest recordable neutron width.
-    MissFrac :: float
-        Fraction of Resonances that have been missed.
-    sg       :: SpinGroups
-        Spingroups for the reaction.
     Freq     :: float [G]
         Resonance level densities for each spingroup.
-    FreqAll  :: float [G+1]
-        Resonance and false level densities.
     MLS      :: float [G]
         Resonance mean level spacings for each spingroup.
+    w        :: float [G]
+        Brody resonance parameter.
     Gnm      :: float [G]
         Resonance mean neutron widths for each spingroup.
     nDOF     :: float [G]
@@ -55,8 +56,10 @@ class MeanParameters:
         Resonance mean gamma width for each spingroup.
     gDOF     :: float [G]
         Resonance gamma width degrees of freedom for each spingroup.
-    w        :: float [G]
-        Brody resonance parameter.
+    Gn_trunc :: float [G]
+        Lowest recordable neutron width.
+    MissFrac :: float [G]
+        Fraction of Resonances that have been missed.
     """
 
     DEFAULT_GDOF = 500
@@ -101,20 +104,25 @@ class MeanParameters:
 
         # Isotope Spin:
         self.I, IExists = paramsIn('I', 'S', 'spin', 'isotope_spin', type='halfint')
+        
         # Atomic Number:
         self.Z, ZExists = paramsIn('Z', 'atomic_number', type='int')
+        
         # Atomic Mass:
         self.A, AExists = paramsIn('A', 'atomic_mass', type='int')
+        
         # Mass:
         mass, massExists = paramsIn('mass', 'Mass', 'm', 'M', type='float')
         if massExists:  self.mass = mass
         elif AExists:   self.mass = float(self.A)
         else:           self.mass = None
+        
         # Atomic Radius:
         ac, acExists = paramsIn('Ac', 'ac', 'atomic_radius', 'scatter_radius', type='float')
         if acExists:    self.ac = ac
         elif AExists:   self.ac = RMatrix.NuclearRadius(self.A)
         else:           self.ac = None
+        
         # Energy Range:
         EB, EBExists = paramsIn('EB', 'energy_bounds', 'energy_range', type='tuple')
         if EBExists:
@@ -123,6 +131,7 @@ class MeanParameters:
             elif self.EB[0] > self.EB[1]:   raise ValueError('"EB" must be a valid increasing interval')
         else:
             self.EB = None
+        
         # False Frequency:
         FreqF, FalseFreqExists = paramsIn('freqF', 'FreqF', 'false_frequency', type='float')
         self.FreqF = FreqF if FalseFreqExists else 0.0
@@ -186,15 +195,15 @@ class MeanParameters:
         return self.Freq.shape[1]
     @property
     def L(self):
-        'Angular Quantum Number'
+        'Orbital Angular Momentum'
         return np.array(self.sg.L).reshape(1,-1)
     @property
     def J(self):
-        'Total Spin Quantum Number'
+        'Total Angular Momentum'
         return np.array(self.sg.J).reshape(1,-1)
     @property
     def S(self):
-        '...'
+        'Channel Spin'
         return np.array(self.sg.S).reshape(1,-1)
     @property
     def MLS(self):
@@ -206,7 +215,6 @@ class MeanParameters:
         return np.append(self.Freq, np.array(self.FreqF, ndmin=2), axis=1)
     
     def __repr__(self):
-        # raise NotImplementedError('String representation of "MeanParameters" has not been implemented yet.')
         txt = ''
         txt += f'Nuclear Spin        = {self.I}\n'
         txt += f'Atomic Number       = {self.Z}\n'
@@ -240,7 +248,8 @@ class MeanParameters:
         param_dict = json.loads(file)
         return cls(**param_dict)
             
-    def sample(self, ensemble:str='NNE', rng=None, seed:int=None):
+    def sample(self, ensemble:str='NNE',
+               rng=None, seed:int=None):
         """
         Samples resonance parameters based on the given information.
         
@@ -330,7 +339,7 @@ class MeanParameters:
 
         # Missing Resonances:
         if self.MissFrac is not None:
-            if self.given_miss_frac:
+            if self.given_miss_frac: # given "MissFrac" directly
                 miss_frac = np.concatenate((self.MissFrac, np.zeros((1,1))), axis=1)
                 missed_idx = (rng.uniform(size=E.shape) < miss_frac[0,spingroups])
 
@@ -407,6 +416,52 @@ class MeanParameters:
         """
 
         # Matching spingroup:
+        spingroup = self.__match_spingroup(spingroup)
+
+        if   quantity == 'energies':
+            if not cdf: # PDF
+                f = lambda e: 1.0 / (self.EB[1] - self.EB[0])
+            else: # CDF
+                f = lambda e: (e - self.EB[0]) / (self.EB[1] - self.EB[0])
+        elif quantity == 'level spacing':
+            if spingroup == self.num_sgs:
+                if not cdf: # PDF
+                    f = lambda x: self.FreqF * np.exp(-self.FreqF * x)
+                else: # CDF
+                    f = lambda x: 1 - np.exp(-self.FreqF * x)
+            else:
+                if self.w[0,spingroup] == 1.0:
+                    if self.MissFrac[0,spingroup] == 0.0:
+                        dist_type = 'Wigner'
+                    else:
+                        dist_type = 'Missing'
+                else:
+                    if self.MissFrac[0,spingroup] == 0.0:
+                        dist_type = 'Brody'
+                    else:
+                        raise NotImplementedError('The level-spacing distribution for Brody distribution with missing levels has not been implemented yet.')
+                if not cdf: # PDF
+                    f = self.distributions(dist_type)[spingroup].f0
+                else: # CDF
+                    f = lambda x: 1.0 - self.distributions(dist_type)[spingroup].f1(x)
+        elif quantity == 'neutron width':
+            if not cdf: # PDF
+                f = lambda rGn: RMatrix.PorterThomasPDF(rGn, self.Gnm[0,spingroup], trunc=self.Gn_trunc[0,spingroup], dof=self.nDOF[0,spingroup])
+            else: # CDF
+                f = lambda rGn: RMatrix.PorterThomasCDF(rGn, self.Gnm[0,spingroup], trunc=self.Gn_trunc[0,spingroup], dof=self.nDOF[0,spingroup])
+        elif quantity in ('gamma width', 'capture width'):
+            if not cdf: # PDF
+                f = lambda rGg: RMatrix.PorterThomasPDF(rGg, self.Ggm[0,spingroup], trunc=0.0, dof=self.gDOF[0,spingroup])
+            else: # CDF
+                f = lambda rGg: RMatrix.PorterThomasCDF(rGg, self.Ggm[0,spingroup], trunc=0.0, dof=self.gDOF[0,spingroup])
+
+        return f
+    
+    def __match_spingroup(self, spingroup):
+        """
+        ...
+        """
+
         if spingroup in ('false', 'False'):
             spingroup = self.num_sgs
         elif type(spingroup) == SpinGroup:
@@ -418,39 +473,7 @@ class MeanParameters:
                 raise ValueError(f'The provided spingroup, {spingroup}, does not match any of the recorded spingroups.')
         elif type(spingroup) != int:
             raise TypeError('The provided spingroup is not an integer ID nor is it a "SpinGroup" object.')
-
-        if   quantity == 'energies':
-            if not cdf: # PDF
-                f = lambda e: 1.0 / (self.EB[1] - self.EB[0])
-            else: # CDF
-                f = lambda e: (e - self.EB[0]) / (self.EB[1] - self.EB[0])
-        elif quantity == 'level spacing':
-            if np.all(self.w == 1.0):
-                if self.MissFrac == 0.0:
-                    dist_type = 'Wigner'
-                else:
-                    dist_type = 'Missing'
-            else:
-                if self.MissFrac == 0.0:
-                    dist_type = 'Brody'
-                else:
-                    raise NotImplementedError('The level-spacing distribution for Brody distribution with missing levels has not been implemented yet.')
-            if not cdf: # PDF
-                f = self.distributions(dist_type)[spingroup].f0
-            else: # CDF
-                f = lambda x: 1.0 - self.distributions(dist_type)[spingroup].f1(x)
-        elif quantity == 'neutron width':
-            if not cdf: # PDF
-                f = lambda rGn: RMatrix.PorterThomasPDF(rGn, self.Gnm[spingroup], trunc=self.Gn_trunc[spingroup], dof=self.nDOF[spingroup])
-            else: # CDF
-                f = lambda rGn: RMatrix.PorterThomasCDF(rGn,  self.Gnm[spingroup], trunc=self.Gn_trunc[spingroup], dof=self.nDOF[spingroup])
-        elif quantity in ('gamma width', 'capture width'):
-            if not cdf: # PDF
-                f = lambda rGg: RMatrix.PorterThomasPDF(rGg, self.Ggm[spingroup], trunc=0.0, dof=self.gDOF[spingroup])
-            else: # CDF
-                f = lambda rGg: RMatrix.PorterThomasCDF(rGg,  self.Ggm[spingroup], trunc=0.0, dof=self.gDOF[spingroup])
-
-        return f
+        return spingroup
 
 # =================================================================================================
 # Resonances:

@@ -458,6 +458,9 @@ class RunMaster:
     @property
     def FreqTot(self):
         return np.sum(self.Freq[0,:])
+    @property
+    def FreqF(self):
+        return self.Freq[0,-1]
 
     def mergePartitioner(s, partitions:list):
         """
@@ -514,7 +517,7 @@ class RunMaster:
             if verbose: print(f'Finished WigBayes calculation')
 
             if return_log_likelihood:
-                log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.log_likelihood_prior)
+                log_likelihood = ENCORE.LogLikelihood(s.EB, s.FreqF, s.log_likelihood_prior)
                 return sg_probs, log_likelihood
             else:
                 return sg_probs
@@ -530,7 +533,7 @@ class RunMaster:
             if verbose: print(f'Finished WigBayes calculation')
 
             if return_log_likelihood:
-                log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.log_likelihood_prior)
+                log_likelihood = ENCORE.LogLikelihood(s.EB, s.FreqF, s.log_likelihood_prior)
                 return sg_probs, log_likelihood
             else:
                 return sg_probs
@@ -554,8 +557,8 @@ class RunMaster:
 
                 if return_log_likelihood:
                     # FIXME: I DON'T KNOW LOG Likelihood CORRECTION FACTOR FOR MERGED CASES! 
-                    Freq_comb = np.array([s.Freq[0,g], s.FreqTot-s.Freq[0,g]]).reshape(1,-1)
-                    log_likelihood[g] = ENCORE.LogLikelihood(s.EB, Freq_comb, s.log_likelihood_prior)
+                    # Freq_comb = np.array([s.Freq[0,g], s.FreqTot-s.Freq[0,g]]).reshape(1,-1)
+                    log_likelihood[g] = ENCORE.LogLikelihood(s.EB, s.FreqF, s.log_likelihood_prior)
 
             # Combine probabilities for each merge case:
             combined_sg_probs = s.probCombinator(sg_probs)
@@ -565,7 +568,7 @@ class RunMaster:
                 if verbose: print('Finished spingroup 999 level-spacing calculation')
                 ENCORE = Encore(prior_1, level_spacing_probs_1, iMax_1)
                 if verbose: print('Finished spingroup 999 CP calculation')
-                base_log_likelihood = ENCORE.LogLikelihood(s.EB, s.Freq, s.log_likelihood_prior)
+                base_log_likelihood = ENCORE.LogLikelihood(s.EB, s.FreqF, s.log_likelihood_prior)
                 combined_log_likelihood = s.logLikelihoodCombinator(log_likelihood, base_log_likelihood)
                 if verbose: print('Finished!')
                 return combined_sg_probs, combined_log_likelihood

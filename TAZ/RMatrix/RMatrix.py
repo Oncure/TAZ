@@ -5,7 +5,7 @@ This module is the collection of relevant R-Matrix Theory quantities. Many of th
 found in the ENDF and SAMMY manuals.
 """
 
-def NuclearRadius(A:float) -> float:
+def NuclearRadius(A:int) -> float:
     """
     Finds the nuclear radius from the atomic mass.
 
@@ -13,7 +13,7 @@ def NuclearRadius(A:float) -> float:
 
     Parameters:
     ----------
-    A  :: float
+    A  :: int
         Atomic mass of the isotope.
 
     Returns:
@@ -23,7 +23,10 @@ def NuclearRadius(A:float) -> float:
     """
     return 1.23 * A**(1/3) + 0.8 # fm = 10^-15 m
 
-def Rho(A:float, ac:float, E, E_thres:float=0.0):
+def Rho(mass_targ:float, ac:float, E,
+        mass_proj:float=None,
+        mass_targ_after:float=None, mass_proj_after:float=None,
+        E_thres:float=None):
     """
     Finds the momentum factor, `rho`.
 
@@ -31,24 +34,47 @@ def Rho(A:float, ac:float, E, E_thres:float=0.0):
 
     Parameters:
     ----------
-    A       :: float
-        Atomic mass of the isotope.
-    ac      :: float
-        Channel radius.
-    E       :: float, array-like
+    mass_targ       :: float
+        Mass of the target isotope.
+    ac              :: float
+        Channel radius .
+    E               :: float, array-like
         Energy points for which Rho is evaluated.
-    E_thres :: float
-        Threshold energy for the reaction. Default is 0.0
-
+    mass_proj       :: float
+        Mass of the projectile. Default = 1.008665 amu (neutron mass).
+    mass_targ_after :: float
+        Mass of the target after the reaction. Default = mass_targ.
+    mass_proj_after :: float
+        Mass of the target before the reaction. Default = mass_proj.
+    E_thres         :: float
+        Threshold energy for the reaction. Default is calculated from Q-value.
+        
     Returns:
     --------
-    float, array-like
-        Momentum factor, `rho`.
+    rho :: float, array-like
+        Momentum factor, ρ.
     """
+
+    if mass_proj is None:
+        mass_proj = 1.008665 # amu (neutron mass)
+    if mass_targ_after is None:
+        mass_targ_after = mass_targ # assume elastic scattering
+    if mass_proj_after is None:
+        mass_proj_after = mass_proj # assume elastic scattering
+    if E_thres is None:
+        Q_value = mass_targ + mass_proj - mass_targ_after - mass_proj_after
+        E_thres = - ((mass_targ + mass_proj)/mass_targ) * Q_value # Eq. II C2.1 in the SAMMY manual
+
+    # Error Checking:
     if any(E < E_thres):
         raise ValueError(f'The given energies are below the threshold energy of {E_thres} eV.')
-    CONSTANT = 0.002197; # sqrt(2Mn)/hbar; units of (10^(-12) cm sqrt(eV)^-1)
-    return CONSTANT*ac*(A/(A+1))*np.sqrt(E-E_thres)
+
+    CONSTANT = 0.0001546691274; # ((amu)^{1/2} * fm) / h_bar --> eV^{-1/2}
+    mass_ratio_before = mass_targ / (mass_proj + mass_targ)
+    mass_ratio_after  = 2 * mass_proj_after * mass_targ_after / (mass_proj_after + mass_targ_after)
+    Delta_E = E-E_thres
+    rho = CONSTANT * np.sqrt((mass_ratio_before * mass_ratio_after) * Delta_E) * ac
+    return rho
 
 def PenetrationFactor(rho, l:int):
     """
@@ -93,10 +119,10 @@ def PenetrationFactor(rho, l:int):
                 S = mult*S - l_iter
             return P
 
-    if hasattr(l, '__iter__'): # Is iterable
+    if hasattr(l, '__iter__'): # is iterable
         pen_factor = np.zeros((rho.shape[0],l.shape[1]))
-        for t, lt in enumerate(l[0,:]):
-            pen_factor[:,t] = _penetrationFactor(rho,lt)
-    else: # Is not iterable
+        for g, lg in enumerate(l[0,:]):
+            pen_factor[:,g] = _penetrationFactor(rho,lg)
+    else: # is not iterable
         pen_factor = np.array(_penetrationFactor(rho,l))
     return pen_factor

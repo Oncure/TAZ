@@ -3,6 +3,7 @@
 
 import math
 import numpy as np
+# import autograd.numpy as np
 
 __doc__ = """
 This file is responsible for the 1 and 2 spingroup classification algorithm. For more than 2
@@ -487,9 +488,9 @@ class Encore:
         return prob_of_sampling
 
     # ==================================================================================
-    # Log Total Probability
+    # Log Likelihood
     # ==================================================================================
-    def LogLikelihood(self, EB:tuple, freq:float, log_likelihood_prior=None) -> float:
+    def LogLikelihood(self, EB:tuple, lvl_dens_false:float, log_likelihood_prior:float=None) -> float:
         """
         `LogLikelihood` gives a criterion for the likelihood of sampling the given energies and
         widths, assuming correct information was given (i.e. mean level spacing, mean neutron
@@ -497,7 +498,7 @@ class Encore:
         """
 
         dE = EB[1]-EB[0]
-        log_likelihood = math.log(self.TP) - np.sum(np.log(self.PW)) - freq[0,-1] * dE
+        log_likelihood = math.log(self.TP) - np.sum(np.log(self.PW)) - lvl_dens_false * dE
 
         # Prior log likelihood:
         if log_likelihood_prior is not None:
@@ -520,6 +521,22 @@ class Encore:
         exponent    = math.floor(log_likelihood)
         significand = 10 ** (log_likelihood % 1.0)
         return out_str.format(significand, exponent)
+    
+    @staticmethod
+    def ExpectedLogLikelihood(EB:tuple, lvl_densities:np.ndarray, log_likelihood_prior_exp:float=None) -> float:
+        """
+        ...
+        """
+
+        raise NotImplementedError('Expected log likelihood estimation has not been implemented yet.')
+
+        dE = EB[1] - EB[0]
+
+        # Prior log likelihood:
+        if log_likelihood_prior_exp is not None:
+            log_likelihood_exp += log_likelihood_prior_exp
+
+        return log_likelihood_exp
 
 # ==================================================================================
 # Brute Force Algorithms

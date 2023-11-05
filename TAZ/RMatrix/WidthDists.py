@@ -5,7 +5,7 @@ from scipy.stats import chi2
 from .RMatrix import PenetrationFactor, Rho
 
 __doc__ = """
-This module is for partial width probability distributions.
+This module contains partial width probability distributions.
 """
 
 # =================================================================================================
@@ -15,12 +15,27 @@ This module is for partial width probability distributions.
 def FractionMissing(trunc:float, Gm:float=1.0, dof:int=1):
     """
     Gives the fraction of missing resonances due to the truncation in neutron width.
+
+    Parameters:
+    ----------
+    trunc :: float
+        The lower limit on the reduced neutron width.
+    Gm    :: float
+        The mean reduced neutron width. Default = 1.0.
+    dof   :: int
+        The number of degrees of freedom for the chi-squared distribution.
+
+    Returns:
+    -------
+    fraction_missing :: float
+        The fraction of missing resonances within the spingroup.
     """
-    return gammainc(dof/2, dof*trunc/(2*Gm))
+    fraction_missing = gammainc(dof/2, dof*trunc/(2*Gm))
+    return fraction_missing
 
 def PorterThomasPDF(G, Gm:float, trunc:float=0.0, dof:int=1):
     """
-    The probability density function (PDF) for Porter-Thomas Distribution on the width. There is
+    The probability density function (PDF) for Porter-Thomas distribution on the width. There is
     an additional width truncation factor, `trunc`, that ignores widths below the truncation
     threshold (meant for missing resonances hidden in the statistical noise).
 
@@ -46,7 +61,8 @@ def PorterThomasPDF(G, Gm:float, trunc:float=0.0, dof:int=1):
         prob = chi2.pdf(G, df=dof, scale=Gm/dof)
     else:
         prob = np.zeros(len(G))
-        prob[G >  trunc] = chi2.pdf(G[G > trunc], df=dof, scale=Gm/dof) / (1 - FractionMissing(trunc, Gm, dof))
+        fraction_missing = FractionMissing(trunc, Gm, dof)
+        prob[G >  trunc] = chi2.pdf(G[G > trunc], df=dof, scale=Gm/dof) / (1 - fraction_missing)
         prob[G <= trunc] = 0.0
     return prob
 
@@ -83,10 +99,32 @@ def PorterThomasCDF(G, Gm:float=1.0, trunc:float=0.0, dof:int=1):
         prob[G <= trunc] = 0.0
     return prob
     
-def ReduceFactor(E, l:float, A:float, ac:float):
+def ReduceFactor(E, l:int, mass_targ:float, ac:float, mass_proj:float=None, mass_targ_after:float=None, mass_proj_after:float=None, E_thres:float=None):
     """
     Multiplication factor to convert from neutron width to reduced neutron width.
+
+    Parameters:
+    ----------
+    E               :: float, array-like
+        Resonance energies.
+    l               :: int, array-like
+        Orbital angular momentum number.
+    mass_proj       :: float
+        Mass of the projectile. Default = 1.008665 amu (neutron mass).
+    mass_targ_after :: float
+        Mass of the target after the reaction. Default = mass_targ.
+    mass_proj_after :: float
+        Mass of the target before the reaction. Default = mass_proj.
+    E_thres         :: float
+        Threshold energy for the reaction. Default is calculated from Q-value.
+
+    Returns:
+    -------
+    reduce_factor :: float, array-like
+        A multiplication factor that converts neutron widths into reduced neutron widths.
     """
 
-    rho = Rho(A, ac, E)
-    return 1.0 / (2.0*PenetrationFactor(rho,l))
+    rho = Rho(mass_targ, ac, E,
+              mass_proj, mass_targ_after, mass_proj_after, E_thres)
+    reduce_factor = 1.0 / (2.0*PenetrationFactor(rho,l))
+    return reduce_factor
