@@ -16,26 +16,37 @@ information such as Energy, widths, and spin-group assignments.
 
 class Particle:
     """
-    ...
+    Attributes:
+    ----------
+    Z        :: int
+        Atomic number
+    A        :: int
+        Atomic mass
+    I        :: halfint
+        Particle spin
+    mass     :: float
+        Nuclei mass
+    ac       :: float
+        Nuclear radius
     """
 
     mass_neutron = 1.008665 # amu
 
-    def __init__(self, I:halfint=None, Z:int=None, A:int=None,
+    def __init__(self, Z:int=None, A:int=None, I:halfint=None,
                  mass:float=None, AWRI:float=None,
-                 radius:float=None):
+                 radius:float=None, name:str=None):
         """
-        ...
+        Initialize a Particle object.
         """
-        # Isotope Spin:
-        if I is not None:   self.I = halfint(I)
-        else:               self.I = None
         # Atomic Number:
         if Z is not None:   self.Z = int(Z)
         else:               self.Z = None
         # Atomic Mass:
         if A is not None:   self.A = int(A)
         else:               self.A = None
+        # Isotope Spin:
+        if I is not None:   self.I = halfint(I)
+        else:               self.I = None
         # Mass: (amu)
         if mass is not None:    self.mass = float(mass)
         elif AWRI is not None:  self.mass = float(AWRI*self.mass_neutron)
@@ -44,8 +55,26 @@ class Particle:
         # Nuclear Radius: (fm)
         if radius is not None:  self.radius = float(radius)
         elif A is not None:     self.radius = 1.23 * self.A**(1/3)
+        # Particle Name:
+        if name is not None:
+            self.name = str(name)
+        elif (A is not None) and (Z is not None):
+            self.name = str(Z*1000+A)
+        else:
+            self.name = '???'
+
+        def __repr__(self):
+            txt  = f'Particle:       {self.name}\n'
+            txt += f'Atomic Number:  {self.Z}\n'
+            txt += f'Atomic Mass:    {self.A}\n'
+            txt += f'Nuclear Spin:   {self.I}\n'
+            txt += f'Mass:           {self.mass} amu\n'
+            txt += f'Nuclear Radius: {self.radius} fm\n'
+            return txt
+        def __str__(self):
+            return self.name
     
-Neutron = Particle(I=0.5, Z=0, A=1, mass=1.008665, radius=0.8)
+Neutron = Particle(I=0.5, Z=0, A=1, mass=1.008665, radius=0.8, name='neutron')
 
 # =================================================================================================
 #    Mean Parameters:
