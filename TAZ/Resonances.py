@@ -11,6 +11,43 @@ information such as Energy, widths, and spin-group assignments.
 """
 
 # =================================================================================================
+#    Particle:
+# =================================================================================================
+
+class Particle:
+    """
+    ...
+    """
+
+    mass_neutron = 1.008665 # amu
+
+    def __init__(self, I:halfint=None, Z:int=None, A:int=None,
+                 mass:float=None, AWRI:float=None,
+                 radius:float=None):
+        """
+        ...
+        """
+        # Isotope Spin:
+        if I is not None:   self.I = halfint(I)
+        else:               self.I = None
+        # Atomic Number:
+        if Z is not None:   self.Z = int(Z)
+        else:               self.Z = None
+        # Atomic Mass:
+        if A is not None:   self.A = int(A)
+        else:               self.A = None
+        # Mass: (amu)
+        if mass is not None:    self.mass = float(mass)
+        elif AWRI is not None:  self.mass = float(AWRI*self.mass_neutron)
+        elif A is not None:     self.mass = float(A)
+        else:                   self.mass = None
+        # Nuclear Radius: (fm)
+        if radius is not None:  self.radius = float(radius)
+        elif A is not None:     self.radius = 1.23 * self.A**(1/3)
+    
+Neutron = Particle(I=0.5, Z=0, A=1, mass=1.008665, radius=0.8)
+
+# =================================================================================================
 #    Mean Parameters:
 # =================================================================================================
 
@@ -64,12 +101,8 @@ class MeanParameters:
 
     DEFAULT_GDOF = 500
 
-
-
-
-
-
-    def __init__(self, I:int=None, Z:int=None, A:int=None,
+    def __init__(self,
+                 I:halfint=None, Z:int=None, A:int=None,
                  mass:float=None, ac:float=None,
                  EB:tuple=None, FreqF:float=None,
                  sg:SpinGroups=None,

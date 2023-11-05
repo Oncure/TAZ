@@ -176,10 +176,10 @@ class SpinGroups:
         else:
             raise ValueError('The number of "L", "J", and "S" values for spin-groups are not equal.')
         l_max = max(*Ls, 0) # I need to add another l-value in case len(Ls)=1; otherwise, max(*Ls) will break
-        return cls(sgs, l_max)
+        return cls(sgs, l_max=l_max)
 
     @classmethod
-    def find(cls, spin_target, spin_proj=1/2, l_max:int=1):
+    def find(cls, spin_target:halfint, spin_proj:halfint=1/2, l_max:int=1):
         """
         Finds all of the valid spingroups with "l" less than or equal to "l_max".
         """
