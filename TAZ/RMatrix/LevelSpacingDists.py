@@ -245,7 +245,7 @@ class Distributions:
     def __init__(self, *distributions:Distribution):
         'Initializing distributions'
         self.distributions = list(distributions)
-        self.Freq = np.array([distr.Freq for distr in self.distributions]).reshape(1,-1)
+        self.Freq = np.array([distr.Freq for distr in self.distributions])
     
     # Functions and properties:
     def f0(self, X):

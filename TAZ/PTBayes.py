@@ -57,23 +57,23 @@ def PTBayes(res:Resonances, mean_params:MeanParameters, false_width_dist=None, p
     # Setting prior:
     if prior == None:
         prob = mean_params.FreqAll / np.sum(mean_params.FreqAll)
-        prior = np.repeat(prob, repeats=res.E.size, axis=0)
+        prior = np.tile(prob, (res.E.size,1))
     posterior = prior
 
     # Neutron widths:
-    mult_factor = (mean_params.nDOF/mean_params.Gnm) * ReduceFactor(res.E, mean_params.L, mean_params.A, mean_params.ac)
+    mult_factor = (mean_params.nDOF/mean_params.Gnm).reshape(1,-1) * ReduceFactor(res.E, mean_params.L, mean_params.A, mean_params.ac)
     posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gn.reshape(-1,1), mean_params.nDOF)
 
     # Gamma widths: (if gamma_width_on is True)
     if gamma_width_on:
-        mult_factor = mean_params.gDOF/mean_params.Ggm
+        mult_factor = (mean_params.gDOF/mean_params.Ggm).reshape(1,-1)
         posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg.reshape(-1,1), mean_params.gDOF)
 
     # False distribution:
     if (mean_params.FreqF != 0.0) and (false_width_dist is not None):
         posterior[:,-1] *= false_width_dist(res.E, res.Gn, res.Gg)
     else:
-        posterior[:,-1] *= np.sum(posterior[:,:-1], axis=1) / np.sum(prob[0,:-1])
+        posterior[:,-1] *= np.sum(posterior[:,:-1], axis=1) / np.sum(prob[:-1])
 
     # Normalization:
     total_probability = np.sum(posterior, axis=1)

@@ -120,8 +120,8 @@ def PenetrationFactor(rho, l:int):
             return P
 
     if hasattr(l, '__iter__'): # is iterable
-        pen_factor = np.zeros((rho.shape[0],l.shape[1]))
-        for g, lg in enumerate(l[0,:]):
+        pen_factor = np.zeros((len(rho),len(l)))
+        for g, lg in enumerate(l):
             pen_factor[:,g] = _penetrationFactor(rho,lg)
     else: # is not iterable
         pen_factor = np.array(_penetrationFactor(rho,l))

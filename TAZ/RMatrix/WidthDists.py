@@ -12,7 +12,7 @@ This module contains partial width probability distributions.
 #    Width Probability Distributions
 # =================================================================================================
 
-def FractionMissing(trunc:float, Gm:float=1.0, dof:int=1):
+def FractionMissing(trunc:float, Gnm:float=1.0, dof:int=1):
     """
     Gives the fraction of missing resonances due to the truncation in neutron width.
 
@@ -20,7 +20,7 @@ def FractionMissing(trunc:float, Gm:float=1.0, dof:int=1):
     ----------
     trunc :: float
         The lower limit on the reduced neutron width.
-    Gm    :: float
+    Gnm   :: float
         The mean reduced neutron width. Default = 1.0.
     dof   :: int
         The number of degrees of freedom for the chi-squared distribution.
@@ -30,7 +30,7 @@ def FractionMissing(trunc:float, Gm:float=1.0, dof:int=1):
     fraction_missing :: float
         The fraction of missing resonances within the spingroup.
     """
-    fraction_missing = gammainc(dof/2, dof*trunc/(2*Gm))
+    fraction_missing = gammainc(dof/2, dof*trunc/(2*Gnm))
     return fraction_missing
 
 def PorterThomasPDF(G, Gm:float, trunc:float=0.0, dof:int=1):

@@ -78,15 +78,15 @@ class Merger:
             raise ValueError('The probability threshold, "err", must be strictly between 0 and 1.')
 
         self.level_spacing_dists = level_spacing_dists
-        self.Freq = self.level_spacing_dists.Freq.reshape(1,-1)
-        self.G    = self.Freq.shape[1]
+        self.Freq = self.level_spacing_dists.Freq
+        self.G    = len(self.Freq)
 
-        xMax_limit  = self.__xMax_limit(err) # xMax must be bounded by the error for spingroup alone
+        xMax_limits = self.__xMax_limits(err) # xMax must be bounded by the error for spingroup alone
 
         if self.G != 1:
-            self.Z, self.ZB = self.__findZ(xMax_limit)
+            self.Z, self.ZB = self.__findZ(xMax_limits)
 
-        self.xMax, self.xMaxB = self.__findxMax(err, xMax_limit)
+        self.xMax, self.xMaxB = self.__findxMax(err, xMax_limits)
 
     @property
     def FreqTot(self):
@@ -314,7 +314,7 @@ class Merger:
         probs = (c / norm) * np.sum(prior*r2, axis=1)
         return probs.reshape(X.shape)
    
-    def __findZ(s, xMax_limit):
+    def __findZ(s, xMax_limits):
         """
         A function that calculates normalization matrices using the spingroups. When paired with
         the prior probabilities, the arrays, `Z` and `ZB` are the normalization factors for the
@@ -339,14 +339,16 @@ class Merger:
         for i in range(s.G):
             for j in range(i):
                 # Off-diagonal:
-                Z[i,j] = integrate(lambda _x: offDiag(_x,i,j), a=0.0, b=min(*xMax_limit[0,[i,j]]))[0]
+                min_xMax_limit = min(xMax_limits[i], xMax_limits[j])
+                Z[i,j] = integrate(lambda _x: offDiag(_x,i,j), a=0.0, b=min_xMax_limit)[0]
                 Z[j,i] = Z[i,j]
             # Main diagonal:
-            Z[i,i] = integrate(lambda _x: mainDiag(_x,i), a=0.0, b=xMax_limit[0,i])[0]
+            Z[i,i] = integrate(lambda _x: mainDiag(_x,i), a=0.0, b=xMax_limits[i])[0]
         
         # Level Spacing Normalization at Boundaries:
-        ZB = np.zeros((s.G,), dtype='f8')
-        ZB[:] = [integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limit[0,i])[0] for i in range(s.G)]
+        # ZB = np.zeros((s.G,), dtype='f8')
+        # ZB[:] = [integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limits[i])[0] for i in range(s.G)]
+        ZB = np.array([integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limits[i])[0] for i in range(s.G)], dtype='f8')
 
         # Error Checking:
         if (Z == np.nan).any():
@@ -364,14 +366,14 @@ class Merger:
         
         return Z, ZB
     
-    def __findxMax(s, err:float, xMax_limit):
+    def __findxMax(s, err:float, xMax_limits):
         """
         An upper limit on the level-spacing beyond which is improbable, as determined by the
         probability threshold, `err`. To ensure the solution is found a rough estimate must be
         provided: `xMax_limit`.
         """
         mthd   = 'brentq' # method for root-finding
-        bounds = [s.MLSTot, max(*xMax_limit)]
+        bounds = [s.MLSTot, np.max(xMax_limits)]
         if s.G == 1:
             xMax  = root_scalar(lambda x: s.level_spacing_dists.f0(x) - err     , method=mthd, bracket=bounds).root
             xMaxB = root_scalar(lambda x: s.level_spacing_dists.f1(x) - err, method=mthd, bracket=bounds).root
@@ -397,7 +399,7 @@ class Merger:
             xMaxB = root_scalar(lambda x: upperBoundLevelSpacingBoundary(x)-err, method=mthd, bracket=bounds).root
         return xMax, xMaxB
 
-    def __xMax_limit(self, err:float):
+    def __xMax_limits(self, err:float):
         """
         In order to estimate `xMax` and `xMaxB`, we first must calculate `Z` and `ZB`. `xMax_limit`
         is used to get a simple upper bound on `xMax` and `xMaxB`. This limit assumes that the
@@ -443,13 +445,13 @@ class RunMaster:
         self.EB = EB
         self.level_spacing_dists = level_spacing_dists
 
-        self.Freq = np.concatenate((self.level_spacing_dists.Freq, [[FreqF]]), axis=1)
+        self.Freq = np.concatenate((self.level_spacing_dists.Freq, [FreqF]))
 
-        self.L = E.size
-        self.G = self.Freq.size - 1
+        self.L = len(E)
+        self.G = len(self.Freq) - 1
 
         if Prior is None:
-            self.Prior = np.repeat(self.Freq/self.FreqTot, self.L, axis=0)
+            self.Prior = np.tile(self.Freq/self.FreqTot, (self.L,1))
         else:
             self.Prior = Prior
         self.log_likelihood_prior = log_likelihood_prior
@@ -457,10 +459,10 @@ class RunMaster:
     
     @property
     def FreqTot(self):
-        return np.sum(self.Freq[0,:])
+        return np.sum(self.Freq)
     @property
     def FreqF(self):
-        return self.Freq[0,-1]
+        return self.Freq[-1]
 
     def mergePartitioner(s, partitions:list):
         """

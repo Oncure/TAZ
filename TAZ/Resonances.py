@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from . import halfint, RMatrix, SpinGroup
+from . import halfint, RMatrix, SpinGroup, SpinGroups
 
 __doc__ = """
 This file keeps the "MeanParameters" class and "Resonances" class. The "MeanParameters" class
@@ -64,147 +64,156 @@ class MeanParameters:
 
     DEFAULT_GDOF = 500
 
-    def __init__(self, **kwargs):
+
+
+
+
+
+    def __init__(self, I:int=None, Z:int=None, A:int=None,
+                 mass:float=None, ac:float=None,
+                 EB:tuple=None, FreqF:float=None,
+                 sg:SpinGroups=None,
+                 Freq:list=None, MLS:list=None,
+                 w:list=None,
+                 Gnm:list=None, nDOF:list=None,
+                 Ggm:list=None, gDOF:list=None,
+                 Gn_trunc:list=None, MissFrac:list=None):
         """
         Initializes reaction parameters with keyword arguments.
         """
-
-        param_names = set(kwargs.keys())
-        def paramsIn(*names:str, **options:str):
-            if 'type' in options.keys():    param_type = options['type']
-            else:                           param_type = 'array1'
-            param_set = (param_names & set(names))
-            param_list = list(param_set)
-            if len(param_list) >= 2:
-                param_str = '\"' + '\", \"'.join(param_list[:-1]) + f', and \"{param_list[-1]}\"'
-                raise ValueError(f'Cannot accept multiple parameters, {param_str}.')
-            elif len(param_list) == 1:
-                param = param_list[0]
-                if param_type == 'array1':
-                    param_value = np.array(kwargs[param]).reshape(1,self.num_sgs)
-                elif param_type == 'float':
-                    param_value = float(kwargs[param])
-                elif param_type == 'int':
-                    param_value = int(kwargs[param])
-                elif param_type == 'halfint':
-                    param_value = halfint(kwargs[param])
-                elif param_type == 'tuple':
-                    param_value = tuple(kwargs[param])
-                elif param_type == 'pass':
-                    param_value = kwargs[param]
-                return param_value, True
-            else:
-                return None, False
             
         # Spin-Groups:
-        self.sg, sgExists = paramsIn('sg', 'SG', 'spingroups', type='pass')
-        if not sgExists:
+        if sg is None:
             raise ValueError('The spingroups are a required argument for MeanParameters.')
+        elif type(sg) != SpinGroups:
+            raise TypeError('"sg" must have type "SpinGroups".')
+        self.sg = sg
         self.num_sgs = self.sg.num_sgs
 
         # Isotope Spin:
-        self.I, IExists = paramsIn('I', 'S', 'spin', 'isotope_spin', type='halfint')
+        if I is not None:   self.I = halfint(I)
+        else:               self.I = None
         
         # Atomic Number:
-        self.Z, ZExists = paramsIn('Z', 'atomic_number', type='int')
+        if Z is not None:   self.Z = int(Z)
+        else:               self.Z = None
         
         # Atomic Mass:
-        self.A, AExists = paramsIn('A', 'atomic_mass', type='int')
+        if A is not None:   self.A = int(A)
+        else:               self.A = None
         
         # Mass:
-        mass, massExists = paramsIn('mass', 'Mass', 'm', 'M', type='float')
-        if massExists:  self.mass = mass
-        elif AExists:   self.mass = float(self.A)
-        else:           self.mass = None
+        if mass is not None:    self.mass = float(mass)
+        elif A is not None:     self.mass = float(A)
+        else:                   self.mass = None
         
         # Atomic Radius:
-        ac, acExists = paramsIn('Ac', 'ac', 'atomic_radius', 'scatter_radius', type='float')
-        if acExists:    self.ac = ac
-        elif AExists:   self.ac = RMatrix.NuclearRadius(self.A)
-        else:           self.ac = None
+        if ac is not None:      self.ac = float(ac)
+        elif A is not None:     self.ac = RMatrix.NuclearRadius(self.A)
+        else:                   self.ac = None
         
         # Energy Range:
-        EB, EBExists = paramsIn('EB', 'energy_bounds', 'energy_range', type='tuple')
-        if EBExists:
-            self.EB = EB
-            if len(self.EB) != 2:           raise ValueError('"EB" can only have two values for an interval')
-            elif self.EB[0] > self.EB[1]:   raise ValueError('"EB" must be a valid increasing interval')
+        if EB is not None:
+            if len(EB) != 2:        raise ValueError('"EB" can only have two values for an interval.')
+            elif EB[0] > EB[1]:     raise ValueError('"EB" must be a valid increasing interval.')
+            self.EB = (float(EB[0]), float(EB[1]))
         else:
             self.EB = None
         
         # False Frequency:
-        FreqF, FalseFreqExists = paramsIn('freqF', 'FreqF', 'false_frequency', type='float')
-        self.FreqF = FreqF if FalseFreqExists else 0.0
+        if FreqF is not None:   self.FreqF = float(FreqF)
+        else:                   self.FreqF = 0.0
         
         # Frequencies:
-        self.Freq, FreqExists = paramsIn('freq', 'Freq', 'frequency', 'Frequency')
-        
-        # Mean Level Spacings:
-        MLS, MLSExists = paramsIn('mean_spacing', 'mean_level_spacing', 'mls', 'MLS')
-        if FreqExists & MLSExists:
-            raise ValueError('Cannot have both mean level spacing and frequencies')
-        elif MLSExists:
-            self.Freq = 1.0 / MLS
+        if Freq is not None and MLS is not None:
+            raise ValueError('Cannot have both mean level spacing and frequencies.')
+        elif Freq is not None:
+            if (not hasattr(Freq, '__iter__')) or (len(Freq) != self.num_sgs):
+                raise TypeError(f'"Freq" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
+            self.Freq = np.array(Freq, dtype=float).reshape(-1,)
+        elif MLS is not None:
+            if (not hasattr(MLS, '__iter__')) or (len(MLS) != self.num_sgs):
+                raise TypeError(f'"MLS" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
+            self.Freq = 1.0 / np.array(MLS, dtype=float).reshape(-1,)
+        else:
+            self.Freq = None
 
         # Brody Parameter:
-        w, wExists = paramsIn('w', 'brody', 'Brody', 'brody_parameter')
-        if wExists:
-            if w.size == 1:     self.w = w * np.ones((1,self.num_sgs))
-            else:               self.w = w
+        if w is not None:
+            if hasattr(w, '__iter__'):
+                if (len(w) != self.num_sgs):
+                    raise TypeError(f'"w" must have a length equal to the number of spingroups, {self.num_sgs}.')
+                self.w = np.array(w, dtype=float).reshape(-1,)
+            else:
+                self.w = float(w) * np.ones((self.num_sgs,))
         else:
-            self.w = np.ones((1,self.num_sgs))
+            self.w = np.ones((self.num_sgs,))
 
         # Mean Neutron Widths:
-        self.Gnm, GnmExists = paramsIn('mean_neutron_width', 'Gnm')
+        if Gnm is not None:
+            if (not hasattr(Gnm, '__iter__')) or (len(Gnm) != self.num_sgs):
+                raise TypeError(f'"Gnm" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
+            self.Gnm = np.array(Gnm, dtype=float).reshape(-1,)
+        else:
+            self.Gnm = None
 
         # Neutron Channel Degrees of Freedom:
-        nDOF, nDOFExists = paramsIn('nDOF', 'nDF')
-        if nDOFExists:      self.nDOF = nDOF
-        else:               self.nDOF = np.ones((1,self.num_sgs)) # Assume that there is one DOF
+        if nDOF is not None:
+            if (not hasattr(nDOF, '__iter__')) or (len(nDOF) != self.num_sgs):
+                raise TypeError(f'"nDOF" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
+            self.nDOF = np.array(nDOF, dtype=int).reshape(-1,)
+        else:
+            self.nDOF = np.ones((self.num_sgs,), dtype=int)
 
         # Mean Gamma Widths:
-        self.Ggm, GgmExists = paramsIn('mean_gamma_width', 'Ggm')
+        if Ggm is not None:
+            if (not hasattr(Ggm, '__iter__')) or (len(Ggm) != self.num_sgs):
+                raise TypeError(f'"Ggm" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
+            self.Ggm = np.array(Ggm, dtype=float).reshape(-1,)
+        else:
+            self.Ggm = None
 
         # Gamma Channel Degrees of Freedom:
-        gDOF, gDOFExists = paramsIn('gDOF', 'gDF')
-        if gDOFExists:      self.gDOF = gDOF
-        else:               self.gDOF = self.DEFAULT_GDOF * np.ones((1,self.num_sgs)) # Arbitrarily high DOF
+        if gDOF is not None:
+            if (not hasattr(gDOF, '__iter__')) or (len(gDOF) != self.num_sgs):
+                raise TypeError(f'"gDOF" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
+            self.gDOF = np.array(gDOF, dtype=int).reshape(-1,)
+        else:
+            self.gDOF = self.DEFAULT_GDOF * np.ones((self.num_sgs,), dtype=int)
 
         # Truncation Width:
-        Gn_trunc, truncExists = paramsIn('trunc', 'Gn_trunc', 'truncation_width')
-        if truncExists:
-            if Gn_trunc.size == 1:      self.Gn_trunc = Gn_trunc * np.ones((1,self.num_sgs))
-            else:                       self.Gn_trunc = Gn_trunc # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
+        if Gn_trunc is not None:
+            if (not hasattr(Gn_trunc, '__iter__')) or (len(Gn_trunc) != self.num_sgs):
+                raise TypeError(f'"Gn_trunc" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
+            self.Gn_trunc = np.array(Gn_trunc, dtype=float).reshape(-1,) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
         else:
-            self.Gn_trunc = np.zeros((1,self.num_sgs))
+            self.Gn_trunc = np.zeros((self.num_sgs,), dtype=float)
 
         # Missing Fraction:
-        MissFrac, MissFracExists = paramsIn('MissFrac', 'miss_frac', 'pM')
-        if MissFracExists:
-            if truncExists:
-                raise ValueError('One cannot specify "MissFrac" and "Gn_trunc" at the same time.')
-            self.MissFrac = MissFrac
+        if MissFrac is not None:
+            if (not hasattr(MissFrac, '__iter__')) or (len(MissFrac) != self.num_sgs):
+                raise TypeError(f'"MissFrac" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
+            self.MissFrac = np.array(MissFrac, dtype=float).reshape(-1,) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
             self.given_miss_frac = True
+        elif Gn_trunc is not None:
+            self.MissFrac = RMatrix.FractionMissing(self.Gn_trunc, self.Gnm, self.nDOF) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
+            self.given_miss_frac = False
         else:
-            self.MissFrac = RMatrix.FractionMissing(self.Gn_trunc)
+            self.MissFrac = np.zeros((self.num_sgs,), dtype=float)
             self.given_miss_frac = False
 
     @property
-    def n(self):
-        'Number of Spingroups'
-        return self.Freq.shape[1]
-    @property
     def L(self):
         'Orbital Angular Momentum'
-        return np.array(self.sg.L).reshape(1,-1)
+        return np.array(self.sg.L)
     @property
     def J(self):
         'Total Angular Momentum'
-        return np.array(self.sg.J).reshape(1,-1)
+        return np.array(self.sg.J)
     @property
     def S(self):
         'Channel Spin'
-        return np.array(self.sg.S).reshape(1,-1)
+        return np.array(self.sg.S)
     @property
     def MLS(self):
         'Mean Level Spacing'
@@ -212,7 +221,7 @@ class MeanParameters:
     @property
     def FreqAll(self):
         'Frequencies, including False Frequency'
-        return np.append(self.Freq, np.array(self.FreqF, ndmin=2), axis=1)
+        return np.concatenate((self.Freq, [self.FreqF]))
     
     def __repr__(self):
         txt = ''
@@ -224,6 +233,7 @@ class MeanParameters:
         txt += f'Energy Bounds       = {self.EB[0]:.3e} < E < {self.EB[1]:.3e} (eV)\n'
         txt += f'False Level Density = {self.FreqF:.7f} (1/eV)\n'
         txt += '\n'
+        data = np.vstack((self.Freq, self.w, self.Gnm, self.nDOF, self.Ggm, self.gDOF, self.Gn_trunc, self.MissFrac))
         properties = ['Level Densities', \
                       'Brody Parameters', \
                       'Mean Neutron Width', \
@@ -232,7 +242,6 @@ class MeanParameters:
                       'Gamma Width DOF', \
                       'Truncation N Width', \
                       'Missing Fraction']
-        data = np.concatenate((self.Freq, self.w, self.Gnm, self.nDOF, self.Ggm, self.gDOF, self.Gn_trunc, self.MissFrac), axis=0)
         txt += str(pd.DataFrame(data=data, index=properties, columns=self.sg.SGs))
         return txt
     def __str__(self):
@@ -283,20 +292,19 @@ class MeanParameters:
             rng = np.random.default_rng(seed)
 
         # Energy Sampling:
-        n = self.Freq.shape[1]
         E          = np.zeros((0,))
         Gn         = np.zeros((0,))
         Gg         = np.zeros((0,))
         spingroups = np.zeros((0,), dtype=int)
-        for g in range(n):
+        for g in range(self.num_sgs):
             # Energy sampling:
-            w = self.w[0,g] if self.w is not None else None
-            E_group  = RMatrix.SampleEnergies(self.EB, self.Freq[0,g], w=w, ensemble=ensemble, rng=rng)
+            w = self.w[g] if self.w is not None else None
+            E_group  = RMatrix.SampleEnergies(self.EB, self.Freq[g], w=w, ensemble=ensemble, rng=rng)
             
             # Width sampling:
             len_group = len(E_group)
-            Gn_group = RMatrix.SampleNeutronWidth(E_group, self.Gnm[0,g], self.nDOF[0,g], self.L[0,g], self.A, self.ac, rng=rng)
-            Gg_group = RMatrix.SampleGammaWidth(len_group, self.Ggm[0,g], self.gDOF[0,g], rng=rng)
+            Gn_group = RMatrix.SampleNeutronWidth(E_group, self.Gnm[g], self.nDOF[g], self.L[g], self.A, self.ac, rng=rng)
+            Gg_group = RMatrix.SampleGammaWidth(len_group, self.Ggm[g], self.gDOF[g], rng=rng)
             
             # Append to group:
             E          = np.concatenate((E         , E_group ))
@@ -312,12 +320,12 @@ class MeanParameters:
             # False width sampling:
             # False widths are sampled by taking the frequency-weighted average of each spingroup's width distributions.
             num_false = len(E_false)
-            Gn_false_group = np.zeros((num_false,n))
-            Gg_false_group = np.zeros((num_false,n))
-            for g in range(n):
-                Gn_false_group[:,g] = RMatrix.SampleNeutronWidth(E_false, self.Gnm[0,g], self.nDOF[0,g], self.L[0,g], self.A, self.ac, rng=rng)
-                Gg_false_group[:,g] = RMatrix.SampleGammaWidth(num_false, self.Ggm[0,g], self.gDOF[0,g], rng=rng)
-            cumprobs = np.cumsum(self.Freq[0,:]) / np.sum(self.Freq[0,:])
+            Gn_false_group = np.zeros((num_false,self.num_sgs))
+            Gg_false_group = np.zeros((num_false,self.num_sgs))
+            for g in range(self.num_sgs):
+                Gn_false_group[:,g] = RMatrix.SampleNeutronWidth(E_false, self.Gnm[g], self.nDOF[g], self.L[g], self.A, self.ac, rng=rng)
+                Gg_false_group[:,g] = RMatrix.SampleGammaWidth(num_false, self.Ggm[g], self.gDOF[g], rng=rng)
+            cumprobs = np.cumsum(self.Freq) / np.sum(self.Freq)
             R = rng.uniform(size=(num_false,1))
             idx = np.arange(num_false)
             group_idx = np.sum(cumprobs <= R, axis=1)
@@ -328,7 +336,7 @@ class MeanParameters:
             E          = np.concatenate((E         , E_false ))
             Gn         = np.concatenate((Gn        , Gn_false))
             Gg         = np.concatenate((Gg        , Gg_false))
-            spingroups = np.concatenate((spingroups, n*np.ones((num_false,), dtype=int)))
+            spingroups = np.concatenate((spingroups, self.num_sgs*np.ones((num_false,), dtype=int)))
 
         # Sorting Indices:
         idx = np.argsort(E)
@@ -340,16 +348,15 @@ class MeanParameters:
         # Missing Resonances:
         if self.MissFrac is not None:
             if self.given_miss_frac: # given "MissFrac" directly
-                miss_frac = np.concatenate((self.MissFrac, np.zeros((1,1))), axis=1)
-                missed_idx = (rng.uniform(size=E.shape) < miss_frac[0,spingroups])
-
+                miss_frac = np.concatenate((self.MissFrac, [0]))
+                missed_idx = (rng.uniform(size=E.shape) < miss_frac[spingroups])
             else: # given Gn_trunc
-                Gn_trunc = np.concatenate((self.Gn_trunc, np.zeros((1,1))), axis=1)
+                Gn_trunc = np.concatenate((self.Gn_trunc, [0]))
                 rGn = np.zeros(Gn.shape)
-                for g in range(n):
+                for g in range(self.num_sgs):
                     spingroup_g = (spingroups == g)
-                    rGn[spingroup_g] = Gn[spingroup_g] * RMatrix.ReduceFactor(E[spingroup_g], self.L[0,g], self.A, self.ac)
-                missed_idx = (rGn <= Gn_trunc[0,spingroups])
+                    rGn[spingroup_g] = Gn[spingroup_g] * RMatrix.ReduceFactor(E[spingroup_g], self.L[g], self.A, self.ac)
+                missed_idx = (rGn <= Gn_trunc[spingroups])
 
         # Caught resonances:
         E_caught  =  E[~missed_idx]
@@ -416,7 +423,7 @@ class MeanParameters:
         """
 
         # Matching spingroup:
-        spingroup = self.__match_spingroup(spingroup)
+        g = self.__match_spingroup(spingroup)
 
         if   quantity == 'energies':
             if not cdf: # PDF
@@ -424,36 +431,36 @@ class MeanParameters:
             else: # CDF
                 f = lambda e: (e - self.EB[0]) / (self.EB[1] - self.EB[0])
         elif quantity == 'level spacing':
-            if spingroup == self.num_sgs:
+            if g == self.num_sgs:
                 if not cdf: # PDF
                     f = lambda x: self.FreqF * np.exp(-self.FreqF * x)
                 else: # CDF
                     f = lambda x: 1 - np.exp(-self.FreqF * x)
             else:
-                if self.w[0,spingroup] == 1.0:
-                    if self.MissFrac[0,spingroup] == 0.0:
+                if self.w[g] == 1.0:
+                    if self.MissFrac[g] == 0.0:
                         dist_type = 'Wigner'
                     else:
                         dist_type = 'Missing'
                 else:
-                    if self.MissFrac[0,spingroup] == 0.0:
+                    if self.MissFrac[g] == 0.0:
                         dist_type = 'Brody'
                     else:
                         raise NotImplementedError('The level-spacing distribution for Brody distribution with missing levels has not been implemented yet.')
                 if not cdf: # PDF
-                    f = self.distributions(dist_type)[spingroup].f0
+                    f = self.distributions(dist_type)[g].f0
                 else: # CDF
-                    f = lambda x: 1.0 - self.distributions(dist_type)[spingroup].f1(x)
+                    f = lambda x: 1.0 - self.distributions(dist_type)[g].f1(x)
         elif quantity == 'neutron width':
             if not cdf: # PDF
-                f = lambda rGn: RMatrix.PorterThomasPDF(rGn, self.Gnm[0,spingroup], trunc=self.Gn_trunc[0,spingroup], dof=self.nDOF[0,spingroup])
+                f = lambda rGn: RMatrix.PorterThomasPDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
             else: # CDF
-                f = lambda rGn: RMatrix.PorterThomasCDF(rGn, self.Gnm[0,spingroup], trunc=self.Gn_trunc[0,spingroup], dof=self.nDOF[0,spingroup])
+                f = lambda rGn: RMatrix.PorterThomasCDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
         elif quantity in ('gamma width', 'capture width'):
             if not cdf: # PDF
-                f = lambda rGg: RMatrix.PorterThomasPDF(rGg, self.Ggm[0,spingroup], trunc=0.0, dof=self.gDOF[0,spingroup])
+                f = lambda rGg: RMatrix.PorterThomasPDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
             else: # CDF
-                f = lambda rGg: RMatrix.PorterThomasCDF(rGg, self.Ggm[0,spingroup], trunc=0.0, dof=self.gDOF[0,spingroup])
+                f = lambda rGg: RMatrix.PorterThomasCDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
 
         return f
     
