@@ -4,6 +4,7 @@ This module contains the source code for TAZ.
 """
 
 from .SpinGroups import *
+from .Particle import *
 from .Resonances import *
 from .PTBayes import *
 

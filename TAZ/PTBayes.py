@@ -61,7 +61,8 @@ def PTBayes(res:Resonances, mean_params:MeanParameters, false_width_dist=None, p
     posterior = prior
 
     # Neutron widths:
-    mult_factor = (mean_params.nDOF/mean_params.Gnm).reshape(1,-1) * ReduceFactor(res.E, mean_params.L, mean_params.A, mean_params.ac)
+    mult_factor = (mean_params.nDOF/mean_params.Gnm).reshape(1,-1) * ReduceFactor(res.E, mean_params.L, ac=mean_params.ac,
+                                                                                  mass_targ=mean_params.targ.mass, mass_proj=mean_params.proj.mass)
     posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gn.reshape(-1,1), mean_params.nDOF)
 
     # Gamma widths: (if gamma_width_on is True)

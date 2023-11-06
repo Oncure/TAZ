@@ -14,40 +14,44 @@ energies.
 #    Sampling
 # =================================================================================================
 
-def SampleNeutronWidth(E, Gnm:float, dof:int, l:int, A:float, ac:float,
+def SampleNeutronWidth(E, Gnm:float, dof:int, l:int, ac:float,
+                       mass_targ:float, mass_proj:float,
                        rng=None, seed:int=None):
     """
     Samples neutron widths according to the chi-squared distribution.
 
     Parameters:
     ----------
-    E    :: float [n]
+    E         :: float [n]
         Resonance energies, where `n` is the number of resonances.
 
-    Gnm  :: float
+    Gnm       :: float
         Mean reduced neutron width.
 
-    dof  :: int
+    dof       :: int
         Chi-squared degrees of freedom.
 
-    l    :: int
+    l         :: int
         Quantum angular momentum number for the spingroup.
 
-    A    :: float
-        Atomic mass of the target isotope.
-
-    ac   :: float
+    ac        :: float
         Nuclear radius of the target isotope.
 
-    rng  :: default_rng
+    mass_targ :: float
+        Mass of the target particle.
+
+    mass_proj :: float
+        Mass of the projectile particle.
+
+    rng       :: default_rng
         A provided `default_rng`. Default is `None`.
     
-    seed :: int
+    seed      :: int
         If no `rng` is provided, then a random number seed can be specified.
 
     Returns:
     -------
-    Gn   :: float [n]
+    Gn        :: float [n]
         Randomly sampled neutron widths, where `n` is the number of resonances.
     """
 
@@ -55,7 +59,7 @@ def SampleNeutronWidth(E, Gnm:float, dof:int, l:int, A:float, ac:float,
         rng = np.random.default_rng(seed)
 
     rGn = (Gnm/dof) * rng.chisquare(dof, (len(E),)) # reduced neutron widths
-    Gn = rGn / ReduceFactor(np.array(E), l, A, ac) # neutron widths
+    Gn = rGn / ReduceFactor(np.array(E), l, ac=ac, mass_targ=mass_targ, mass_proj=mass_proj) # neutron widths
     return Gn
 
 def SampleGammaWidth(L:int, Ggm:float, dof:int,

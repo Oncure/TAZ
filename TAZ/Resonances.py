@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from . import halfint, RMatrix, SpinGroup, SpinGroups
+from . import RMatrix, SpinGroup, SpinGroups, Particle, Neutron
 
 __doc__ = """
 This file keeps the "MeanParameters" class and "Resonances" class. The "MeanParameters" class
@@ -9,72 +9,6 @@ contains all relevent information that is independent of individual resonances, 
 mass, isotope spin, mean level-spacing, etc. The "Resonances" class contains resonance-specific
 information such as Energy, widths, and spin-group assignments.
 """
-
-# =================================================================================================
-#    Particle:
-# =================================================================================================
-
-class Particle:
-    """
-    Attributes:
-    ----------
-    Z        :: int
-        Atomic number
-    A        :: int
-        Atomic mass
-    I        :: halfint
-        Particle spin
-    mass     :: float
-        Nuclei mass
-    ac       :: float
-        Nuclear radius
-    """
-
-    mass_neutron = 1.008665 # amu
-
-    def __init__(self, Z:int=None, A:int=None, I:halfint=None,
-                 mass:float=None, AWRI:float=None,
-                 radius:float=None, name:str=None):
-        """
-        Initialize a Particle object.
-        """
-        # Atomic Number:
-        if Z is not None:   self.Z = int(Z)
-        else:               self.Z = None
-        # Atomic Mass:
-        if A is not None:   self.A = int(A)
-        else:               self.A = None
-        # Isotope Spin:
-        if I is not None:   self.I = halfint(I)
-        else:               self.I = None
-        # Mass: (amu)
-        if mass is not None:    self.mass = float(mass)
-        elif AWRI is not None:  self.mass = float(AWRI*self.mass_neutron)
-        elif A is not None:     self.mass = float(A)
-        else:                   self.mass = None
-        # Nuclear Radius: (fm)
-        if radius is not None:  self.radius = float(radius)
-        elif A is not None:     self.radius = 1.23 * self.A**(1/3)
-        # Particle Name:
-        if name is not None:
-            self.name = str(name)
-        elif (A is not None) and (Z is not None):
-            self.name = str(Z*1000+A)
-        else:
-            self.name = '???'
-
-        def __repr__(self):
-            txt  = f'Particle:       {self.name}\n'
-            txt += f'Atomic Number:  {self.Z}\n'
-            txt += f'Atomic Mass:    {self.A}\n'
-            txt += f'Nuclear Spin:   {self.I}\n'
-            txt += f'Mass:           {self.mass} amu\n'
-            txt += f'Nuclear Radius: {self.radius} fm\n'
-            return txt
-        def __str__(self):
-            return self.name
-    
-Neutron = Particle(I=0.5, Z=0, A=1, mass=1.008665, radius=0.8, name='neutron')
 
 # =================================================================================================
 #    Mean Parameters:
@@ -89,16 +23,12 @@ class MeanParameters:
 
     Target Isotope Attributes:
     -------------------------
-    I        :: int
-        target particle spin.
-    Z        :: int
-        target atomic number.
-    A        :: int
-        target atomic mass.
-    mass     :: float
-        target nuclei mass.
+    targ     :: Particle
+        Target particle.
+    proj     :: Particle
+        Projectile particle. Default = Neutron.
     ac       :: float
-        target nuclear radius.
+        Reaction channel radius in femtometers.
     
     Resonance Attributes:
     --------------------
@@ -131,9 +61,9 @@ class MeanParameters:
     DEFAULT_GDOF = 500
 
     def __init__(self,
-                 I:halfint=None, Z:int=None, A:int=None,
-                 mass:float=None, ac:float=None,
-                 EB:tuple=None, FreqF:float=None,
+                 targ:Particle=None, proj:Particle=Neutron,
+                 ac:float=None,
+                 EB:tuple=None, FreqF:float=0.0,
                  sg:SpinGroups=None,
                  Freq:list=None, MLS:list=None,
                  w:list=None,
@@ -152,27 +82,30 @@ class MeanParameters:
         self.sg = sg
         self.num_sgs = self.sg.num_sgs
 
-        # Isotope Spin:
-        if I is not None:   self.I = halfint(I)
-        else:               self.I = None
-        
-        # Atomic Number:
-        if Z is not None:   self.Z = int(Z)
-        else:               self.Z = None
-        
-        # Atomic Mass:
-        if A is not None:   self.A = int(A)
-        else:               self.A = None
-        
-        # Mass:
-        if mass is not None:    self.mass = float(mass)
-        elif A is not None:     self.mass = float(A)
-        else:                   self.mass = None
-        
-        # Atomic Radius:
-        if ac is not None:      self.ac = float(ac)
-        elif A is not None:     self.ac = RMatrix.NuclearRadius(self.A)
-        else:                   self.ac = None
+        # Target Particle:
+        if targ is not None:
+            if type(targ) != Particle:
+                raise TypeError('"targ" must by a "Particle" object.')
+            self.targ = targ
+        else:
+            self.targ = None
+
+        # Projectile Particle:
+        if proj is not None:
+            if type(proj) != Particle:
+                raise TypeError('"particle_proj" must by a "Particle" object.')
+            self.proj = proj
+        else:
+            self.proj = None
+
+        # Channel Radius:
+        if ac is not None:
+            self.ac = float(ac)
+        elif (self.proj is not None and self.proj.radius is not None) \
+         and (self.targ is not None and self.targ.radius is not None):
+            self.ac = self.proj.radius + self.targ.radius
+        else:
+            self.ac = None
         
         # Energy Range:
         if EB is not None:
@@ -287,10 +220,8 @@ class MeanParameters:
     
     def __repr__(self):
         txt = ''
-        txt += f'Nuclear Spin        = {self.I}\n'
-        txt += f'Atomic Number       = {self.Z}\n'
-        txt += f'Atomic Mass Number  = {self.A}\n'
-        txt += f'Atomic Mass         = {self.mass:.5f} (amu)\n'
+        txt += f'Target Particle     = {self.targ.name}\n'
+        txt += f'Projectile Particle = {self.proj.name}\n'
         txt += f'Channel Radius      = {self.ac:.7f} (fm)\n'
         txt += f'Energy Bounds       = {self.EB[0]:.3e} < E < {self.EB[1]:.3e} (eV)\n'
         txt += f'False Level Density = {self.FreqF:.7f} (1/eV)\n'
@@ -365,7 +296,9 @@ class MeanParameters:
             
             # Width sampling:
             len_group = len(E_group)
-            Gn_group = RMatrix.SampleNeutronWidth(E_group, self.Gnm[g], self.nDOF[g], self.L[g], self.A, self.ac, rng=rng)
+            Gn_group = RMatrix.SampleNeutronWidth(E_group, self.Gnm[g], self.nDOF[g], self.L[g], ac=self.ac,
+                                                  mass_targ=self.targ.mass, mass_proj=self.proj.mass,
+                                                  rng=rng)
             Gg_group = RMatrix.SampleGammaWidth(len_group, self.Ggm[g], self.gDOF[g], rng=rng)
             
             # Append to group:
@@ -385,7 +318,9 @@ class MeanParameters:
             Gn_false_group = np.zeros((num_false,self.num_sgs))
             Gg_false_group = np.zeros((num_false,self.num_sgs))
             for g in range(self.num_sgs):
-                Gn_false_group[:,g] = RMatrix.SampleNeutronWidth(E_false, self.Gnm[g], self.nDOF[g], self.L[g], self.A, self.ac, rng=rng)
+                Gn_false_group[:,g] = RMatrix.SampleNeutronWidth(E_false, self.Gnm[g], self.nDOF[g], self.L[g], ac=self.ac,
+                                                                 mass_targ=self.targ.mass, mass_proj=self.proj.mass,
+                                                                 rng=rng)
                 Gg_false_group[:,g] = RMatrix.SampleGammaWidth(num_false, self.Ggm[g], self.gDOF[g], rng=rng)
             cumprobs = np.cumsum(self.Freq) / np.sum(self.Freq)
             R = rng.uniform(size=(num_false,1))
@@ -417,7 +352,8 @@ class MeanParameters:
                 rGn = np.zeros(Gn.shape)
                 for g in range(self.num_sgs):
                     spingroup_g = (spingroups == g)
-                    rGn[spingroup_g] = Gn[spingroup_g] * RMatrix.ReduceFactor(E[spingroup_g], self.L[g], self.A, self.ac)
+                    rGn[spingroup_g] = Gn[spingroup_g] * RMatrix.ReduceFactor(E[spingroup_g], self.L[g], ac=self.ac,
+                                                                              mass_targ=self.targ.mass, mass_proj=self.proj.mass)
                 missed_idx = (rGn <= Gn_trunc[spingroups])
 
         # Caught resonances:
@@ -551,7 +487,7 @@ class MeanParameters:
 class Resonances:
     """
     A data storage object for the resonance parameters, such as resonance energies, and partial
-    widths.
+    widths. Spingroup assignments can optionally be stored as well.
 
     Attributes:
     ----------
