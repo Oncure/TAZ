@@ -10,7 +10,7 @@ specific particle. Objects of this class are used when defining a reaction's pro
 #    Particle:
 # =================================================================================================
 
-mass_neutron = 1.00866491588 # amu
+mass_neutron = 1.00866491595 # amu   (source: ENDF manual Table H.2)
 
 class Particle:
     """

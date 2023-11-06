@@ -50,9 +50,9 @@ def PTBayes(res:Resonances, mean_params:MeanParameters, false_width_dist=None, p
 
     # Error Checking:
     if type(res) is not Resonances:
-        raise TypeError('The "Res" argument must be a "Resonances" object.')
+        raise TypeError('The "res" argument must be a "Resonances" object.')
     if type(mean_params) is not MeanParameters:
-        raise TypeError('The "MeanParam" argument must be a "MeanParameters" object.')
+        raise TypeError('The "mean_param" argument must be a "MeanParameters" object.')
     
     # Setting prior:
     if prior == None:

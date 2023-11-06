@@ -26,7 +26,7 @@ class Encore:
     of spingroup, given the mean parameters. This is used for log-likelihood estimation for mean
     parameter estimation.
 
-    Let `L` be the number of resonances in the ladder and `G` be the number of spingroups
+    Let "L" be the number of resonances in the ladder and "G" be the number of spingroups
     (excuding the false group).
 
     Initialization Variables:
