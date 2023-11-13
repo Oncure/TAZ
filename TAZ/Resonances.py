@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
 
+from . import SpinGroups
+
 __doc__ = """
 This file keeps the "Resonances" class. The "Resonances" class contains resonance-specific
-information such as Energy, widths, and spin-group assignments.
+information such as energy, partial widths, and spingroup assignments.
 """
 
 # =================================================================================================
@@ -32,6 +34,25 @@ class Resonances:
     """
 
     def __init__(self, E, Gn=None, Gg=None, GfA=None, GfB=None, SG=None):
+        """
+        Creates a Resonances object.
+
+        Parameters:
+        ----------
+        E   :: float, array-like
+            Resonance energies.
+        Gn  :: float, array-like
+            Resonance neutron widths. Default is None.
+        Gg  :: float, array-like
+            Resonance gamma (capture) widths. Default is None.
+        GfA :: float, array-like
+            Resonance fission A widths. Default is None.
+        GfB :: float, array-like
+            Resonance fission B widths. Default is None.
+        SG  :: int or SpinGroup, array-like
+            Resonance spingroup assignments. Default is None.
+        """
+
         self.properties = ['E']
 
         indices = np.argsort(E)
@@ -50,6 +71,8 @@ class Resonances:
             self.GfB = np.array(GfB).reshape(-1)[indices]
         if SG  is not None:
             self.properties.append('SG')
+            if type(SG) == SpinGroups:
+                SG = SG.SGs
             self.SG  = np.array(SG ).reshape(-1)[indices]
 
     # Get resonances by indexing the "Resonances" object:

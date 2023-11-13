@@ -19,48 +19,11 @@ particles, spingroup combinations, mean level densities, mean partial widths, et
 class MeanParameters:
     """
     MeanParameters is a class that contains information about a particular reaction, such as the
-    target nuclei mass, nuclear radius, spin, mean level spacing, and more.
-
-    Let "G" be the number of spingroups.
-
-    Target Isotope Attributes:
-    -------------------------
-    targ     :: Particle
-        Target particle.
-    proj     :: Particle
-        Projectile particle. Default = Neutron.
-    ac       :: float
-        Reaction channel radius in femtometers.
-    
-    Resonance Attributes:
-    --------------------
-    sg       :: SpinGroups
-        Spingroups for the reaction.
-    EB       :: float [2]
-        Energy range for evaluation.
-    FreqF    :: float
-        False resonance level density.
-    Freq     :: float [G]
-        Resonance level densities for each spingroup.
-    MLS      :: float [G]
-        Resonance mean level spacings for each spingroup.
-    w        :: float [G]
-        Brody resonance parameter.
-    Gnm      :: float [G]
-        Resonance mean neutron widths for each spingroup.
-    nDOF     :: float [G]
-        Resonance neutron width degrees of freedom for each spingroup.
-    Ggm      :: float [G]
-        Resonance mean gamma width for each spingroup.
-    gDOF     :: float [G]
-        Resonance gamma width degrees of freedom for each spingroup.
-    Gn_trunc :: float [G]
-        Lowest recordable neutron width.
-    MissFrac :: float [G]
-        Fraction of Resonances that have been missed.
+    target particle, projectile particle, spingroups, and mean resonance parameters such as mean
+    level-spacing, and mean partial widths.
     """
 
-    DEFAULT_GDOF = 500
+    DEFAULT_GDOF = 500 # the default number of degrees of freedom on the gamma (capture) width.
 
     def __init__(self,
                  targ:Particle=None, proj:Particle=Neutron,
@@ -74,15 +37,40 @@ class MeanParameters:
                  Gn_trunc:list=None, MissFrac:list=None):
         """
         Initializes reaction parameters with keyword arguments.
+
+        Attributes:
+        ----------
+        targ     :: Particle
+            Target particle object.
+        proj     :: Particle
+            Projectile particle object. Default = Neutron.
+        ac       :: float
+            Reaction channel radius in femtometers.
+        EB       :: float [2]
+            Energy range for evaluation.
+        FreqF    :: float
+            False resonance level density.
+        sg       :: SpinGroups
+            Spingroups for the reaction.
+        Freq     :: float [G]
+            Resonance level densities for each spingroup.
+        MLS      :: float [G]
+            Resonance mean level spacings for each spingroup.
+        w        :: float [G]
+            Brody resonance parameter.
+        Gnm      :: float [G]
+            Resonance mean neutron widths for each spingroup.
+        nDOF     :: float [G]
+            Resonance neutron width degrees of freedom for each spingroup.
+        Ggm      :: float [G]
+            Resonance mean gamma (capture) width for each spingroup.
+        gDOF     :: float [G]
+            Resonance gamma (capture) width degrees of freedom for each spingroup.
+        Gn_trunc :: float [G]
+            Lowest recordable neutron width.
+        MissFrac :: float [G]
+            Fraction of Resonances that have been missed.
         """
-            
-        # Spin-Groups:
-        if sg is None:
-            raise ValueError('The spingroups are a required argument for MeanParameters.')
-        elif type(sg) != SpinGroups:
-            raise TypeError('"sg" must have type "SpinGroups".')
-        self.sg = sg
-        self.num_sgs = self.sg.num_sgs
 
         # Target Particle:
         if targ is not None:
@@ -95,13 +83,15 @@ class MeanParameters:
         # Projectile Particle:
         if proj is not None:
             if type(proj) != Particle:
-                raise TypeError('"particle_proj" must by a "Particle" object.')
+                raise TypeError('"proj" must by a "Particle" object.')
             self.proj = proj
         else:
             self.proj = None
 
         # Channel Radius:
         if ac is not None:
+            if   ac > 1e2:      print(Warning(f'The channel radius, {ac}, is quite high. Make sure it is in units of femtometers.'))
+            elif ac > 1e-2:     print(Warning(f'The channel radius, {ac}, is quite low. Make sure it is in units of femtometers.'))
             self.ac = float(ac)
         elif (self.proj is not None and self.proj.radius is not None) \
          and (self.targ is not None and self.targ.radius is not None):
@@ -120,6 +110,14 @@ class MeanParameters:
         # False Frequency:
         if FreqF is not None:   self.FreqF = float(FreqF)
         else:                   self.FreqF = 0.0
+
+        # Spin-Groups:
+        if sg is None:
+            raise ValueError('The spingroups are a required argument for MeanParameters.')
+        elif type(sg) != SpinGroups:
+            raise TypeError('"sg" must have type "SpinGroups".')
+        self.sg = sg
+        self.num_sgs = self.sg.num_sgs
         
         # Frequencies:
         if Freq is not None and MLS is not None:
@@ -261,10 +259,8 @@ class MeanParameters:
         ----------
         ensemble :: 'NNE', 'GOE', 'GUE', 'GSE', or 'Poisson'
             The ensemble to use for resonance energy sampling. Default is 'NNE'.
-        
         rng      :: default_rng
             A provided `default_rng`. Default is `None`.
-    
         seed     :: int
             If no `rng` is provided, then a random number seed can be specified.
 
@@ -272,13 +268,10 @@ class MeanParameters:
         -------
         resonances_caught :: Resonances
             The recorded resonances.
-        
         spingroups_caught :: int, array-like
             An ID for the recorded resonances' spingroups.
-
         resonances_missing :: Resonances
             The missed resonances.
-        
         spingroups_missed :: int, array-like
             An ID for the missed resonances' spingroups.
         """
@@ -422,9 +415,10 @@ class MeanParameters:
             density function is provided. Default = False.
         """
 
-        # Matching spingroup:
-        g = self.__match_spingroup(spingroup)
+        # Matching spingroup to id:
+        g = self.sg.id(spingroup)
 
+        # Determining and returning distribution:
         if   quantity == 'energies':
             if not cdf: # PDF
                 f = lambda e: 1.0 / (self.EB[1] - self.EB[0])
@@ -461,23 +455,4 @@ class MeanParameters:
                 f = lambda rGg: RMatrix.PorterThomasPDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
             else: # CDF
                 f = lambda rGg: RMatrix.PorterThomasCDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
-
         return f
-    
-    def __match_spingroup(self, spingroup):
-        """
-        ...
-        """
-
-        if spingroup in ('false', 'False'):
-            spingroup = self.num_sgs
-        elif type(spingroup) == SpinGroup:
-            for g in range(self.num_sgs):
-                if spingroup == self.sg[g]:
-                    spingroup = g
-                    break
-            else:
-                raise ValueError(f'The provided spingroup, {spingroup}, does not match any of the recorded spingroups.')
-        elif type(spingroup) != int:
-            raise TypeError('The provided spingroup is not an integer ID nor is it a "SpinGroup" object.')
-        return spingroup

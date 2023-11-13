@@ -14,22 +14,8 @@ mass_neutron = 1.00866491595 # amu   (source: ENDF manual Table H.2)
 
 class Particle:
     """
-    Attributes:
-    ----------
-    Z      :: int
-        Atomic number
-    A      :: int
-        Atomic mass
-    I      :: halfint
-        Particle spin
-    mass   :: float
-        Nuclei mass in amu
-    AWRI   :: float
-        Nuclei mass divided by neutron mass
-    radius :: float
-        Nuclear mean square radius in femtometers
-    name   :: str
-        Name of the particle
+    Particle is a class that contains information about a particular particle, including atomic
+    number, atomic mass number, nuclei mass, nuclear radius, and the name of the particle.
     """
 
     def __init__(self, Z:int=None, A:int=None, I:halfint=None,
@@ -37,32 +23,59 @@ class Particle:
                  radius:float=None, name:str=None):
         """
         Initialize a Particle object.
+
+        Attributes:
+        ----------
+        Z      :: int
+            Atomic number
+        A      :: int
+            Atomic mass number
+        I      :: halfint
+            Particle spin
+        mass   :: float
+            Nuclei mass in atomic mass units (amu)
+        AWRI   :: float
+            Nuclei mass divided by neutron mass
+        radius :: float
+            Nuclear mean square radius in femtometers (fm)
+        name   :: str
+            Name of the particle
         """
         # Atomic Number:
-        if Z is not None:   self.Z = int(Z)
-        else:               self.Z = None
+        if Z is not None:           self.Z = int(Z)
+        else:                       self.Z = None
         # Atomic Mass:
-        if A is not None:   self.A = int(A)
-        else:               self.A = None
+        if A is not None:           self.A = int(A)
+        elif mass is not None:      self.A = round(mass)
+        elif AWRI is not None:      self.A = round(AWRI)
+        else:                       self.A = None
         # Isotope Spin:
-        if I is not None:   self.I = halfint(I)
-        else:               self.I = None
+        if I is not None:           self.I = halfint(I)
+        else:                       self.I = None
         # Mass: (amu)
-        if mass is not None:    self.mass = float(mass)
-        elif AWRI is not None:  self.mass = float(AWRI)*mass_neutron
-        elif A is not None:     self.mass = float(A)
-        else:                   self.mass = None
+        if mass is not None:        self.mass = float(mass)
+        elif AWRI is not None:      self.mass = float(AWRI)*mass_neutron
+        elif A is not None:         self.mass = float(A)
+        else:                       self.mass = None
         # AWRI:
         if self.mass is not None:   self.AWRI = mass / mass_neutron
         else:                       self.AWRI = None
+        
         # Nuclear Radius: (fm)
-        if radius is not None:  self.radius = float(radius)
-        elif A is not None:     self.radius = 1.23 * self.A**(1/3)
+        if radius is not None:
+            if   radius > 1e2:      print(Warning(f'The channel radius, {radius}, is quite high. Make sure it is in units of femtometers.'))
+            elif radius > 1e-2:     print(Warning(f'The channel radius, {radius}, is quite low. Make sure it is in units of femtometers.'))
+            self.radius = float(radius)
+        elif self.A is not None:
+            self.radius = 1.23 * self.A**(1/3)
+        else:
+            self.radius = None
+        
         # Particle Name:
         if name is not None:
             self.name = str(name)
-        elif (A is not None) and (Z is not None):
-            self.name = str(Z*1000+A)
+        elif (self.A is not None) and (self.Z is not None):
+            self.name = str(self.Z*1000+self.A)
         else:
             self.name = '???'
 
@@ -71,10 +84,11 @@ class Particle:
         txt += f'Atomic Number  = {self.Z}\n'
         txt += f'Atomic Mass    = {self.A}\n'
         txt += f'Nuclear Spin   = {self.I}\n'
-        txt += f'Mass           = {self.mass} (amu)\n'
-        txt += f'Nuclear Radius = {self.radius} (fm)\n'
+        txt += f'Mass           = {self.mass:.7f} (amu)\n'
+        txt += f'Nuclear Radius = {self.radius:.7f} (fm)\n'
         return txt
+    
     def __str__(self):
         return self.name
     
-Neutron = Particle(I=0.5, Z=0, A=1, mass=mass_neutron, radius=0.8, name='neutron')
+Neutron = Particle(Z=0, A=1, I=0.5, mass=mass_neutron, radius=0.8, name='neutron')
