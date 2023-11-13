@@ -361,8 +361,9 @@ class Encore:
     # ==================================================================================
     def WigBayes(s):
         """
-        `WigBayes` finds the probability on the spingroup assignment of each resonance. This is
-        performed using `CP` probabilities and Bayes' Theorem. ...
+        `WigBayes` finds the probability on each spingroup assignment of each resonance, informed
+        by the level-spacing probability distributions. This is performed using the calculated `CP`
+        and `TP` probabilities and Bayes' Theorem.
 
         ...
         """
@@ -414,8 +415,6 @@ class Encore:
         # Error checking:
         if s.G != 2:
             raise NotImplementedError("Currently sampling only works with 2 spingroups.")
-        # elif (s.Prior[:,-1] == 0.0).any:
-        #     raise NotImplementedError("Currently spingroups cannot be sampled with false resonance possibilities.")
 
         L = s.L
         ssg  = np.zeros((L,trials), dtype='u1') # The sampled spingroups

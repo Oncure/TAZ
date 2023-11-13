@@ -292,7 +292,7 @@ class SpinGroups:
                     return g
             raise ValueError(f'The provided spingroup, {spingroup}, does not match any of the recorded spingroups.')
         elif type(spingroup) == int:
-            if spingroup <= self.num_sgs:
+            if spingroup > self.num_sgs:
                 raise ValueError(f'The provided spingroup id, {spingroup}, is above the number of spingroups, {self.num_sgs}.')
             return spingroup
         else:
