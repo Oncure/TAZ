@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from . import RMatrix
+from .. import RMatrix
 from . import SpinGroups
 from . import Particle, Neutron
 from . import Resonances

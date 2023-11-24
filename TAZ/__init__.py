@@ -4,11 +4,7 @@ This module contains the source code for TAZ.
 """
 
 from . import RMatrix
-
-from .SpinGroups import *
-from .Particle import *
-from .Resonances import *
-from .MeanParameters import *
+from .DataClasses import *
 
 from .PTBayes import *
 from .Levels import *

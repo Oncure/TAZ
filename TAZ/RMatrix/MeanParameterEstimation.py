@@ -1,10 +1,8 @@
 import numpy as np
 from scipy.optimize import curve_fit
 
-from .WidthDists import FractionMissing, PorterThomasPDF, PorterThomasCDF
-from .RMatrix import NuclearRadius
-from .WidthDists import ReduceFactor
-from . import halfint
+from .WidthDists import FractionMissing, PorterThomasCDF
+from ..DataClasses import halfint
 
 __doc__ = """
 This module compiles mean parameter estimation methods.
@@ -37,11 +35,12 @@ False level-spacing estimation:
 #    Mean Level-Spacing Estimation:
 # =================================================================================================
 
-def MeanSpacingBethe(J:halfint, A:int, a:float, E:float, E0:float=0.0):
+def MeanSpacingBethe(J:halfint, A:int, E:float, E0:float=0.0):
     """
     ...
     """
 
+    a = A / 11 # 1 / MeV
     s2c = 0.0888 * A**(2/3) * np.sqrt(a*(E-E0))
     fJ = np.exp(-(J**2 + (J+1)**2)/(2*s2c))
     c = np.exp(2*np.sqrt(a*(E-E0))) / (12 * np.sqrt(2*s2c) * (a*(E-E0)**5)**(1/4))
@@ -66,9 +65,10 @@ def MeanSpacingAveraging(E):
     """
 
     E = np.sort(E)
+    N = len(E) - 1
     lvl_spacings = np.diff(E)
-    N = len(lvl_spacings)
     mean_lvl_spacing = np.mean(lvl_spacings)
+    # mean_lvl_spacing = (E[-1] - E[0]) / N # alternative
     mean_lvl_spacing_std = np.sqrt( np.mean((lvl_spacings - mean_lvl_spacing)**2) / (N-1) )
     return mean_lvl_spacing, mean_lvl_spacing_std
 
@@ -181,5 +181,3 @@ def MeanWidthCDFRegression(widths, dof:int=1, thres:float=0.0):
 # =================================================================================================
 #    False Level-Density Estimation:
 # =================================================================================================
-
-# ...
