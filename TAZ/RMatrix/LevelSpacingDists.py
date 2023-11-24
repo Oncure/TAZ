@@ -148,7 +148,14 @@ class Distribution:
 
     @classmethod
     def wigner(cls, Freq:float=1.0):
-        'Sample Wigner distribution.'
+        """
+        Sample Wigner distribution without missing resonances considered.
+
+        Inputs:
+        ------
+        Freq :: float
+            Mean level-density. Default = 1.0.
+        """
         pid4  = pi/4
         coef = pid4*Freq**2
         root_coef = sqrt(coef)
@@ -173,7 +180,20 @@ class Distribution:
 
     @classmethod
     def brody(cls, Freq:float=1.0, w:float=0.0):
-        'Sample Brody distribution.'
+        """
+        Sample Brody distribution without missing levels considered. The Brody distribution
+        is an interpolation between Wigner distribution and Poisson distribution. Brody
+        distribution is said to be more applicable for even-mass isotopes with an atomic mass
+        number above 150. The Brody parameter can range from 0 to 1, where w=0 gives a Poisson
+        distribution and w=1 gives a Wigner distribution.
+
+        Inputs:
+        ------
+        Freq :: float
+            Mean level-density. Default = 1.0.
+        w    :: float
+            Brody parameter. Default = 0.0.
+        """
         w1i = 1.0 / (w+1)
         a = (Freq*w1i*gamma(w1i))**(w+1)
 
@@ -195,12 +215,29 @@ class Distribution:
             return (-np.log(R) / a) ** w1i
         def get_if2(R):
             return (gammainccinv(w1i, R) / a) ** w1i
-            # return gammainccinv(w1i, ((w+1)*a**w1i) * X)
         return cls(f0=get_f0, f1=get_f1, f2=get_f2, parts=get_parts, if1=get_if1, if2=get_if2, Freq=Freq)
     
     @classmethod
-    def missing(cls, Freq:float=1.0, pM:float=0.0, err:float=5e-3):
-        'Sample Wigner distribution with missing resonances considered.'
+    def missing(cls, Freq:float=1.0, pM:float=0.0, err:float=0.005):
+        """
+        Sample Wigner distribution with missing resonances considered.
+
+        Source: http://www.lib.ncsu.edu/resolver/1840.16/4284 (Eq. 4.1)
+
+        Inputs:
+        ------
+        Freq :: float
+            Mean level-density. Default = 1.0.
+        pM   :: float
+            Fraction of missing resonances. Default = 0.0.
+        err  :: float
+            Maximum error in PDF. Default = 0.005.
+
+        Returns:
+        -------
+        distribution :: Distribution
+            The distribution object for the missing-resonances level-spacing distribution.
+        """
         
         # If we assume there are no missing resonances, the PDF converges to Wigner:
         if pM == 0.0:
@@ -435,7 +472,6 @@ def levelSpacingRatioPDF(ratio:float, beta:int=1):
     ----------
     ratio :: float or float array
         The nearest level-spacing ratio(s).
-
     beta  :: 1, 2, or 4
         The parameter that determines the assumed ensemble. For GOE, GUE, and GSE, `beta` = 1, 2,
         or 4, respectively. The default is 1 (GOE).

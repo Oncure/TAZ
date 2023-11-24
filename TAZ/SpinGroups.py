@@ -1,4 +1,9 @@
-from numpy import uint8
+
+__doc__ = """
+This file defines all classes related to spingroups. "halfint" is a class for half-integers.
+"SpinGroup" is a class to define one spingroup (a pair of orbital angular momentum, total angular
+momentum, and channel spin). "SpinGroups" is a class for storing multiple "SpinGroup" objects.
+"""
 
 class halfint:
     """
@@ -11,7 +16,7 @@ class halfint:
         else:
             if value % 0.5 != 0.0:
                 raise ValueError(f'The number, {value}, is not a half-integer.')
-            self.__2x_value = uint8(2*value)
+            self.__2x_value = int(2*value)
     
     @property
     def parity(self):   return '+' if self.__2x_value >= 0 else '-'
@@ -30,6 +35,11 @@ class halfint:
             return self.value == other.value
         else:
             return self.value == other
+    def __ne__(self, other) -> bool:
+        if type(other) == self.__class__:
+            return self.value != other.value
+        else:
+            return self.value != other
     def __lt__(self, other) -> bool:
         if type(other) == self.__class__:
             return self.value < other.value
@@ -50,11 +60,6 @@ class halfint:
             return self.value >= other.value
         else:
             return self.value >= other
-    def __ne__(self, other) -> bool:
-        if type(other) == self.__class__:
-            return self.value != other.value
-        else:
-            return self.value != other
     def __add__(self, other):
         if type(other) == self.__class__:
             return self.__class__(self.value + other.value)
@@ -121,7 +126,7 @@ class SpinGroup:
             Channel spin. Default = None.
         """
 
-        self.L = uint8(l)
+        self.L = int(l)
         
         if type(j) == halfint:      self.J = j
         else:                       self.J = halfint(j)

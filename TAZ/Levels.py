@@ -25,7 +25,6 @@ class Merger:
     -------------------------
     levelSpacingFunc :: 'Wigner', 'Brody', or 'Missing'
         Determines the type of level-spacing distribution used.
-
     err              :: float      (default = 1e-9)
         Threshold for ignoring Wigner probabilities.
         
@@ -33,23 +32,18 @@ class Merger:
     --------------------------
     G     :: int
         The number of possible (true) spingroups.
-
     Freq  :: float [G]
         Level densities for each spingroup. Inverse of mean level spacing.
-
     Z     :: float [G,G]
         Matrix used to calculate the normalization factor for the merged group level-spacing
         distribution. See the "Z" variable in the merged level-spacing equation.
-
     ZB    :: float [G]
         A special variation of `Z` used for the level-spacing with one resonance that exists
         outside the ladder energy bounds. As such the resonance's position is assumed to be
         unknown except that we know it is not inside the ladder energy bounds.
-
     xMax  :: float
         The maximum level spacings that give a probability above a threshold error, `err`. No
         level-spacings are calculated 
-
     xMaxB :: float
         A special variation of `xMax` used for the level-spacing with one resonance that exists
         outside the ladder energy bounds. As such the resonance's position is assumed to be
@@ -65,7 +59,6 @@ class Merger:
         level_spacing_dists :: Distributions
             The level-spacing distributions of all (true) spingroups as provided by the
             level-spacing distribution class in `RMatrix.py`.
-
         err                 :: float
             A probability threshold where resonances are considered to be too far apart to be
             nearest neighbors.
@@ -112,13 +105,10 @@ class Merger:
         ----------
         E       :: float [L]
             All recorded resonance energies within the selected energy range, provided by `EB`.
-
         EB      :: float [2]
             The lower and upper boundaries on the recorded energy range.
-
         prior   :: float [L,G]
             The prior spingroup probabilities for each resonance and possible (true) spingroup.
-
         verbose :: bool
             The verbosity controller. Default = False.
 
@@ -128,7 +118,6 @@ class Merger:
             The level-spacing probabilities between each resonance, given by the provided index,
             including resonances beyond the lower boundary (first index = 0) and resonances
             beyond the upper boundary (second index = L+1).
-
         iMax                :: int [L+2,2]
             An array of indices representing the outermost resonances where the level-spacing is
             not negligible as determined by `xMax` and `xMaxB`. `iMax[i,0]` is returns the lowest
@@ -184,15 +173,14 @@ class Merger:
 
         Parameters:
         ----------
-        E       :: float [L]
+        E    :: float [L]
             All recorded resonance energies within the selected energy range, provided by `EB`.
-
-        EB      :: float [2]
+        EB   :: float [2]
             The lower and upper boundaries on the recorded energy range.
 
         Returns:
         -------
-        iMax    :: int [L+2,2]
+        iMax :: int [L+2,2]
             An array of indices representing the outermost resonances where the level-spacing is
             not negligible as determined by `xMax` and `xMaxB`. `iMax[i,0]` is returns the lowest
             index, `j`, less than `i`, where `E[j-1] - E[i-1] < xMax`. `iMax[i,1]` is returns the
@@ -248,10 +236,8 @@ class Merger:
         ----------
         X       :: float [L]
             Nearest-neighbor level-spacings.
-        
         prior_L :: float [L,G]
             Prior spingroup probabilities for the left-hand-side resonances.
-
         prior_R :: float [L,G]
             Prior spingroup probabilities for the right-hand-side resonances.
 
@@ -291,15 +277,14 @@ class Merger:
 
         Parameters:
         ----------
-        X       :: float [L]
+        X     :: float [L]
             Distance between the resonance and the boundary of the recorded energy range.
-        
-        prior   :: float [L,G]
+        prior :: float [L,G]
             Prior spingroup probabilities for the recorded resonance.
 
         Returns:
         -------
-        probs   :: float [L]
+        probs :: float [L]
             probability densities from the merged level-spacing probability density function,
             evaluated at the given level-spacings, `X`.
         """
@@ -498,7 +483,6 @@ class RunMaster:
         ----------
         return_log_likelihood :: bool
             Determines whether to return the resonance ladder log-likelihood. Default = False.
-
         verbose :: bool
             The verbosity controller. Default = False.
 
@@ -586,7 +570,6 @@ class RunMaster:
         ----------
         trials  :: int
             The number of trials of sampling the resonance ladder. Default = 1.
-
         verbose :: bool
             The verbosity controller. Default = False.
 

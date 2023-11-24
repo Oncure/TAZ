@@ -10,7 +10,8 @@ specific particle. Objects of this class are used when defining a reaction's pro
 #    Particle:
 # =================================================================================================
 
-mass_neutron = 1.00866491595 # amu   (source: ENDF manual Table H.2)
+mass_neutron = 1.00866491588 #  amu  (source: ENDF-6 manual Table H.2)
+mass_proton  = 1.007276466621 # amu  (source: ENDF-6 manual Table H.2)
 
 class Particle:
     """
@@ -64,7 +65,7 @@ class Particle:
         # Nuclear Radius: (fm)
         if radius is not None:
             if   radius > 1e2:      print(Warning(f'The channel radius, {radius}, is quite high. Make sure it is in units of femtometers.'))
-            elif radius > 1e-2:     print(Warning(f'The channel radius, {radius}, is quite low. Make sure it is in units of femtometers.'))
+            elif radius < 1e-2:     print(Warning(f'The channel radius, {radius}, is quite low. Make sure it is in units of femtometers.'))
             self.radius = float(radius)
         elif self.A is not None:
             self.radius = 1.23 * self.A**(1/3)
@@ -92,3 +93,4 @@ class Particle:
         return self.name
     
 Neutron = Particle(Z=0, A=1, I=0.5, mass=mass_neutron, radius=0.8, name='neutron')
+Proton  = Particle(Z=1, A=1, I=0.5, mass=mass_proton , radius=0.833, name='proton')
