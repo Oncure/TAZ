@@ -21,7 +21,7 @@ class halfint:
     @property
     def parity(self):   return '+' if self.__2x_value >= 0 else '-'
     @property
-    def value(self):    return self.__2x_value / 2
+    def value(self):    return 0.5 * float(self.__2x_value)
 
     def __repr__(self):
         if self.__2x_value % 2 == 0:
@@ -30,6 +30,8 @@ class halfint:
             return f'{self.__2x_value}/2'
 
     # Arithmetic:
+    def __float__(self):
+        return self.value
     def __eq__(self, other) -> bool:
         if type(other) == self.__class__:
             return self.value == other.value
@@ -267,15 +269,18 @@ class SpinGroups:
         'Channel spin number'
         return [sg.S for sg in self.SGs]
     @property
-    def num_sgs(self):
-        'The number of spingroups'
-        return len(self.SGs)
-    @property
     def g(self):
         'Statistical spin factor'
         if (self.spin_target is None) or (self.spin_proj is None):
             raise ValueError('Target spin and/or projectile spin were not provided. The statistical spin factors, "g" cannot be calculated.')
         return [sg.g(self.spin_target, self.spin_proj) for sg in self.SGs]
+    
+    def __len__(self):
+        return len(self.SGs)
+    @property
+    def num_sgs(self):
+        'The number of spingroups'
+        return len(self.SGs)
     
     def __getitem__(self, indices):
         if hasattr(indices, '__iter__'):

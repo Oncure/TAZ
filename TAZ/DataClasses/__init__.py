@@ -7,4 +7,4 @@ and resonance classes.
 from .SpinGroups import *
 from .Particle import *
 from .Resonances import *
-from .MeanParameters import *
+from .Reaction import *

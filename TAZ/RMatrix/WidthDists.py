@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.special import gammainc
+from scipy.special import gammainc, iv
 from scipy.stats import chi2
 
 from .RMatrix import PenetrationFactor, Rho
@@ -128,3 +128,25 @@ def ReduceFactor(E, l:int, mass_targ:float, ac:float, mass_proj:float=None, mass
               mass_proj, mass_targ_after, mass_proj_after, E_thres)
     reduce_factor = 1.0 / (2.0*PenetrationFactor(rho,l))
     return reduce_factor
+
+def FissionDistPDF(G,
+                   GmfA:float     , dofA:int=1,
+                   GmfB:float=None, dofB:int=1,
+                   trunc:float=0.0):
+    """
+    ...
+    """
+
+    if GmfB == None:
+        return PorterThomasPDF(G, GmfA, trunc, dofA)
+    else:
+        if trunc != 0.0:
+            raise NotImplementedError('Truncation has not been implemented yet.')
+        elif not (dofA == dofB == 1):
+            raise NotImplementedError('The fission distribution with more than 1 degree of freedom has not been implemented yet.')
+        
+        # Source:   https://www.publish.csiro.au/ph/pdf/PH750489
+        a = G * (1/GmfB - 1/GmfA)/4
+        b = G * (1/GmfB + 1/GmfA)/4
+        prob = np.exp(-b) * iv(0, a) / np.sqrt(4*GmfA*GmfB)
+        return prob

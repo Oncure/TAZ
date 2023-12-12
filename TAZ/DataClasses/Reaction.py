@@ -7,18 +7,44 @@ from . import Particle, Neutron
 from . import Resonances
 
 __doc__ = """
-This file keeps the "MeanParameters" class. The "MeanParameters" class contains all relevent
+This file keeps the "Reaction" class. The "Reaction" class contains all relevent
 information that is independent of individual resonances, such as the target and projectile
 particles, spingroup combinations, mean level densities, mean partial widths, etc.
 """
 
+def spingroupParameter(mean_parameters, num_groups:int, dtype:type=float):
+    """
+    Correctly formats the spingroup-based parameters.
+
+    Parameters:
+    ----------
+    mean_parameters :: array-like
+        The parameters that are being formatted.
+    num_spingroups  :: int
+        The number of recorded spingroups.
+    dtype           :: type
+        The type for formatting the spingroup-based parameters. Default = float.
+
+    Returns:
+    -------
+    mean_parameters :: array-like
+        The reformatted spingroup-based parameters.
+    """
+
+    if (not hasattr(mean_parameters, '__iter__')) \
+        or (np.array(mean_parameters).size != num_groups):
+        from inspect import stack
+        name = stack()[1][0].f_locals[mean_parameters]
+        raise TypeError(f'"{name}" must be an array with length equal to the number of spingroups, {num_groups}.')
+    return np.array(mean_parameters, dtype=dtype).reshape(num_groups,)
+
 # =================================================================================================
-#    Mean Parameters:
+#    Reaction:
 # =================================================================================================
 
-class MeanParameters:
+class Reaction:
     """
-    MeanParameters is a class that contains information about a particular reaction, such as the
+    Reaction is a class that contains information about a particular reaction, such as the
     target particle, projectile particle, spingroups, and mean resonance parameters such as mean
     level-spacing, and mean partial widths.
     """
@@ -29,7 +55,7 @@ class MeanParameters:
                  targ:Particle=None, proj:Particle=Neutron,
                  ac:float=None,
                  EB:tuple=None, FreqF:float=0.0,
-                 sg:SpinGroups=None,
+                 spingroups:SpinGroups=None,
                  Freq:list=None, MLS:list=None,
                  w:list=None,
                  Gnm:list=None, nDOF:list=None,
@@ -40,35 +66,35 @@ class MeanParameters:
 
         Attributes:
         ----------
-        targ     :: Particle
+        targ       :: Particle
             Target particle object.
-        proj     :: Particle
+        proj       :: Particle
             Projectile particle object. Default = Neutron.
-        ac       :: float
-            Reaction channel radius in femtometers.
-        EB       :: float [2]
+        ac         :: float
+            Reaction channel radius in femtometers.    
+        EB         :: float [2]
             Energy range for evaluation.
-        FreqF    :: float
+        FreqF      :: float
             False resonance level density.
-        sg       :: SpinGroups
+        spingroups :: SpinGroups
             Spingroups for the reaction.
-        Freq     :: float [G]
+        Freq       :: float [G]
             Resonance level densities for each spingroup.
-        MLS      :: float [G]
+        MLS        :: float [G]
             Resonance mean level spacings for each spingroup.
-        w        :: float [G]
+        w          :: float [G]
             Brody resonance parameter.
-        Gnm      :: float [G]
+        Gnm        :: float [G]
             Resonance mean neutron widths for each spingroup.
-        nDOF     :: float [G]
+        nDOF       :: float [G]
             Resonance neutron width degrees of freedom for each spingroup.
-        Ggm      :: float [G]
-            Resonance mean gamma (capture) width for each spingroup.
-        gDOF     :: float [G]
-            Resonance gamma (capture) width degrees of freedom for each spingroup.
-        Gn_trunc :: float [G]
+        Gn_trunc   :: float [G]
             Lowest recordable neutron width.
-        MissFrac :: float [G]
+        Ggm        :: float [G]
+            Resonance mean gamma (capture) width for each spingroup.
+        gDOF       :: float [G]
+            Resonance gamma (capture) width degrees of freedom for each spingroup.
+        MissFrac   :: float [G]
             Fraction of Resonances that have been missed.
         """
 
@@ -111,104 +137,86 @@ class MeanParameters:
         if FreqF is not None:   self.FreqF = float(FreqF)
         else:                   self.FreqF = 0.0
 
-        # Spin-Groups:
-        if sg is None:
-            raise ValueError('The spingroups are a required argument for MeanParameters.')
-        elif type(sg) != SpinGroups:
+        # Spingroups:
+        if spingroups is None:
+            raise ValueError('The spingroups are a required argument for initialization of a "Reaction" object.')
+        elif type(spingroups) != SpinGroups:
             raise TypeError('"sg" must have type "SpinGroups".')
-        self.sg = sg
-        self.num_sgs = self.sg.num_sgs
+        self.spingroups = spingroups
+        self.num_groups = self.spingroups.num_sgs
         
         # Frequencies:
         if Freq is not None and MLS is not None:
             raise ValueError('Cannot have both mean level spacing and frequencies.')
         elif Freq is not None:
-            if (not hasattr(Freq, '__iter__')) or (len(Freq) != self.num_sgs):
-                raise TypeError(f'"Freq" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
-            self.Freq = np.array(Freq, dtype=float).reshape(-1,)
+            self.Freq = spingroupParameter(Freq, self.num_groups, dtype=float)
         elif MLS is not None:
-            if (not hasattr(MLS, '__iter__')) or (len(MLS) != self.num_sgs):
-                raise TypeError(f'"MLS" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
-            self.Freq = 1.0 / np.array(MLS, dtype=float).reshape(-1,)
+            self.Freq = 1.0 / spingroupParameter(MLS, self.num_groups, dtype=float)
         else:
             self.Freq = None
 
         # Brody Parameter:
         if w is not None:
             if hasattr(w, '__iter__'):
-                if (len(w) != self.num_sgs):
-                    raise TypeError(f'"w" must have a length equal to the number of spingroups, {self.num_sgs}.')
-                self.w = np.array(w, dtype=float).reshape(-1,)
+                self.w = spingroupParameter(w, self.num_groups, dtype=float)
             else:
-                self.w = float(w) * np.ones((self.num_sgs,))
+                self.w = float(w) * np.ones((self.num_groups,))
         else:
-            self.w = np.ones((self.num_sgs,))
+            self.w = np.ones((self.num_groups,))
 
         # Mean Neutron Widths:
         if Gnm is not None:
-            if (not hasattr(Gnm, '__iter__')) or (len(Gnm) != self.num_sgs):
-                raise TypeError(f'"Gnm" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
-            self.Gnm = np.array(Gnm, dtype=float).reshape(-1,)
+            self.Gnm = spingroupParameter(Gnm, self.num_groups, dtype=float)
         else:
             self.Gnm = None
 
         # Neutron Channel Degrees of Freedom:
         if nDOF is not None:
-            if (not hasattr(nDOF, '__iter__')) or (len(nDOF) != self.num_sgs):
-                raise TypeError(f'"nDOF" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
-            self.nDOF = np.array(nDOF, dtype=int).reshape(-1,)
+            self.nDOF = spingroupParameter(nDOF, self.num_groups, dtype=int)
         else:
-            self.nDOF = np.ones((self.num_sgs,), dtype=int)
+            self.nDOF = np.ones((self.num_groups,), dtype=int)
 
         # Mean Gamma Widths:
         if Ggm is not None:
-            if (not hasattr(Ggm, '__iter__')) or (len(Ggm) != self.num_sgs):
-                raise TypeError(f'"Ggm" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
-            self.Ggm = np.array(Ggm, dtype=float).reshape(-1,)
+            self.Ggm = spingroupParameter(Ggm, self.num_groups, dtype=float)
         else:
             self.Ggm = None
 
         # Gamma Channel Degrees of Freedom:
         if gDOF is not None:
-            if (not hasattr(gDOF, '__iter__')) or (len(gDOF) != self.num_sgs):
-                raise TypeError(f'"gDOF" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
-            self.gDOF = np.array(gDOF, dtype=int).reshape(-1,)
+            self.gDOF = spingroupParameter(gDOF, self.num_groups, dtype=int)
         else:
-            self.gDOF = self.DEFAULT_GDOF * np.ones((self.num_sgs,), dtype=int)
+            self.gDOF = self.DEFAULT_GDOF * np.ones((self.num_groups,), dtype=int)
 
         # Truncation Width:
         if Gn_trunc is not None:
-            if (not hasattr(Gn_trunc, '__iter__')) or (len(Gn_trunc) != self.num_sgs):
-                raise TypeError(f'"Gn_trunc" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
-            self.Gn_trunc = np.array(Gn_trunc, dtype=float).reshape(-1,) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
+            self.Gn_trunc = spingroupParameter(Gn_trunc, self.num_groups, dtype=float) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
         else:
-            self.Gn_trunc = np.zeros((self.num_sgs,), dtype=float)
+            self.Gn_trunc = np.zeros((self.num_groups,), dtype=float)
 
         # Missing Fraction:
         if MissFrac is not None:
-            if (not hasattr(MissFrac, '__iter__')) or (len(MissFrac) != self.num_sgs):
-                raise TypeError(f'"MissFrac" must be an array with length equal to the number of spingroups, {self.num_sgs}.')
-            self.MissFrac = np.array(MissFrac, dtype=float).reshape(-1,) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
+            self.MissFrac = spingroupParameter(MissFrac, self.num_groups, dtype=float) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
             self.given_miss_frac = True
         elif Gn_trunc is not None:
             self.MissFrac = RMatrix.FractionMissing(self.Gn_trunc, self.Gnm, self.nDOF) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
             self.given_miss_frac = False
         else:
-            self.MissFrac = np.zeros((self.num_sgs,), dtype=float)
+            self.MissFrac = np.zeros((self.num_groups,), dtype=float)
             self.given_miss_frac = False
 
     @property
     def L(self):
         'Orbital Angular Momentum'
-        return np.array(self.sg.L)
+        return np.array(self.spingroups.L)
     @property
     def J(self):
         'Total Angular Momentum'
-        return np.array(self.sg.J)
+        return np.array(self.spingroups.J)
     @property
     def S(self):
         'Channel Spin'
-        return np.array(self.sg.S)
+        return np.array(self.spingroups.S)
     @property
     def MLS(self):
         'Mean Level Spacing'
@@ -235,7 +243,7 @@ class MeanParameters:
                       'Gamma Width DOF', \
                       'Truncation N Width', \
                       'Missing Fraction']
-        txt += str(pd.DataFrame(data=data, index=properties, columns=self.sg.SGs))
+        txt += str(pd.DataFrame(data=data, index=properties, columns=self.spingroups.SGs))
         return txt
     def __str__(self):
         return self.__repr__()
@@ -243,7 +251,7 @@ class MeanParameters:
     @classmethod
     def readJSON(cls, file:str):
         """
-        Creates a MeanParameters object by importing a JSON file.
+        Creates a Reaction object by importing a JSON file.
         """
 
         import json
@@ -284,7 +292,7 @@ class MeanParameters:
         Gn         = np.zeros((0,))
         Gg         = np.zeros((0,))
         spingroups = np.zeros((0,), dtype=int)
-        for g in range(self.num_sgs):
+        for g in range(self.num_groups):
             # Energy sampling:
             w = self.w[g] if self.w is not None else None
             E_group  = RMatrix.SampleEnergies(self.EB, self.Freq[g], w=w, ensemble=ensemble, rng=rng)
@@ -310,9 +318,9 @@ class MeanParameters:
             # False width sampling:
             # False widths are sampled by taking the frequency-weighted average of each spingroup's width distributions.
             num_false = len(E_false)
-            Gn_false_group = np.zeros((num_false,self.num_sgs))
-            Gg_false_group = np.zeros((num_false,self.num_sgs))
-            for g in range(self.num_sgs):
+            Gn_false_group = np.zeros((num_false,self.num_groups))
+            Gg_false_group = np.zeros((num_false,self.num_groups))
+            for g in range(self.num_groups):
                 Gn_false_group[:,g] = RMatrix.SampleNeutronWidth(E_false, self.Gnm[g], self.nDOF[g], self.L[g], ac=self.ac,
                                                                  mass_targ=self.targ.mass, mass_proj=self.proj.mass,
                                                                  rng=rng)
@@ -328,7 +336,7 @@ class MeanParameters:
             E          = np.concatenate((E         , E_false ))
             Gn         = np.concatenate((Gn        , Gn_false))
             Gg         = np.concatenate((Gg        , Gg_false))
-            spingroups = np.concatenate((spingroups, self.num_sgs*np.ones((num_false,), dtype=int)))
+            spingroups = np.concatenate((spingroups, self.num_groups*np.ones((num_false,), dtype=int)))
 
         # Sorting Indices:
         idx = np.argsort(E)
@@ -345,7 +353,7 @@ class MeanParameters:
             else: # given Gn_trunc
                 Gn_trunc = np.concatenate((self.Gn_trunc, [0]))
                 rGn = np.zeros(Gn.shape)
-                for g in range(self.num_sgs):
+                for g in range(self.num_groups):
                     spingroup_g = (spingroups == g)
                     rGn[spingroup_g] = Gn[spingroup_g] * RMatrix.ReduceFactor(E[spingroup_g], self.L[g], ac=self.ac,
                                                                               mass_targ=self.targ.mass, mass_proj=self.proj.mass)
@@ -355,14 +363,14 @@ class MeanParameters:
         E_caught  =  E[~missed_idx]
         Gn_caught = Gn[~missed_idx]
         Gg_caught = Gg[~missed_idx]
-        resonances_caught = Resonances(E=E_caught, Gn=Gn_caught, Gg=Gg_caught)
+        resonances_caught = Resonances(E=E_caught, Gn=Gn_caught, Gg=Gg_caught, ladder_bounds=self.EB)
         spingroups_caught = spingroups[~missed_idx]
         
         # Missing resonances:
         E_missed  =  E[missed_idx]
         Gn_missed = Gn[missed_idx]
         Gg_missed = Gg[missed_idx]
-        resonances_missed = Resonances(E=E_missed, Gn=Gn_missed, Gg=Gg_missed)
+        resonances_missed = Resonances(E=E_missed, Gn=Gn_missed, Gg=Gg_missed, ladder_bounds=self.EB)
         spingroups_missed = spingroups[missed_idx]
 
         # Returning resonance data:
@@ -377,7 +385,6 @@ class MeanParameters:
         ----------
         dist_type :: 'Wigner', 'Brody', or 'Missing'
             the level-spacings distribution type. Default is 'Wigner'.
-        
         err       :: float
             A probability threshold in which any more missing resonances would be unlikely.
 
@@ -406,30 +413,33 @@ class MeanParameters:
         ----------
         quantity  :: 'energies', 'level spacing', 'neutron width', 'gamma width', or 'capture width'
             The quantity for which the expected distribution is given.
-
         spingroup :: int or SpinGroup
             The spingroup for the expected distribution.
-
         cdf       :: bool
             If true, the expected cumulative density function is provided; else, the probability
             density function is provided. Default = False.
+
+        Returns:
+        -------
+        fit       :: function
+            The probability distribution of the specified quantity.
         """
 
         # Matching spingroup to id:
-        g = self.sg.id(spingroup)
+        g = self.spingroups.id(spingroup)
 
         # Determining and returning distribution:
         if   quantity == 'energies':
             if not cdf: # PDF
-                f = lambda e: 1.0 / (self.EB[1] - self.EB[0])
+                fit = lambda e: 1.0 / (self.EB[1] - self.EB[0])
             else: # CDF
-                f = lambda e: (e - self.EB[0]) / (self.EB[1] - self.EB[0])
+                fit = lambda e: (e - self.EB[0]) / (self.EB[1] - self.EB[0])
         elif quantity == 'level spacing':
-            if g == self.num_sgs:
+            if g == self.num_groups:
                 if not cdf: # PDF
-                    f = lambda x: self.FreqF * np.exp(-self.FreqF * x)
+                    fit = lambda x: self.FreqF * np.exp(-self.FreqF * x)
                 else: # CDF
-                    f = lambda x: 1 - np.exp(-self.FreqF * x)
+                    fit = lambda x: 1 - np.exp(-self.FreqF * x)
             else:
                 if self.w[g] == 1.0:
                     if self.MissFrac[g] == 0.0:
@@ -442,17 +452,17 @@ class MeanParameters:
                     else:
                         raise NotImplementedError('The level-spacing distribution for Brody distribution with missing levels has not been implemented yet.')
                 if not cdf: # PDF
-                    f = self.distributions(dist_type)[g].f0
+                    fit = self.distributions(dist_type)[g].f0
                 else: # CDF
-                    f = lambda x: 1.0 - self.distributions(dist_type)[g].f1(x)
+                    fit = lambda x: 1.0 - self.distributions(dist_type)[g].f1(x)
         elif quantity == 'neutron width':
             if not cdf: # PDF
-                f = lambda rGn: RMatrix.PorterThomasPDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
+                fit = lambda rGn: RMatrix.PorterThomasPDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
             else: # CDF
-                f = lambda rGn: RMatrix.PorterThomasCDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
+                fit = lambda rGn: RMatrix.PorterThomasCDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
         elif quantity in ('gamma width', 'capture width'):
             if not cdf: # PDF
-                f = lambda rGg: RMatrix.PorterThomasPDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
+                fit = lambda rGg: RMatrix.PorterThomasPDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
             else: # CDF
-                f = lambda rGg: RMatrix.PorterThomasCDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
-        return f
+                fit = lambda rGg: RMatrix.PorterThomasCDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
+        return fit

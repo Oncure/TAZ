@@ -11,7 +11,7 @@ energies.
 """
 
 # =================================================================================================
-#    Sampling
+#    Partial Width Sampling:
 # =================================================================================================
 
 def SampleNeutronWidth(E, Gnm:float, dof:int, l:int, ac:float,
@@ -94,6 +94,10 @@ def SampleGammaWidth(L:int, Ggm:float, dof:int,
         rng = np.random.default_rng(seed)
 
     return (Ggm/dof) * rng.chisquare(dof, (L,))
+
+# =================================================================================================
+#    Energy Level Sampling:
+# =================================================================================================
 
 def wigSemicircleCDF(x):
     """

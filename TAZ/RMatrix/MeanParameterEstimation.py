@@ -51,8 +51,8 @@ def MeanSpacingAveraging(E):
     Finds the mean level-spacing by taking the average of the level-spacings. Also returns the
     standard deviation of the mean level-spacing.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     E :: ndarray[float]
         Resonance energies.
 
@@ -77,8 +77,8 @@ def MeanSpacingRegression(E, EB:tuple):
     Finds the mean level-spacing of the given energies by taking the slope of the empirical CDF
     of the energy level distribution.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     E  :: ndarray[float]
         Resonance energies.
     EB :: tuple[float]
@@ -114,8 +114,8 @@ def MeanWidthAveraging(widths):
     Finds the mean partial widths by taking the average of the widths. Also returns the standard
     deviation of the mean partial widths.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     widths :: ndarray[float]
         Resonance partial widths.
 
@@ -136,8 +136,8 @@ def MeanWidthCDFRegression(widths, dof:int=1, thres:float=0.0):
     Finds the mean partial widths by performing a regression on the Porter-Thomas CDF distribution.
     A truncation on the widths can be provided.
 
-    Inputs:
-    ------
+    Parameters:
+    ----------
     widths :: ndarray[float]
         Resonance partial widths.
     dof    :: int

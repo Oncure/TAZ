@@ -15,7 +15,7 @@ multiple-spingroup case is an approximation.
 """
 
 # =================================================================================================
-# Merger:
+#     Merger:
 # =================================================================================================
 class Merger:
     """
@@ -23,10 +23,12 @@ class Merger:
 
     Initialization Attributes:
     -------------------------
-    levelSpacingFunc :: 'Wigner', 'Brody', or 'Missing'
-        Determines the type of level-spacing distribution used.
-    err              :: float      (default = 1e-9)
-        Threshold for ignoring Wigner probabilities.
+    level_spacing_dists :: Distributions
+        The level-spacing distribution(s) for each spingroup to calculate wigner probabilities
+        with.
+    err                 :: float
+        Threshold for no longer calculating Wigner probabilities for larger level-spacings.
+        Default = 1e-9.
         
     Internally Used Attributes:
     --------------------------
@@ -89,6 +91,92 @@ class Merger:
     def MLSTot(self):
         'Gives the combined mean level-spacing for the group.'
         return 1.0 / self.FreqTot
+
+    def __xMax_limits(self, err:float):
+        """
+        In order to estimate `xMax` and `xMaxB`, we first must calculate `Z` and `ZB`. `xMax_limit`
+        is used to get a simple upper bound on `xMax` and `xMaxB`. This limit assumes that the
+        `xMax` for the level-spacing distribution is at least less than the `xMax` for Poisson
+        distribution.
+        """
+        xMax = -np.log(err)/self.Freq
+        return xMax
+
+    def __findZ(s, xMax_limits):
+        """
+        A function that calculates normalization matrices using the spingroups. When paired with
+        the prior probabilities, the arrays, `Z` and `ZB` are the normalization factors for the
+        merged level-spacing probability density function.
+        """
+
+        def offDiag(x, i:int, j:int):
+            F2, R1, R2 = s.level_spacing_dists.parts(x)
+            C = np.prod(F2, axis=1)
+            return C[0] * R2[0,i] * R2[0,j]
+        def mainDiag(x, i:int):
+            F2, R1, R2 = s.level_spacing_dists.parts(x)
+            C = np.prod(F2, axis=1)
+            return C[0] * R1[0,i] * R2[0,i]
+        def boundaries(x, i:int):
+            F2, R1, R2 = s.level_spacing_dists.parts(x)
+            C = np.prod(F2, axis=1)
+            return C[0] * R2[0,i]
+
+        # Level Spacing Normalization Matrix:
+        Z = np.zeros((s.G,s.G), dtype='f8')
+        for i in range(s.G):
+            for j in range(i):
+                # Off-diagonal:
+                min_xMax_limit = min(xMax_limits[i], xMax_limits[j])
+                Z[i,j] = integrate(lambda _x: offDiag(_x,i,j), a=0.0, b=min_xMax_limit)[0]
+                Z[j,i] = Z[i,j]
+            # Main diagonal:
+            Z[i,i] = integrate(lambda _x: mainDiag(_x,i), a=0.0, b=xMax_limits[i])[0]
+        
+        # Level Spacing Normalization at Boundaries:
+        ZB = np.array([integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limits[i])[0] for i in range(s.G)], dtype='f8')
+
+        # Error Checking:
+        if   (Z  == np.nan).any():  raise RuntimeError('The normalization array, "Z", has some "NaN" values.')
+        elif (Z  == np.inf).any():  raise RuntimeError('The normalization array, "Z", has some "Inf" values.')
+        elif (Z  <  0.0   ).any():  raise RuntimeError('The normalization array, "Z", has some negative values.')
+        elif (ZB == np.nan).any():  raise RuntimeError('The normalization array, "ZB", has some "NaN" values.')
+        elif (ZB == np.inf).any():  raise RuntimeError('The normalization array, "ZB", has some "Inf" values.')
+        elif (ZB <  0.0   ).any():  raise RuntimeError('The normalization array, "ZB", has some negative values.')
+        return Z, ZB
+    
+    def __findxMax(s, err:float, xMax_limits):
+        """
+        An upper limit on the level-spacing beyond which is improbable, as determined by the
+        probability threshold, `err`. To ensure the solution is found a rough estimate must be
+        provided: `xMax_limit`.
+        """
+        mthd   = 'brentq' # method for root-finding
+        bounds = [s.MLSTot, np.max(xMax_limits)]
+        if s.G == 1:
+            xMax  = root_scalar(lambda x: s.level_spacing_dists.f0(x) - err     , method=mthd, bracket=bounds).root
+            xMaxB = root_scalar(lambda x: s.level_spacing_dists.f1(x) - err, method=mthd, bracket=bounds).root
+        else:
+            # Bounding the equation from above:
+            def upperBoundLevelSpacing(x):
+                f2, r1, r2 = s.level_spacing_dists.parts(x)
+                c = np.prod(f2, axis=1)
+                # Minimum normalization possible. This is the lower bound on the denominator with regards to the priors:
+                Norm_LB = np.min(s.Z)
+                # Finding maximum numerator for the upper bound on the numerator:
+                case_1 = np.max(r1*r2, axis=1)
+                case_2 = np.max(r2**2)
+                return (c / Norm_LB) * max(case_1, case_2)
+            def upperBoundLevelSpacingBoundary(x):
+                f2, r1, r2 = s.level_spacing_dists.parts(x)
+                c = np.prod(f2, axis=1)
+                # Minimum normalization possible for lower bound:
+                Norm_LB = np.min(s.ZB)
+                return (c / Norm_LB) * np.max(r2, axis=1) # Bounded above by bounding the priors from above
+            
+            xMax  = root_scalar(lambda x: upperBoundLevelSpacing(x)-err        , method=mthd, bracket=bounds).root
+            xMaxB = root_scalar(lambda x: upperBoundLevelSpacingBoundary(x)-err, method=mthd, bracket=bounds).root
+        return xMax, xMaxB
 
     def findLevelSpacings(self, E, EB:tuple, prior, verbose:bool=False):
         """
@@ -298,101 +386,6 @@ class Merger:
         # Full probability calculation:
         probs = (c / norm) * np.sum(prior*r2, axis=1)
         return probs.reshape(X.shape)
-   
-    def __findZ(s, xMax_limits):
-        """
-        A function that calculates normalization matrices using the spingroups. When paired with
-        the prior probabilities, the arrays, `Z` and `ZB` are the normalization factors for the
-        merged level-spacing probability density function.
-        """
-
-        def offDiag(x, i:int, j:int):
-            F2, R1, R2 = s.level_spacing_dists.parts(x)
-            C = np.prod(F2, axis=1)
-            return C[0] * R2[0,i] * R2[0,j]
-        def mainDiag(x, i:int):
-            F2, R1, R2 = s.level_spacing_dists.parts(x)
-            C = np.prod(F2, axis=1)
-            return C[0] * R1[0,i] * R2[0,i]
-        def boundaries(x, i:int):
-            F2, R1, R2 = s.level_spacing_dists.parts(x)
-            C = np.prod(F2, axis=1)
-            return C[0] * R2[0,i]
-
-        # Level Spacing Normalization Matrix:
-        Z = np.zeros((s.G,s.G), dtype='f8')
-        for i in range(s.G):
-            for j in range(i):
-                # Off-diagonal:
-                min_xMax_limit = min(xMax_limits[i], xMax_limits[j])
-                Z[i,j] = integrate(lambda _x: offDiag(_x,i,j), a=0.0, b=min_xMax_limit)[0]
-                Z[j,i] = Z[i,j]
-            # Main diagonal:
-            Z[i,i] = integrate(lambda _x: mainDiag(_x,i), a=0.0, b=xMax_limits[i])[0]
-        
-        # Level Spacing Normalization at Boundaries:
-        # ZB = np.zeros((s.G,), dtype='f8')
-        # ZB[:] = [integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limits[i])[0] for i in range(s.G)]
-        ZB = np.array([integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limits[i])[0] for i in range(s.G)], dtype='f8')
-
-        # Error Checking:
-        if (Z == np.nan).any():
-            raise RuntimeError('The normalization array, "Z", has some "NaN" values.')
-        if (Z == np.inf).any():
-            raise RuntimeError('The normalization array, "Z", has some "Inf" values.')
-        if (Z < 0.0).any():
-            raise RuntimeError('The normalization array, "Z", has some negative values.')
-        if (ZB == np.nan).any():
-            raise RuntimeError('The normalization array, "ZB", has some "NaN" values.')
-        if (ZB == np.inf).any():
-            raise RuntimeError('The normalization array, "ZB", has some "Inf" values.')
-        if (ZB < 0.0).any():
-            raise RuntimeError('The normalization array, "ZB", has some negative values.')
-        
-        return Z, ZB
-    
-    def __findxMax(s, err:float, xMax_limits):
-        """
-        An upper limit on the level-spacing beyond which is improbable, as determined by the
-        probability threshold, `err`. To ensure the solution is found a rough estimate must be
-        provided: `xMax_limit`.
-        """
-        mthd   = 'brentq' # method for root-finding
-        bounds = [s.MLSTot, np.max(xMax_limits)]
-        if s.G == 1:
-            xMax  = root_scalar(lambda x: s.level_spacing_dists.f0(x) - err     , method=mthd, bracket=bounds).root
-            xMaxB = root_scalar(lambda x: s.level_spacing_dists.f1(x) - err, method=mthd, bracket=bounds).root
-        else:
-            # Bounding the equation from above:
-            def upperBoundLevelSpacing(x):
-                f2, r1, r2 = s.level_spacing_dists.parts(x)
-                c = np.prod(f2, axis=1)
-                # Minimum normalization possible. This is the lower bound on the denominator with regards to the priors:
-                Norm_LB = np.min(s.Z)
-                # Finding maximum numerator for the upper bound on the numerator:
-                case_1 = np.max(r1*r2, axis=1)
-                case_2 = np.max(r2**2)
-                return (c / Norm_LB) * max(case_1, case_2)
-            def upperBoundLevelSpacingBoundary(x):
-                f2, r1, r2 = s.level_spacing_dists.parts(x)
-                c = np.prod(f2, axis=1)
-                # Minimum normalization possible for lower bound:
-                Norm_LB = np.min(s.ZB)
-                return (c / Norm_LB) * np.max(r2, axis=1) # Bounded above by bounding the priors from above
-            
-            xMax  = root_scalar(lambda x: upperBoundLevelSpacing(x)-err        , method=mthd, bracket=bounds).root
-            xMaxB = root_scalar(lambda x: upperBoundLevelSpacingBoundary(x)-err, method=mthd, bracket=bounds).root
-        return xMax, xMaxB
-
-    def __xMax_limits(self, err:float):
-        """
-        In order to estimate `xMax` and `xMaxB`, we first must calculate `Z` and `ZB`. `xMax_limit`
-        is used to get a simple upper bound on `xMax` and `xMaxB`. This limit assumes that the
-        `xMax` for the level-spacing distribution is at least less than the `xMax` for Poisson
-        distribution.
-        """
-        xMax = -np.log(err)/self.Freq
-        return xMax
 
 # =================================================================================================
 #     WigBayes Partition / Run Master:
@@ -400,19 +393,38 @@ class Merger:
 
 class RunMaster:
     f"""
-    A wrapper for Encore responsible for partitioning spingroups, merging distributions, and
+    A wrapper over Encore responsible for partitioning spingroups, merging distributions, and
     combining spingroup probabilities. For 1 or 2 spingroups, partitioning and merging
-    distributions is not necessary, but RunMaster will pass it to Encore anyway.
+    distributions is not necessary and RunMaster will pass to Encore. Once a RunMaster object has
+    been initialized, the specific algorithm can be chosen (i.e. WigBayes, WigSample, etc.).
 
     ...
     """
 
     def __init__(self, E, EB:tuple,
                  level_spacing_dists:Distributions, FreqF:float=0.0,
-                 Prior=None, log_likelihood_prior=None,
+                 Prior=None, log_likelihood_prior:float=None,
                  err:float=1e-9):
         """
-        ...
+        Initializes a RunMaster object.
+
+        Parameters:
+        ----------
+        E                    :: float, array-like
+            Resonance energies for the ladder.
+        EB                   :: float [2]
+            The ladder energy boundaries.
+        level_spacing_dists  :: Distributions
+            The level-spacing distributions object.
+        FreqF                :: float
+            The false level-density. Default = 0.0.
+        Prior                :: float, array-like
+            The prior probabilitiy distribution for each spingroup. Default = None.
+        log_likelihood_prior :: float
+            The log-likelihood provided from the prior. Default = None.
+        err                  :: float
+            A probability threshold where resonances are considered to be too far apart to be
+            nearest neighbors.
         """
         
         # Error Checking:
@@ -420,20 +432,19 @@ class RunMaster:
             raise TypeError('The level-spacing distributions must be a "Distributions" object.')
         if not (0.0 < err < 1.0):
             raise ValueError('The probability threshold, "err", must be strictly between 0 and 1.')
-        EB = tuple(EB)
         if len(EB) != 2:
             raise ValueError('"EB" must be a tuple with two elements: an lower and upper bound on the resonance ladder energies.')
         if EB[0] >= EB[1]:
             raise ValueError('EB[0] must be strictly less than EB[1].')
         
         self.E  = np.sort(E)
-        self.EB = EB
+        self.EB = tuple(EB)
         self.level_spacing_dists = level_spacing_dists
 
         self.Freq = np.concatenate((self.level_spacing_dists.Freq, [FreqF]))
 
-        self.L = len(E)
-        self.G = len(self.Freq) - 1
+        self.L = len(E) # Number of resonances
+        self.G = len(self.Freq) - 1 # number of spingroups (not including false group)
 
         if Prior is None:
             self.Prior = np.tile(self.Freq/self.FreqTot, (self.L,1))
@@ -460,8 +471,8 @@ class RunMaster:
         level_spacing_probs = np.zeros((s.L+2, s.L+2, n), 'f8')
         iMax = np.zeros((s.L+2, 2, n), 'i4')
         for g, group in enumerate(partitions):
-            merge = Merger(s.level_spacing_dists[group], err=s.err)
-            level_spacing_probs[:,:,g], iMax[:,:,g] = merge.findLevelSpacings(s.E, s.EB, s.Prior[:,group])
+            merger = Merger(s.level_spacing_dists[group], err=s.err)
+            level_spacing_probs[:,:,g], iMax[:,:,g] = merger.findLevelSpacings(s.E, s.EB, s.Prior[:,group])
 
         # Merged prior calculation:
         prior_merged = np.zeros((s.L, n+1), 'f8')
@@ -474,7 +485,7 @@ class RunMaster:
 
         return level_spacing_probs, iMax, prior_merged
 
-    def WigBayes(s, return_log_likelihood=False, verbose=False):
+    def WigBayes(s, return_log_likelihood:bool=False, verbose:bool=False):
         """
         Returns spingroup probabilities for each resonance based on level-spacing distributions,
         and any provided prior.
@@ -562,7 +573,7 @@ class RunMaster:
                 if verbose: print('Finished!')
                 return combined_sg_probs
             
-    def WigSample(s, trials:int=1, verbose=False):
+    def WigSample(s, trials:int=1, verbose:bool=False):
         """
         Returns random spingroup assignment samples based on its Bayesian probability.
 
@@ -626,9 +637,3 @@ class RunMaster:
         """
 
         return np.sum(partition_log_likelihoods) - (self.G-1)*base_log_likelihoods
-
-# =================================================================================================
-# Missing/False Resonances:
-# =================================================================================================
-
-# ...

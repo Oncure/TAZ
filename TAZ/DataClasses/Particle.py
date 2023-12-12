@@ -3,7 +3,7 @@ from . import halfint
 __doc__ = """
 This file stores the "Particle" class. The "Particle" class contains all relevent information to a
 specific particle. Objects of this class are used when defining a reaction's properties in
-"MeanParameters". The "Neutron" object has already been defined for convenience.
+"Reaction" objects. The "Neutron" and "Proton" objects has already been defined for convenience.
 """
 
 # =================================================================================================
@@ -19,8 +19,7 @@ class Particle:
     number, atomic mass number, nuclei mass, nuclear radius, and the name of the particle.
     """
 
-    def __init__(self, Z:int=None, A:int=None, I:halfint=None,
-                 mass:float=None, AWRI:float=None,
+    def __init__(self, Z:int, A:int, I:halfint, mass:float,
                  radius:float=None, name:str=None):
         """
         Initialize a Particle object.
@@ -43,50 +42,64 @@ class Particle:
             Name of the particle
         """
         # Atomic Number:
-        if Z is not None:           self.Z = int(Z)
-        else:                       self.Z = None
+        self._Z = int(Z)
         # Atomic Mass:
-        if A is not None:           self.A = int(A)
-        elif mass is not None:      self.A = round(mass)
-        elif AWRI is not None:      self.A = round(AWRI)
-        else:                       self.A = None
+        self._A = int(A)
         # Isotope Spin:
-        if I is not None:           self.I = halfint(I)
-        else:                       self.I = None
+        self._I = halfint(I)
         # Mass: (amu)
-        if mass is not None:        self.mass = float(mass)
-        elif AWRI is not None:      self.mass = float(AWRI)*mass_neutron
-        elif A is not None:         self.mass = float(A)
-        else:                       self.mass = None
-        # AWRI:
-        if self.mass is not None:   self.AWRI = mass / mass_neutron
-        else:                       self.AWRI = None
-        
+        self._mass = float(mass)
         # Nuclear Radius: (fm)
         if radius is not None:
-            if   radius > 1e2:      print(Warning(f'The channel radius, {radius}, is quite high. Make sure it is in units of femtometers.'))
-            elif radius < 1e-2:     print(Warning(f'The channel radius, {radius}, is quite low. Make sure it is in units of femtometers.'))
-            self.radius = float(radius)
-        elif self.A is not None:
-            self.radius = 1.23 * self.A**(1/3)
+            if   radius > 1e2:      print(Warning(f'The channel radius, {radius} fm, is quite high. Make sure it is in units of femtometers.'))
+            elif radius < 1e-2:     print(Warning(f'The channel radius, {radius} fm, is quite low. Make sure it is in units of femtometers.'))
+            self._radius = float(radius)
         else:
-            self.radius = None
-        
+            self._radius = 1.23 * self.A**(1/3)
         # Particle Name:
-        if name is not None:
-            self.name = str(name)
-        elif (self.A is not None) and (self.Z is not None):
-            self.name = str(self.Z*1000+self.A)
-        else:
-            self.name = '???'
+        if name is not None:    self._name = str(name)
+        else:                   self._name = str(self.Z*1000+self.A) # MCNP ID for the isotope.
+
+    @property
+    def Z(self):
+        'Atomic number'
+        return self._Z
+    @property
+    def A(self):
+        'Atomic mass number'
+        return self._A
+    @property
+    def I(self):
+        'Particle spin'
+        return self._I
+    @property
+    def mass(self):
+        'Nuclei mass in atomic mass units (amu)'
+        return self._mass
+    @property
+    def radius(self):
+        'Nuclear mean square radius in femtometers (fm)'
+        return self._radius
+    @property
+    def name(self):
+        'Name of the particle'
+        return self._name
+    @property
+    def N(self):
+        'Number of Neutrons'
+        return self._A - self._Z
+    @property
+    def AWRI(self):
+        'Nuclei mass divided by neutron mass'
+        return self._mass / mass_neutron
 
     def __repr__(self):
-        txt  = f'Particle       = {self.name}\n'
-        txt += f'Atomic Number  = {self.Z}\n'
-        txt += f'Atomic Mass    = {self.A}\n'
-        txt += f'Nuclear Spin   = {self.I}\n'
-        txt += f'Mass           = {self.mass:.7f} (amu)\n'
-        txt += f'Nuclear Radius = {self.radius:.7f} (fm)\n'
+        txt  = f'Particle       = {self._name}\n'
+        txt += f'Atomic Number  = {self._Z}\n'
+        txt += f'Atomic Mass    = {self._A}\n'
+        txt += f'Nuclear Spin   = {self._I}\n'
+        txt += f'Mass           = {self._mass:.7f} (amu)\n'
+        txt += f'Nuclear Radius = {self._radius:.7f} (fm)\n'
         return txt
     
     def __str__(self):

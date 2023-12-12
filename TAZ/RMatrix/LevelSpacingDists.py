@@ -1,6 +1,7 @@
 from math import pi, sqrt, ceil, log
 import numpy as np
 from scipy.special import gamma, gammaincc, gammainccinv, erfc, erfcx, erfcinv
+from scipy.integrate import quad
 from scipy.stats import norm
 
 __doc__ = """
@@ -88,78 +89,125 @@ class Distribution:
     A class for level-spacing distributions, their integrals and inverses. Such distributions
     have been defined for Wigner distribution, Brody distribution, and the missing distribution.
     """
-    def __init__(self, f0, f1=None, f2=None, parts=None, if1=None, if2=None, Freq=None):
+    def __init__(self, f0, f1=None, f2=None, parts=None, if1=None, if2=None, Freq:float=None):
         """
-        ...
+        Initializes a Distribution object.
+
+        Parameters:
+        ----------
+        f0    :: function
+            Probability density function for the distribution.
+        f1    :: function
+            The reversed CDF of the level-spacing distribution.
+        f2    :: function
+            The doubly integrated level-spacing distribution.
+        parts :: function
+            Function that finds f2, f0/f1, and f1/f2 which are used when merging
+            distributions. Default = None (calculated from f0, f1, and f2).
+        if1   :: function
+            The inverse function of f1. Default = None.
+        if2   :: function
+            The inverse function of f2. Default = None.
+        Freq  :: float
+            The expected level-density for the distribution. Default = None (calculated from f0).
         """
-        self.f0 = f0
-
-        if f1 is None:
-            raise NotImplementedError('Integration for f1 has not been implemented yet.')
-        else:
-            self.f1 = f1
-
-        if f2 is None:
-            raise NotImplementedError('Integration for f2 has not been implemented yet.')
-        else:
-            self.f2 = f2
+        self.__f0 = f0
+        if f1 is None:  raise NotImplementedError('Integration for f1 has not been implemented yet.')
+        self.__f1 = f1
+        if f2 is None:  raise NotImplementedError('Integration for f2 has not been implemented yet.')
+        self.__f2 = f2
+        if if1 is None: raise NotImplementedError('The inverse of f1 has not been implemented yet.')
+        self.__if1 = if1
+        if if2 is None: raise NotImplementedError('The inverse of f2 has not been implemented yet.')
+        self.__if2 = if2
 
         if parts is None:
             def parts(x):
-                F0 = self.f0(x)
-                F1 = self.f1(x)
-                F2 = self.f2(x)
+                F0 = self.__f0(x)
+                F1 = self.__f1(x)
+                F2 = self.__f2(x)
                 return F2, F0/F1, F1/F2
         else:
-            self.parts = parts
+            self.__parts = parts
 
-        if if1 is None:
-            raise NotImplementedError('The inverse of f1 has not been implemented yet.')
+        if Freq is None:
+            mean_lvl_spacing = quad(lambda x: x*self.__f0(x), 0, np.inf)[0]
+            self.__Freq = 1 / mean_lvl_spacing
         else:
-            self.if1 = if1
+            self.__Freq = float(Freq)
 
-        if if2 is None:
-            raise NotImplementedError('The inverse of f2 has not been implemented yet.')
-        else:
-            self.if2 = if2
-
-        self.Freq = Freq
-
-    def __call__(self, _X):
-        return self.f0(_X)
+    # Functions and properties:
+    def __call__(self, X):
+        'Evaluates the probability density function for each distribution.'
+        return self.__f0(X)
+    def f0(self, X):
+        'Probability density function for the distribution.'
+        return self.__f0(X)
+    def f1(self, X):
+        'The reversed CDF of the level-spacing distribution.'
+        return self.__f1(X)
+    def f2(self, X):
+        'The doubly integrated level-spacing distribution.'
+        return self.__f2(X)
+    def if1(self, X):
+        'Inverse function of the "f1" function.'
+        if np.any(X > 1.0) or np.any(X < 0.0):
+            raise ValueError('Inverse functions can only be evaluated for values between 0 and 1.')
+        return self.__if1(X)
+    def if2(self, X):
+        'Inverse function of the "f2" function.'
+        if np.any(X > 1.0) or np.any(X < 0.0):
+            raise ValueError('Inverse functions can only be evaluated for values between 0 and 1.')
+        return self.__if2(X)
+    def parts(self, X):
+        'Provides f2, f0/f1, and f1/f2 which are used when merging distributions.'
+        return self.__parts(X)
+    def pdf(self, X):
+        'Probability density function for the distribution.'
+        return self.__f0(X)
+    def cdf(self, X):
+        'Cumulative probability function for the distribution.'
+        return 1.0 - self.__f1(X)
     @property
-    def pdf(self):
-        return self.f0
+    def Freq(self):
+        'The expected level-density for the distribution.'
+        return self.__Freq
     @property
-    def cdf(self):
-        return lambda _X: 1.0 - self.f1(_X)
+    def MLS(self):
+        'The mean level-spacing for the distribution.'
+        return 1.0 / self.__Freq
 
+    # Sampling distributions using inverse CDF:
     def sample_f0(self, size:tuple=None, rng=None, seed:int=None):
-        'Inverse CDF Sampling on f0.'
+        'Inverse CDF sampling on f0.'
         if rng is None:
             rng = np.random.default_rng(seed)
-        return self.if1(rng.random(size))
-    
+        return self.__if1(rng.random(size))
     def sample_f1(self, size:tuple=None, rng=None, seed:int=None):
-        'Inverse CDF Sampling on f1.'
+        'Inverse CDF sampling on f1.'
         if rng is None:
             rng = np.random.default_rng(seed)
-        return self.if2(rng.random(size))
+        return self.__if2(rng.random(size))
 
+    # Distribution constructors:
     @classmethod
     def wigner(cls, Freq:float=1.0):
         """
         Sample Wigner distribution without missing resonances considered.
 
-        Inputs:
-        ------
+        Parameters:
+        ----------
         Freq :: float
             Mean level-density. Default = 1.0.
+
+        Returns:
+        -------
+        distribution :: Distribution
+            The distribution object for the Wigner level-spacing distribution.
         """
         pid4  = pi/4
         coef = pid4*Freq**2
         root_coef = sqrt(coef)
-
         def get_f0(X):
             return (2*coef) * X * np.exp(-coef * X*X)
         def get_f1(X):
@@ -177,7 +225,6 @@ class Distribution:
         def get_if2(R):
             return erfcinv(R) / root_coef
         return cls(f0=get_f0, f1=get_f1, f2=get_f2, parts=get_parts, if1=get_if1, if2=get_if2, Freq=Freq)
-
     @classmethod
     def brody(cls, Freq:float=1.0, w:float=0.0):
         """
@@ -187,16 +234,20 @@ class Distribution:
         number above 150. The Brody parameter can range from 0 to 1, where w=0 gives a Poisson
         distribution and w=1 gives a Wigner distribution.
 
-        Inputs:
-        ------
+        Parameters:
+        ----------
         Freq :: float
             Mean level-density. Default = 1.0.
         w    :: float
             Brody parameter. Default = 0.0.
+
+        Returns:
+        -------
+        distribution :: Distribution
+            The distribution object for the Brody level-spacing distribution.
         """
         w1i = 1.0 / (w+1)
         a = (Freq*w1i*gamma(w1i))**(w+1)
-
         def get_f0(X):
             aXw = a*X**w
             return (w+1) * aXw * np.exp(-aXw*X)
@@ -216,7 +267,6 @@ class Distribution:
         def get_if2(R):
             return (gammainccinv(w1i, R) / a) ** w1i
         return cls(f0=get_f0, f1=get_f1, f2=get_f2, parts=get_parts, if1=get_if1, if2=get_if2, Freq=Freq)
-    
     @classmethod
     def missing(cls, Freq:float=1.0, pM:float=0.0, err:float=0.005):
         """
@@ -224,8 +274,8 @@ class Distribution:
 
         Source: http://www.lib.ncsu.edu/resolver/1840.16/4284 (Eq. 4.1)
 
-        Inputs:
-        ------
+        Parameters:
+        ----------
         Freq :: float
             Mean level-density. Default = 1.0.
         pM   :: float
@@ -282,51 +332,69 @@ class Distributions:
     def __init__(self, *distributions:Distribution):
         'Initializing distributions'
         self.distributions = list(distributions)
-        self.Freq = np.array([distr.Freq for distr in self.distributions])
+        self.__Freq = np.array([distr.Freq for distr in self.distributions])
     
     # Functions and properties:
+    def __call__(self, X):
+        'Evaluates the probability density function for each distribution.'
+        return self.f0(X)
     def f0(self, X):
+        'The PDF of the level-spacing distribution.'
         if not hasattr(X, '__iter__'):
             X = np.array([X])
         return np.array([distr.f0(X)    for distr in self.distributions]).T
     def f1(self, X):
+        'The reversed CDF of the level-spacing distribution.'
         if not hasattr(X, '__iter__'):
             X = np.array([X])
         return np.array([distr.f1(X)    for distr in self.distributions]).T
     def f2(self, X):
+        'The doubly integrated level-spacing distribution.'
         if not hasattr(X, '__iter__'):
             X = np.array([X])
         return np.array([distr.f2(X)    for distr in self.distributions]).T
     def if1(self, X):
+        'Inverse function of the "f1" function.'
         if not hasattr(X, '__iter__'):
             X = np.array([X])
         return np.array([distr.if1(X)   for distr in self.distributions]).T
     def if2(self, X):
+        'Inverse function of the "f2" function.'
         if not hasattr(X, '__iter__'):
             X = np.array([X])
         return np.array([distr.if2(X)   for distr in self.distributions]).T
     def parts(self, X):
+        'Provides f2, f0/f1, and f1/f2 which are used when merging distributions.'
         if not hasattr(X, '__iter__'):
             X = np.array([X])
         parts = np.array([distr.parts(X) for distr in self.distributions]).transpose(2,0,1)
         return parts[:,:,0], parts[:,:,1], parts[:,:,2]
-    
+    def pdf(self, X):
+        'Probability density functions for each distribution.'
+        return self.f0(X)
+    def cdf(self, X):
+        'Cumulative probability density functions for each distribution.'
+        return 1.0 - self.f1(X)
+    @property
+    def Freq(self):
+        'The expected level-densities for each distribution.'
+        return self.__Freq
+    @property
+    def MLS(self):
+        'The mean level-spacing for each distribution.'
+        return 1.0 / self.__Freq
     @property
     def FreqTot(self):
-        return np.sum(self.Freq)
+        'The total level-density between all distributions.'
+        return np.sum(self.__Freq)
     @property
     def num_dists(self):
+        'The number of distributions.'
+        return len(self.distributions)
+    def __len__(self):
         return len(self.distributions)
 
-    def __call__(self, _X):
-        return self.f0(_X)
-    @property
-    def pdf(self):
-        return self.f0
-    @property
-    def cdf(self):
-        return lambda _X: 1.0 - self.f1(_X)
-
+    # Getting items:
     def __getitem__(self, indices):
         if hasattr(indices, '__iter__'):
             distributions = [self.distributions[idx] for idx in indices]
@@ -334,6 +402,7 @@ class Distributions:
         else:
             return self.distributions[indices]
 
+    # Distribution constructors:
     @classmethod
     def wigner(cls, Freq):
         'Sample Wigner distribution for each spingroup.'
@@ -371,19 +440,16 @@ def deltaMehta3(E, EB:tuple):
 
     Source: https://arxiv.org/pdf/2011.04633.pdf (Eq. 21 & 22)
 
-    Let `L` be the number of recorded resonances in the ladder.
-
     Parameters:
     ----------
-    E  : float [L]
+    E  :: float, array-like
         The recorded resonance energies.
-    
-    EB : float [2]
+    EB :: float [2]
         The lower and upper energies for the resonance ladder.
 
     Returns:
     -------
-    delta_3 : float
+    delta_3 :: float
         The Dyson-Mehta ∆3 metric.
     """
 
@@ -405,15 +471,14 @@ def deltaMehtaPredict(L:int, ensemble:str='GOE'):
 
     Parameters:
     ----------
-    L        : int
-        The number of resonances.
-
-    ensemble : 'GOE', 'Poisson', or 'picket'
+    L        :: int
+        The expected number of resonances.
+    ensemble :: 'GOE', 'Poisson', or 'picket'
         The ensemble to assumed under the calculation of the Dyson-Mehta ∆3 metric.
 
     Returns:
     -------
-    delta_3 : float
+    delta_3 :: float
         The prediction on the Dyson-Mehta ∆3 metric.
     """
 
@@ -422,7 +487,7 @@ def deltaMehtaPredict(L:int, ensemble:str='GOE'):
     elif ensemble.lower() == 'poisson':
         delta_3 = L/15
     elif ensemble.lower() == 'picket':
-        delta_3 = 1/12
+        delta_3 = 1/12   # "picket" refers to "picket fence", where the levels are uniformly distributed
     else:
         raise ValueError(f'Unknown ensemble, {ensemble}. Please choose from "GOE", "Poisson" or "picket".')
     return delta_3
@@ -482,14 +547,9 @@ def levelSpacingRatioPDF(ratio:float, beta:int=1):
         The probability density (or densities) evaluated at the the provided level-spacing
         ratio(s).
     """
-    
-    if   beta == 1:
-        C_beta = 27/8
-    elif beta == 2:
-        C_beta = 81*sqrt(3)/(4*pi)
-    elif beta == 4:
-        C_beta = 729*sqrt(3)/(4*pi)
-    else:
-        raise ValueError('"beta" can only be 1, 2, or 4.')
+    if   beta == 1:     C_beta = 27/8
+    elif beta == 2:     C_beta = 81*sqrt(3)/(4*pi)
+    elif beta == 4:     C_beta = 729*sqrt(3)/(4*pi)
+    else:               raise ValueError('"beta" can only be 1, 2, or 4.')
     level_spacing_ratio_pdf = C_beta * (ratio+ratio**2)**beta / (1+ratio+ratio**2)**(1+(3/2)*beta)
     return level_spacing_ratio_pdf

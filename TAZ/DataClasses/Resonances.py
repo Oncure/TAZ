@@ -19,42 +19,45 @@ class Resonances:
 
     Attributes:
     ----------
-    E   :: float, array-like
+    E             :: float, array-like
         Resonance energies.
-    Gn  :: float, array-like
+    Gn            :: float, array-like
         Resonance neutron widths. Default is None.
-    Gg  :: float, array-like
+    Gg            :: float, array-like
         Resonance gamma (capture) widths. Default is None.
-    GfA :: float, array-like
+    GfA           :: float, array-like
         Resonance fission A widths. Default is None.
-    GfB :: float, array-like
+    GfB           :: float, array-like
         Resonance fission B widths. Default is None.
-    SG  :: int or SpinGroup, array-like
+    SG            :: int or SpinGroup, array-like
         Resonance spingroup assignments. Default is None.
+    ladder_bounds ::  float [2]
+        Resonance ladder bounds. Default is None.
     """
 
-    def __init__(self, E, Gn=None, Gg=None, GfA=None, GfB=None, SG=None):
+    def __init__(self, E, Gn=None, Gg=None, GfA=None, GfB=None, SG=None, ladder_bounds:tuple=None):
         """
         Creates a Resonances object.
 
         Parameters:
         ----------
-        E   :: float, array-like
+        E             :: float, array-like
             Resonance energies.
-        Gn  :: float, array-like
+        Gn            :: float, array-like
             Resonance neutron widths. Default is None.
-        Gg  :: float, array-like
+        Gg            :: float, array-like
             Resonance gamma (capture) widths. Default is None.
-        GfA :: float, array-like
+        GfA           :: float, array-like
             Resonance fission A widths. Default is None.
-        GfB :: float, array-like
+        GfB           :: float, array-like
             Resonance fission B widths. Default is None.
-        SG  :: int or SpinGroup, array-like
+        SG            :: int or SpinGroup, array-like
             Resonance spingroup assignments. Default is None.
+        ladder_bounds :: tuple[float]
+            Resonance ladder bounds. Default is None.
         """
 
         self.properties = ['E']
-
         indices = np.argsort(E)
         self.E = np.array(E).reshape(-1)[indices]
         if Gn  is not None:
@@ -74,6 +77,14 @@ class Resonances:
             if type(SG) == SpinGroups:
                 SG = SG.SGs
             self.SG  = np.array(SG ).reshape(-1)[indices]
+        if ladder_bounds is not None:
+            if len(ladder_bounds) != 2:
+                raise ValueError('"ladder_bounds" can only have two values for an interval.')
+            elif ladder_bounds[0] > ladder_bounds[1]:
+                raise ValueError('"ladder_bounds" must be a valid increasing interval.')
+            self.ladder_bounds = (float(ladder_bounds[0]), float(ladder_bounds[1]))
+        else:
+            self.ladder_bounds = None
 
     # Get resonances by indexing the "Resonances" object:
     def __getitem__(self, indices):
@@ -101,6 +112,8 @@ class Resonances:
 
     @property
     def len(self):
+        return self.E.size
+    def __len__(self):
         return self.E.size
 
     def AddMissing(self, prior, frac, mult, EB=None):

@@ -536,6 +536,19 @@ class Encore:
             log_likelihood_exp += log_likelihood_prior_exp
 
         return log_likelihood_exp
+    
+# ==================================================================================
+# Maximum-Likelihood Assignments
+# ==================================================================================
+
+def wigMaxLikelihood2(prior, level_spacing_probs, iMax, threshold:float=math.inf):
+    """
+    ...
+    """
+    spingroups   = []
+    likelihoods  = []
+    last_indices = []
+    raise NotImplementedError()
 
 # ==================================================================================
 # Brute Force Algorithms

@@ -2,14 +2,14 @@ import numpy as np
 from scipy.stats import chi2
 
 from .RMatrix import ReduceFactor
-from . import MeanParameters, Resonances
+from . import Reaction, Resonances
 
 __doc__ = """
 This module contains Bayes' update for the probabilistic distribution on the neutron widths (and
 gamma widths if specified).
 """
 
-def PTBayes(res:Resonances, mean_params:MeanParameters, false_width_dist=None, prior=None, gamma_width_on:bool=False):
+def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None, gamma_width_on:bool=False):
     """
     Performs a Bayesian update on the spingroup probabilities of resonances, based on Porter-Thomas
     Distribution on the neutron widths (and gamma widths if specified).
@@ -20,30 +20,25 @@ def PTBayes(res:Resonances, mean_params:MeanParameters, false_width_dist=None, p
     ----------
     res              :: Resonances
         The resonance data object.
-    
-    mean_params      :: MeanParameters
-        The mean parameters for the reaction.
-    
+    reaction         :: Reaction
+        A Reaction object that holds the mean parameters for the reaction.
     false_width_dist :: function
         The PDF for the neutron widths of false resonances. If none are given, false widths are
-        sampled from the joint neutron width PDF of all spingroups. Default is `None`.
-    
+        sampled from the joint neutron width PDF of all spingroups. Default is None.
     prior            :: float [L,G+1]
         Optional prior spingroup probabilities. Such probabilities may include information on
         statistical fits. However, the probabilities must be independent of the information
-        provided by the width distributions. Default is `None`.
-    
+        provided by the width distributions. Default is None.
     gamma_width_on   :: bool
         Determines whether the gamma-width probabilities are calculated based on the theoretical
         distribution. Many RRR evaluations assume the gamma widths are more or less constant. This
         theory is controversial, which is why the gamma width distribution is not considered by
-        default. Default is `None`.
+        default. Default is None.
 
     Returns:
     -------
     posterior        :: float [L,G+1]
         The posterior spingroup probabilities.
-
     log_likelihood   :: float
         Calculated log-likelihood.
     """
@@ -51,27 +46,27 @@ def PTBayes(res:Resonances, mean_params:MeanParameters, false_width_dist=None, p
     # Error Checking:
     if type(res) is not Resonances:
         raise TypeError('The "res" argument must be a "Resonances" object.')
-    if type(mean_params) is not MeanParameters:
-        raise TypeError('The "mean_param" argument must be a "MeanParameters" object.')
+    if type(reaction) is not Reaction:
+        raise TypeError('The "mean_param" argument must be a "Reaction" object.')
     
     # Setting prior:
     if prior == None:
-        prob = mean_params.FreqAll / np.sum(mean_params.FreqAll)
+        prob = reaction.FreqAll / np.sum(reaction.FreqAll)
         prior = np.tile(prob, (res.E.size,1))
     posterior = prior
 
     # Neutron widths:
-    mult_factor = (mean_params.nDOF/mean_params.Gnm).reshape(1,-1) * ReduceFactor(res.E, mean_params.L, ac=mean_params.ac,
-                                                                                  mass_targ=mean_params.targ.mass, mass_proj=mean_params.proj.mass)
-    posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gn.reshape(-1,1), mean_params.nDOF)
+    mult_factor = (reaction.nDOF/reaction.Gnm).reshape(1,-1) * ReduceFactor(res.E, reaction.L, ac=reaction.ac,
+                                                                                  mass_targ=reaction.targ.mass, mass_proj=reaction.proj.mass)
+    posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gn.reshape(-1,1), reaction.nDOF)
 
     # Gamma widths: (if gamma_width_on is True)
     if gamma_width_on:
-        mult_factor = (mean_params.gDOF/mean_params.Ggm).reshape(1,-1)
-        posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg.reshape(-1,1), mean_params.gDOF)
+        mult_factor = (reaction.gDOF/reaction.Ggm).reshape(1,-1)
+        posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg.reshape(-1,1), reaction.gDOF)
 
     # False distribution:
-    if (mean_params.FreqF != 0.0) and (false_width_dist is not None):
+    if (reaction.FreqF != 0.0) and (false_width_dist is not None):
         posterior[:,-1] *= false_width_dist(res.E, res.Gn, res.Gg)
     else:
         posterior[:,-1] *= np.sum(posterior[:,:-1], axis=1) / np.sum(prob[:-1])
