@@ -155,18 +155,18 @@ def sampleGEEigs(n:int, beta:int=1,
     eigs.sort()
     return eigs
 
-def sampleGEEnergies(EB:tuple, freq:float=1.0, beta:int=1,
+def sampleGEEnergies(EB:tuple, lvl_dens:float=1.0, beta:int=1,
                      rng=None, seed:int=None):
     """
     Samples GOE (β = 1), GUE (β = 2), or GSE (β = 4) resonance energies within a given energy
-    range, `EB` and with a specified mean level-density, `freq`.
+    range, `EB` and with a specified mean level-density, `lvl_dens`.
 
     Parameters:
     ----------
     EB   :: float [2]
         The energy range for sampling.
 
-    freq :: float
+    lvl_dens :: float
         The mean level-density.
     
     beta :: 1, 2, or 4
@@ -188,7 +188,7 @@ def sampleGEEnergies(EB:tuple, freq:float=1.0, beta:int=1,
         rng = np.random.default_rng(seed)
 
     margin = 0.1 # a margin of safety where we consider the GOE samples to properly follow the semicircle law. This removes the uncooperative tails
-    N_res_est = (EB[1]-EB[0]) * freq # estimate number of resonances
+    N_res_est = (EB[1]-EB[0]) * lvl_dens # estimate number of resonances
     N_Tot = round((1 + 2*margin) * N_res_est) # buffer number of resonances
 
     eigs = sampleGEEigs(N_Tot, beta=beta, rng=rng)
@@ -198,12 +198,12 @@ def sampleGEEnergies(EB:tuple, freq:float=1.0, beta:int=1,
 
     # Using semicircle law CDF to make the resonances uniformly spaced:
     # Source: https://github.com/LLNL/fudge/blob/master/brownies/BNL/restools/level_generator.py
-    E = EB[0] + (N_Tot / freq) * (wigSemicircleCDF(eigs) - wigSemicircleCDF(-1.0+margin))
+    E = EB[0] + (N_Tot / lvl_dens) * (wigSemicircleCDF(eigs) - wigSemicircleCDF(-1.0+margin))
     E = E[E < EB[1]]
     E = np.sort(E)
     return E
 
-def SampleEnergies(EB:tuple, Freq:float, w:float=1.0, ensemble:str='NNE',
+def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
                    rng=None, seed:int=None):
     """
     Sampler for the resonance energies according to the selected ensemble.
@@ -213,7 +213,7 @@ def SampleEnergies(EB:tuple, Freq:float, w:float=1.0, ensemble:str='NNE',
     EB       :: float [2]
         The energy range for sampling.
 
-    Freq     :: float
+    lvl_dens     :: float
         The mean level-density.
 
     w        :: float or None
@@ -250,24 +250,24 @@ def SampleEnergies(EB:tuple, Freq:float, w:float=1.0, ensemble:str='NNE',
 
     # Sampling based on ensemble:
     if   ensemble == 'NNE': # Nearest Neighbor Ensemble
-        L_Guess = round( Freq * (EB[1] - EB[0]) * MULTIPLIER )
+        L_Guess = round( lvl_dens * (EB[1] - EB[0]) * MULTIPLIER )
         LS = np.zeros(L_Guess+1, dtype='f8')
         if w == 1.0:
-            distribution = Distribution.wigner(Freq)
+            distribution = Distribution.wigner(lvl_dens)
         else:
-            distribution = Distribution.brody(Freq, w)
+            distribution = Distribution.brody(lvl_dens, w)
         LS[0]  = EB[0] + distribution.sample_f1(rng=rng)
         LS[1:] = distribution.sample_f0(size=(L_Guess,), rng=rng)
         E = np.cumsum(LS)
         E = E[E < EB[1]]
     elif ensemble == 'GOE': # Gaussian Orthogonal Ensemble
-        E = sampleGEEnergies(EB, Freq, beta=1)
+        E = sampleGEEnergies(EB, lvl_dens, beta=1)
     elif ensemble == 'GUE': # Gaussian Unitary Ensemble
-        E = sampleGEEnergies(EB, Freq, beta=2)
+        E = sampleGEEnergies(EB, lvl_dens, beta=2)
     elif ensemble == 'GSE': # Gaussian Symplectic Ensemble
-        E = sampleGEEnergies(EB, Freq, beta=4)
+        E = sampleGEEnergies(EB, lvl_dens, beta=4)
     elif ensemble == 'Poisson': # Poisson Ensemble
-        num_samples = rng.poisson(Freq * (EB[1]-EB[0]))
+        num_samples = rng.poisson(lvl_dens * (EB[1]-EB[0]))
         E = rng.uniform(*EB, size=num_samples)
     else:
         raise NotImplementedError(f'The {ensemble} ensemble has not been implemented yet.')

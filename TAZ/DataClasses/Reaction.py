@@ -54,10 +54,10 @@ class Reaction:
     def __init__(self,
                  targ:Particle=None, proj:Particle=Neutron,
                  ac:float=None,
-                 EB:tuple=None, FreqF:float=0.0,
+                 EB:tuple=None, false_dens:float=0.0,
                  spingroups:SpinGroups=None,
-                 Freq:list=None, MLS:list=None,
-                 w:list=None,
+                 lvl_dens:list=None, MLS:list=None,
+                 brody_param:list=None,
                  Gnm:list=None, nDOF:list=None,
                  Ggm:list=None, gDOF:list=None,
                  Gn_trunc:list=None, MissFrac:list=None):
@@ -66,35 +66,35 @@ class Reaction:
 
         Attributes:
         ----------
-        targ       :: Particle
+        targ        :: Particle
             Target particle object.
-        proj       :: Particle
+        proj        :: Particle
             Projectile particle object. Default = Neutron.
-        ac         :: float
+        ac          :: float
             Reaction channel radius in femtometers.    
-        EB         :: float [2]
+        EB          :: float [2]
             Energy range for evaluation.
-        FreqF      :: float
+        false_dens  :: float
             False resonance level density.
-        spingroups :: SpinGroups
+        spingroups  :: SpinGroups
             Spingroups for the reaction.
-        Freq       :: float [G]
+        lvl_dens    :: float [G]
             Resonance level densities for each spingroup.
-        MLS        :: float [G]
+        MLS         :: float [G]
             Resonance mean level spacings for each spingroup.
-        w          :: float [G]
+        brody_param :: float [G]
             Brody resonance parameter.
-        Gnm        :: float [G]
+        Gnm         :: float [G]
             Resonance mean neutron widths for each spingroup.
-        nDOF       :: float [G]
+        nDOF        :: float [G]
             Resonance neutron width degrees of freedom for each spingroup.
-        Gn_trunc   :: float [G]
+        Gn_trunc    :: float [G]
             Lowest recordable neutron width.
-        Ggm        :: float [G]
+        Ggm         :: float [G]
             Resonance mean gamma (capture) width for each spingroup.
-        gDOF       :: float [G]
+        gDOF        :: float [G]
             Resonance gamma (capture) width degrees of freedom for each spingroup.
-        MissFrac   :: float [G]
+        MissFrac    :: float [G]
             Fraction of Resonances that have been missed.
         """
 
@@ -133,60 +133,52 @@ class Reaction:
         else:
             self.EB = None
         
-        # False Frequency:
-        if FreqF is not None:   self.FreqF = float(FreqF)
-        else:                   self.FreqF = 0.0
+        # False Level Density:
+        if false_dens is not None:   self.false_dens = float(false_dens)
+        else:                        self.false_dens = 0.0
 
         # Spingroups:
         if spingroups is None:
             raise ValueError('The spingroups are a required argument for initialization of a "Reaction" object.')
         elif type(spingroups) != SpinGroups:
-            raise TypeError('"sg" must have type "SpinGroups".')
+            raise TypeError('"spingroups" must have type "SpinGroups".')
         self.spingroups = spingroups
         self.num_groups = self.spingroups.num_sgs
         
-        # Frequencies:
-        if Freq is not None and MLS is not None:
-            raise ValueError('Cannot have both mean level spacing and frequencies.')
-        elif Freq is not None:
-            self.Freq = spingroupParameter(Freq, self.num_groups, dtype=float)
+        # Level Densities:
+        if lvl_dens is not None and MLS is not None:
+            raise ValueError('Cannot have both mean level spacing and level densities.')
+        elif lvl_dens is not None:
+            self.lvl_dens = spingroupParameter(lvl_dens, self.num_groups, dtype=float)
         elif MLS is not None:
-            self.Freq = 1.0 / spingroupParameter(MLS, self.num_groups, dtype=float)
+            self.lvl_dens = 1.0 / spingroupParameter(MLS, self.num_groups, dtype=float)
         else:
-            self.Freq = None
+            self.lvl_dens = None
 
         # Brody Parameter:
-        if w is not None:
-            if hasattr(w, '__iter__'):
-                self.w = spingroupParameter(w, self.num_groups, dtype=float)
+        if brody_param is not None:
+            if hasattr(brody_param, '__iter__'):
+                self.brody_param = spingroupParameter(brody_param, self.num_groups, dtype=float)
             else:
-                self.w = float(w) * np.ones((self.num_groups,))
+                self.brody_param = float(brody_param) * np.ones((self.num_groups,))
         else:
-            self.w = np.ones((self.num_groups,))
+            self.brody_param = np.ones((self.num_groups,))
 
         # Mean Neutron Widths:
-        if Gnm is not None:
-            self.Gnm = spingroupParameter(Gnm, self.num_groups, dtype=float)
-        else:
-            self.Gnm = None
+        if Gnm is not None:     self.Gnm = spingroupParameter(Gnm, self.num_groups, dtype=float)
+        else:                   self.Gnm = None
 
         # Neutron Channel Degrees of Freedom:
-        if nDOF is not None:
-            self.nDOF = spingroupParameter(nDOF, self.num_groups, dtype=int)
-        else:
-            self.nDOF = np.ones((self.num_groups,), dtype=int)
+        if nDOF is not None:    self.nDOF = spingroupParameter(nDOF, self.num_groups, dtype=int)
+        else:                   self.nDOF = np.ones((self.num_groups,), dtype=int)
 
         # Mean Gamma Widths:
-        if Ggm is not None:
-            self.Ggm = spingroupParameter(Ggm, self.num_groups, dtype=float)
-        else:
-            self.Ggm = None
+        if Ggm is not None:     self.Ggm = spingroupParameter(Ggm, self.num_groups, dtype=float)
+        else:                   self.Ggm = None
 
         # Gamma Channel Degrees of Freedom:
-        if gDOF is not None:
-            self.gDOF = spingroupParameter(gDOF, self.num_groups, dtype=int)
-        else:
-            self.gDOF = self.DEFAULT_GDOF * np.ones((self.num_groups,), dtype=int)
+        if gDOF is not None:    self.gDOF = spingroupParameter(gDOF, self.num_groups, dtype=int)
+        else:                   self.gDOF = self.DEFAULT_GDOF * np.ones((self.num_groups,), dtype=int)
 
         # Truncation Width:
         if Gn_trunc is not None:
@@ -220,11 +212,11 @@ class Reaction:
     @property
     def MLS(self):
         'Mean Level Spacing'
-        return 1.0 / self.Freq
+        return 1.0 / self.lvl_dens
     @property
-    def FreqAll(self):
-        'Frequencies, including False Frequency'
-        return np.concatenate((self.Freq, [self.FreqF]))
+    def lvl_dens_all(self):
+        'Level densities, including False level density'
+        return np.concatenate((self.lvl_dens, [self.false_dens]))
     
     def __repr__(self):
         txt = ''
@@ -232,9 +224,9 @@ class Reaction:
         txt += f'Projectile Particle = {self.proj.name}\n'
         txt += f'Channel Radius      = {self.ac:.7f} (fm)\n'
         txt += f'Energy Bounds       = {self.EB[0]:.3e} < E < {self.EB[1]:.3e} (eV)\n'
-        txt += f'False Level Density = {self.FreqF:.7f} (1/eV)\n'
+        txt += f'False Level Density = {self.false_dens:.7f} (1/eV)\n'
         txt += '\n'
-        data = np.vstack((self.Freq, self.w, self.Gnm, self.nDOF, self.Ggm, self.gDOF, self.Gn_trunc, self.MissFrac))
+        data = np.vstack((self.lvl_dens, self.brody_param, self.Gnm, self.nDOF, self.Ggm, self.gDOF, self.Gn_trunc, self.MissFrac))
         properties = ['Level Densities', \
                       'Brody Parameters', \
                       'Mean Neutron Width', \
@@ -294,8 +286,8 @@ class Reaction:
         spingroups = np.zeros((0,), dtype=int)
         for g in range(self.num_groups):
             # Energy sampling:
-            w = self.w[g] if self.w is not None else None
-            E_group  = RMatrix.SampleEnergies(self.EB, self.Freq[g], w=w, ensemble=ensemble, rng=rng)
+            brody_param = self.brody_param[g] if self.brody_param is not None else None
+            E_group  = RMatrix.SampleEnergies(self.EB, self.lvl_dens[g], w=brody_param, ensemble=ensemble, rng=rng)
             
             # Width sampling:
             len_group = len(E_group)
@@ -311,12 +303,12 @@ class Reaction:
             spingroups = np.concatenate((spingroups, g*np.ones((len_group,), dtype=int)))
 
         # False Resonances:
-        if self.FreqF != 0.0:
+        if self.false_dens != 0.0:
             # Energy sampling:
-            E_false = RMatrix.SampleEnergies(self.EB, self.FreqF, w=None, ensemble='Poisson')
+            E_false = RMatrix.SampleEnergies(self.EB, self.false_dens, w=None, ensemble='Poisson')
             
             # False width sampling:
-            # False widths are sampled by taking the frequency-weighted average of each spingroup's width distributions.
+            # False widths are sampled by taking the level-density-weighted average of each spingroup's width distributions.
             num_false = len(E_false)
             Gn_false_group = np.zeros((num_false,self.num_groups))
             Gg_false_group = np.zeros((num_false,self.num_groups))
@@ -325,7 +317,7 @@ class Reaction:
                                                                  mass_targ=self.targ.mass, mass_proj=self.proj.mass,
                                                                  rng=rng)
                 Gg_false_group[:,g] = RMatrix.SampleGammaWidth(num_false, self.Ggm[g], self.gDOF[g], rng=rng)
-            cumprobs = np.cumsum(self.Freq) / np.sum(self.Freq)
+            cumprobs = np.cumsum(self.lvl_dens) / np.sum(self.lvl_dens)
             R = rng.uniform(size=(num_false,1))
             idx = np.arange(num_false)
             group_idx = np.sum(cumprobs <= R, axis=1)
@@ -395,11 +387,11 @@ class Reaction:
         """
 
         if   dist_type == 'Wigner':
-            distributions = RMatrix.Distributions.wigner(self.Freq)
+            distributions = RMatrix.Distributions.wigner(self.lvl_dens)
         elif dist_type == 'Brody':
-            distributions = RMatrix.Distributions.brody(self.Freq, self.w)
+            distributions = RMatrix.Distributions.brody(self.lvl_dens, self.brody_param)
         elif dist_type == 'Missing':
-            distributions = RMatrix.Distributions.missing(self.Freq, self.MissFrac, err)
+            distributions = RMatrix.Distributions.missing(self.lvl_dens, self.MissFrac, err)
         else:
             raise NotImplementedError(f'The distribution type, "{dist_type}", has not been implemented yet.')
         return distributions
@@ -437,11 +429,11 @@ class Reaction:
         elif quantity == 'level spacing':
             if g == self.num_groups:
                 if not cdf: # PDF
-                    fit = lambda x: self.FreqF * np.exp(-self.FreqF * x)
+                    fit = lambda x: self.false_dens * np.exp(-self.false_dens * x)
                 else: # CDF
-                    fit = lambda x: 1 - np.exp(-self.FreqF * x)
+                    fit = lambda x: 1 - np.exp(-self.false_dens * x)
             else:
-                if self.w[g] == 1.0:
+                if self.brody_param[g] == 1.0:
                     if self.MissFrac[g] == 0.0:
                         dist_type = 'Wigner'
                     else:

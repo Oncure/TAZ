@@ -59,23 +59,23 @@ class Encore:
 
     # Error and debugging text:
     PW_INF_ERROR = """
-    Infinite placement weight ("PW") found. This implies a local probability of zero.
-    This should not happen unless the floating point limitations have been exceeded.
-    
-    DEBUGGING VALUES:
-    Direction: {side}
-    Index:     {idx}
-    List A:    {AList}
-    List B:    {BList}
-    """
+Infinite placement weight ("PW") found. This implies a local probability of zero.
+This should not happen unless the floating point limitations have been exceeded.
+
+DEBUGGING VALUES:
+Direction: {side}
+Index:     {idx}
+List A:    {AList}
+List B:    {BList}
+"""
 
     CP_BAD_ERROR = 'A cumulative probability ("CP") has a "{}" value.'
 
     TP_PERCENT_ERROR = """
-    In calculating the total probability ("TP"), there was a percent error of {p_error:.3f}%.
-    This exceeds the set limit of {p_thres:.3f}%. This error could be attributed to a bug or
-    numerical instability.
-    """
+In calculating the total probability ("TP"), there was a percent error of {p_error:.3f}%.
+This exceeds the set limit of {p_thres:.3f}%. This error could be attributed to a bug or
+numerical instability.
+"""
 
     TP_error_threshold = 1.0 # % (percent)
 
@@ -554,7 +554,7 @@ def wigMaxLikelihood2(prior, level_spacing_probs, iMax, threshold:float=math.inf
 # Brute Force Algorithms
 # ==================================================================================
 
-def wigBayesBruteForce(E, distributions, freqF:float, prior=None):
+def wigBayesBruteForce(E, distributions, false_dens:float, prior=None):
     """
     ...
     """

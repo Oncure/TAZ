@@ -1,5 +1,7 @@
 import numpy as np
 
+from ..DataClasses import MASS_NEUTRON
+
 __doc__ = """
 This module is the collection of relevant R-Matrix Theory quantities. Many of these equations are
 found in the ENDF and SAMMY manuals.
@@ -24,8 +26,9 @@ def NuclearRadius(A:int) -> float:
     return 1.23 * A**(1/3) + 0.8 # fm = 10^-15 m
 
 def Rho(mass_targ:float, ac:float, E,
-        mass_proj:float=None,
-        mass_targ_after:float=None, mass_proj_after:float=None,
+        mass_proj:float=MASS_NEUTRON,
+        mass_targ_after:float=None,
+        mass_proj_after:float=None,
         E_thres:float=None):
     """
     Finds the momentum factor, `rho`.
@@ -55,8 +58,6 @@ def Rho(mass_targ:float, ac:float, E,
         Momentum factor, ρ.
     """
 
-    if mass_proj is None:
-        mass_proj = 1.008665 # amu (neutron mass)
     if mass_targ_after is None:
         mass_targ_after = mass_targ # assume elastic scattering
     if mass_proj_after is None:

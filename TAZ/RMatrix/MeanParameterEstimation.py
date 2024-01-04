@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 from .WidthDists import FractionMissing, PorterThomasCDF
-from ..DataClasses import halfint
+from ..DataClasses import HalfInt
 
 __doc__ = """
 This module compiles mean parameter estimation methods.
@@ -35,9 +35,25 @@ False level-spacing estimation:
 #    Mean Level-Spacing Estimation:
 # =================================================================================================
 
-def MeanSpacingBethe(J:halfint, A:int, E:float, E0:float=0.0):
+def MeanSpacingBethe(J:HalfInt, A:int, E:float, E0:float=0.0):
     """
-    ...
+    Finds the mean level-spacing using the Bethe formula.
+
+    Parameters:
+    ----------
+    J  :: HalfInt
+        Total angular momentum.
+    A  :: int
+        Atomic mass number.
+    E  :: float
+        The energy to find the mean level-spacing.
+    E0 :: float
+        Threshold energy for the reaction channel.
+
+    Returns:
+    -------
+    mean_lvl_spacing :: float
+        The mean level-spacing.
     """
 
     a = A / 11 # 1 / MeV

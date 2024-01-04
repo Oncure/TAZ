@@ -1,3 +1,8 @@
+
+__doc__ = """
+This module contains the R-matrix theory quantities.
+"""
+
 from .RMatrix import *
 from .WidthDists import *
 from .LevelSpacingDists import *

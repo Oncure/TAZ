@@ -2,6 +2,7 @@ import numpy as np
 from scipy.special import gammainc, iv
 from scipy.stats import chi2
 
+from ..DataClasses import MASS_NEUTRON
 from .RMatrix import PenetrationFactor, Rho
 
 __doc__ = """
@@ -99,7 +100,11 @@ def PorterThomasCDF(G, Gm:float=1.0, trunc:float=0.0, dof:int=1):
         prob[G <= trunc] = 0.0
     return prob
     
-def ReduceFactor(E, l:int, mass_targ:float, ac:float, mass_proj:float=None, mass_targ_after:float=None, mass_proj_after:float=None, E_thres:float=None):
+def ReduceFactor(E, l:int, mass_targ:float, ac:float,
+                 mass_proj:float=MASS_NEUTRON,
+                 mass_targ_after:float=None,
+                 mass_proj_after:float=None,
+                 E_thres:float=None):
     """
     Multiplication factor to convert from neutron width to reduced neutron width.
 

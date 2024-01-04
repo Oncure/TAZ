@@ -33,7 +33,7 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
         Determines whether the gamma-width probabilities are calculated based on the theoretical
         distribution. Many RRR evaluations assume the gamma widths are more or less constant. This
         theory is controversial, which is why the gamma width distribution is not considered by
-        default. Default is None.
+        default. Default is False.
 
     Returns:
     -------
@@ -51,7 +51,7 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
     
     # Setting prior:
     if prior == None:
-        prob = reaction.FreqAll / np.sum(reaction.FreqAll)
+        prob = reaction.lvl_dens_all / np.sum(reaction.lvl_dens_all)
         prior = np.tile(prob, (res.E.size,1))
     posterior = prior
 
@@ -66,7 +66,7 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
         posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg.reshape(-1,1), reaction.gDOF)
 
     # False distribution:
-    if (reaction.FreqF != 0.0) and (false_width_dist is not None):
+    if (reaction.false_dens != 0.0) and (false_width_dist is not None):
         posterior[:,-1] *= false_width_dist(res.E, res.Gn, res.Gg)
     else:
         posterior[:,-1] *= np.sum(posterior[:,:-1], axis=1) / np.sum(prob[:-1])

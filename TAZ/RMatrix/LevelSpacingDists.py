@@ -89,7 +89,7 @@ class Distribution:
     A class for level-spacing distributions, their integrals and inverses. Such distributions
     have been defined for Wigner distribution, Brody distribution, and the missing distribution.
     """
-    def __init__(self, f0, f1=None, f2=None, parts=None, if1=None, if2=None, Freq:float=None):
+    def __init__(self, f0, f1=None, f2=None, parts=None, if1=None, if2=None, lvl_dens:float=None):
         """
         Initializes a Distribution object.
 
@@ -108,7 +108,7 @@ class Distribution:
             The inverse function of f1. Default = None.
         if2   :: function
             The inverse function of f2. Default = None.
-        Freq  :: float
+        lvl_dens  :: float
             The expected level-density for the distribution. Default = None (calculated from f0).
         """
         self.__f0 = f0
@@ -130,11 +130,11 @@ class Distribution:
         else:
             self.__parts = parts
 
-        if Freq is None:
+        if lvl_dens is None:
             mean_lvl_spacing = quad(lambda x: x*self.__f0(x), 0, np.inf)[0]
-            self.__Freq = 1 / mean_lvl_spacing
+            self.__lvl_dens = 1 / mean_lvl_spacing
         else:
-            self.__Freq = float(Freq)
+            self.__lvl_dens = float(lvl_dens)
 
     # Functions and properties:
     def __call__(self, X):
@@ -169,13 +169,13 @@ class Distribution:
         'Cumulative probability function for the distribution.'
         return 1.0 - self.__f1(X)
     @property
-    def Freq(self):
+    def lvl_dens(self):
         'The expected level-density for the distribution.'
-        return self.__Freq
+        return self.__lvl_dens
     @property
     def MLS(self):
         'The mean level-spacing for the distribution.'
-        return 1.0 / self.__Freq
+        return 1.0 / self.__lvl_dens
 
     # Sampling distributions using inverse CDF:
     def sample_f0(self, size:tuple=None, rng=None, seed:int=None):
@@ -191,13 +191,13 @@ class Distribution:
 
     # Distribution constructors:
     @classmethod
-    def wigner(cls, Freq:float=1.0):
+    def wigner(cls, lvl_dens:float=1.0):
         """
         Sample Wigner distribution without missing resonances considered.
 
         Parameters:
         ----------
-        Freq :: float
+        lvl_dens :: float
             Mean level-density. Default = 1.0.
 
         Returns:
@@ -206,27 +206,27 @@ class Distribution:
             The distribution object for the Wigner level-spacing distribution.
         """
         pid4  = pi/4
-        coef = pid4*Freq**2
+        coef = pid4*lvl_dens**2
         root_coef = sqrt(coef)
         def get_f0(X):
             return (2*coef) * X * np.exp(-coef * X*X)
         def get_f1(X):
             return np.exp(-coef * X*X)
         def get_f2(X):
-            return erfc(root_coef * X) / Freq
+            return erfc(root_coef * X) / lvl_dens
         def get_parts(X):
             fX = root_coef * X
             R1 = 2 * root_coef * fX
-            R2 = Freq / erfcx(fX)       # "erfcx(x)" is "exp(x^2)*erfc(x)"
+            R2 = lvl_dens / erfcx(fX)       # "erfcx(x)" is "exp(x^2)*erfc(x)"
             F2 = np.exp(-fX*fX) / R2    # Getting the "erfc(x)" from "erfcx(x)"
             return F2, R1, R2
         def get_if1(R):
             return np.sqrt(-np.log(R)) / root_coef
         def get_if2(R):
             return erfcinv(R) / root_coef
-        return cls(f0=get_f0, f1=get_f1, f2=get_f2, parts=get_parts, if1=get_if1, if2=get_if2, Freq=Freq)
+        return cls(f0=get_f0, f1=get_f1, f2=get_f2, parts=get_parts, if1=get_if1, if2=get_if2, lvl_dens=lvl_dens)
     @classmethod
-    def brody(cls, Freq:float=1.0, w:float=0.0):
+    def brody(cls, lvl_dens:float=1.0, w:float=0.0):
         """
         Sample Brody distribution without missing levels considered. The Brody distribution
         is an interpolation between Wigner distribution and Poisson distribution. Brody
@@ -236,7 +236,7 @@ class Distribution:
 
         Parameters:
         ----------
-        Freq :: float
+        lvl_dens :: float
             Mean level-density. Default = 1.0.
         w    :: float
             Brody parameter. Default = 0.0.
@@ -247,7 +247,7 @@ class Distribution:
             The distribution object for the Brody level-spacing distribution.
         """
         w1i = 1.0 / (w+1)
-        a = (Freq*w1i*gamma(w1i))**(w+1)
+        a = (lvl_dens*w1i*gamma(w1i))**(w+1)
         def get_f0(X):
             aXw = a*X**w
             return (w+1) * aXw * np.exp(-aXw*X)
@@ -266,9 +266,9 @@ class Distribution:
             return (-np.log(R) / a) ** w1i
         def get_if2(R):
             return (gammainccinv(w1i, R) / a) ** w1i
-        return cls(f0=get_f0, f1=get_f1, f2=get_f2, parts=get_parts, if1=get_if1, if2=get_if2, Freq=Freq)
+        return cls(f0=get_f0, f1=get_f1, f2=get_f2, parts=get_parts, if1=get_if1, if2=get_if2, lvl_dens=lvl_dens)
     @classmethod
-    def missing(cls, Freq:float=1.0, pM:float=0.0, err:float=0.005):
+    def missing(cls, lvl_dens:float=1.0, pM:float=0.0, err:float=0.005):
         """
         Sample Wigner distribution with missing resonances considered.
 
@@ -276,7 +276,7 @@ class Distribution:
 
         Parameters:
         ----------
-        Freq :: float
+        lvl_dens :: float
             Mean level-density. Default = 1.0.
         pM   :: float
             Fraction of missing resonances. Default = 0.0.
@@ -292,25 +292,25 @@ class Distribution:
         # If we assume there are no missing resonances, the PDF converges to Wigner:
         if pM == 0.0:
             print(RuntimeWarning('Warning: the "missing" distribution has a zero missing resonance fraction.'))
-            return cls.wigner(Freq)
+            return cls.wigner(lvl_dens)
         
         N_max = ceil(log(err, pM))
         coef = (pM**np.arange(N_max+1))[:,np.newaxis]
-        mult_fact = Freq * (1-pM) / (1 - pM**(N_max+1))
+        mult_fact = lvl_dens * (1-pM) / (1 - pM**(N_max+1))
         def get_f0(X):
-            func = lambda _n: _high_order_level_spacing_parts(Freq*X, _n, orders=(0,))
+            func = lambda _n: _high_order_level_spacing_parts(lvl_dens*X, _n, orders=(0,))
             values = [func(n) for n in range(N_max+1)]
             return mult_fact * np.sum(coef * np.array([v[0] for v in values]), axis=0)
         def get_f1(X):
-            func = lambda _n: _high_order_level_spacing_parts(Freq*X, _n, orders=(1,))
+            func = lambda _n: _high_order_level_spacing_parts(lvl_dens*X, _n, orders=(1,))
             values = [func(n) for n in range(N_max+1)]
             return mult_fact * np.sum(coef * np.array([v[0] for v in values]), axis=0)
         def get_f2(X):
-            func = lambda _n: _high_order_level_spacing_parts(Freq*X, _n, orders=(2,))
+            func = lambda _n: _high_order_level_spacing_parts(lvl_dens*X, _n, orders=(2,))
             values = [func(n) for n in range(N_max+1)]
             return mult_fact * np.sum(coef * np.array([v[0] for v in values]), axis=0)
         def get_parts(X):
-            func = lambda _n: _high_order_level_spacing_parts(Freq*X, _n, orders=(0,1,2))
+            func = lambda _n: _high_order_level_spacing_parts(lvl_dens*X, _n, orders=(0,1,2))
             values = [func(n) for n in range(N_max+1)]
             V0, V1, V2 = zip(*values)
             F0 = mult_fact * np.sum(coef*V0, axis=0)
@@ -323,7 +323,7 @@ class Distribution:
             raise NotImplementedError('Inverse Function for f1 has not been implemented yet.')
         def get_if2(X):
             raise NotImplementedError('Inverse Function for f2 has not been implemented yet.')
-        return cls(f0=get_f0, f1=get_f1, f2=get_f2, parts=get_parts, if1=get_if1, if2=get_if2, Freq=(1-pM)*Freq)
+        return cls(f0=get_f0, f1=get_f1, f2=get_f2, parts=get_parts, if1=get_if1, if2=get_if2, lvl_dens=(1-pM)*lvl_dens)
 
 class Distributions:
     """
@@ -332,7 +332,7 @@ class Distributions:
     def __init__(self, *distributions:Distribution):
         'Initializing distributions'
         self.distributions = list(distributions)
-        self.__Freq = np.array([distr.Freq for distr in self.distributions])
+        self.__lvl_dens = np.array([distr.lvl_dens for distr in self.distributions])
     
     # Functions and properties:
     def __call__(self, X):
@@ -376,17 +376,17 @@ class Distributions:
         'Cumulative probability density functions for each distribution.'
         return 1.0 - self.f1(X)
     @property
-    def Freq(self):
+    def lvl_dens(self):
         'The expected level-densities for each distribution.'
-        return self.__Freq
+        return self.__lvl_dens
     @property
     def MLS(self):
         'The mean level-spacing for each distribution.'
-        return 1.0 / self.__Freq
+        return 1.0 / self.__lvl_dens
     @property
-    def FreqTot(self):
+    def lvl_densTot(self):
         'The total level-density between all distributions.'
-        return np.sum(self.__Freq)
+        return np.sum(self.__lvl_dens)
     @property
     def num_dists(self):
         'The number of distributions.'
@@ -404,30 +404,30 @@ class Distributions:
 
     # Distribution constructors:
     @classmethod
-    def wigner(cls, Freq):
+    def wigner(cls, lvl_dens):
         'Sample Wigner distribution for each spingroup.'
-        Freq = Freq.reshape(-1,)
-        distributions = [Distribution.wigner(freq_g) for freq_g in Freq]
+        lvl_dens = lvl_dens.reshape(-1,)
+        distributions = [Distribution.wigner(lvl_dens_g) for lvl_dens_g in lvl_dens]
         return cls(*distributions)
     @classmethod
-    def brody(cls, Freq, w=None):
+    def brody(cls, lvl_dens, w=None):
         'Sample Brody distribution for each spingroup.'
-        G = len(Freq)
+        G = len(lvl_dens)
         if w is None:
             w = np.zeros((G,))
-        Freq = Freq.reshape(-1,)
+        lvl_dens = lvl_dens.reshape(-1,)
         w    = w.reshape(-1,)
-        distributions = [Distribution.brody(freq_g, w_g) for freq_g,w_g in zip(Freq,w)]
+        distributions = [Distribution.brody(lvl_dens_g, w_g) for lvl_dens_g,w_g in zip(lvl_dens,w)]
         return cls(*distributions)
     @classmethod
-    def missing(cls, Freq, pM=None, err:float=5e-3):
+    def missing(cls, lvl_dens, pM=None, err:float=5e-3):
         'Sample Missing distribution for each spingroup.'
-        G = len(Freq)
+        G = len(lvl_dens)
         if pM is None:
             pM = np.zeros((G,))
-        Freq = Freq.reshape(-1,)
+        lvl_dens = lvl_dens.reshape(-1,)
         pM   = pM.reshape(-1,)
-        distributions = [Distribution.missing(freq_g, pM_g, err) for freq_g,pM_g in zip(Freq,pM)]
+        distributions = [Distribution.missing(lvl_dens_g, pM_g, err) for lvl_dens_g,pM_g in zip(lvl_dens,pM)]
         return cls(*distributions)
     
 # =================================================================================================

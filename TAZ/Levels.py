@@ -34,7 +34,7 @@ class Merger:
     --------------------------
     G     :: int
         The number of possible (true) spingroups.
-    Freq  :: float [G]
+    lvl_dens  :: float [G]
         Level densities for each spingroup. Inverse of mean level spacing.
     Z     :: float [G,G]
         Matrix used to calculate the normalization factor for the merged group level-spacing
@@ -73,8 +73,8 @@ class Merger:
             raise ValueError('The probability threshold, "err", must be strictly between 0 and 1.')
 
         self.level_spacing_dists = level_spacing_dists
-        self.Freq = self.level_spacing_dists.Freq
-        self.G    = len(self.Freq)
+        self.lvl_dens = self.level_spacing_dists.lvl_dens
+        self.G    = len(self.lvl_dens)
 
         xMax_limits = self.__xMax_limits(err) # xMax must be bounded by the error for spingroup alone
 
@@ -84,13 +84,13 @@ class Merger:
         self.xMax, self.xMaxB = self.__findxMax(err, xMax_limits)
 
     @property
-    def FreqTot(self):
-        'Gives the total frequency for the combined group.'
-        return np.sum(self.Freq)
+    def lvl_densTot(self):
+        'Gives the total level density for the combined group.'
+        return np.sum(self.lvl_dens)
     @property
     def MLSTot(self):
         'Gives the combined mean level-spacing for the group.'
-        return 1.0 / self.FreqTot
+        return 1.0 / self.lvl_densTot
 
     def __xMax_limits(self, err:float):
         """
@@ -99,7 +99,7 @@ class Merger:
         `xMax` for the level-spacing distribution is at least less than the `xMax` for Poisson
         distribution.
         """
-        xMax = -np.log(err)/self.Freq
+        xMax = -np.log(err)/self.lvl_dens
         return xMax
 
     def __findZ(s, xMax_limits):
@@ -137,9 +137,9 @@ class Merger:
         ZB = np.array([integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limits[i])[0] for i in range(s.G)], dtype='f8')
 
         # Error Checking:
-        if   (Z  == np.nan).any():  raise RuntimeError('The normalization array, "Z", has some "NaN" values.')
-        elif (Z  == np.inf).any():  raise RuntimeError('The normalization array, "Z", has some "Inf" values.')
-        elif (Z  <  0.0   ).any():  raise RuntimeError('The normalization array, "Z", has some negative values.')
+        if   (Z  == np.nan).any():  raise RuntimeError('The normalization matrix, "Z", has some "NaN" values.')
+        elif (Z  == np.inf).any():  raise RuntimeError('The normalization matrix, "Z", has some "Inf" values.')
+        elif (Z  <  0.0   ).any():  raise RuntimeError('The normalization matrix, "Z", has some negative values.')
         elif (ZB == np.nan).any():  raise RuntimeError('The normalization array, "ZB", has some "NaN" values.')
         elif (ZB == np.inf).any():  raise RuntimeError('The normalization array, "ZB", has some "Inf" values.')
         elif (ZB <  0.0   ).any():  raise RuntimeError('The normalization array, "ZB", has some negative values.')
@@ -250,7 +250,7 @@ class Merger:
         if verbose: print('Finished level-spacing calculations')
 
         # The normalization factor is duplicated in the prior. One must be removed: FIXME!!!!!
-        level_spacing_probs /= self.FreqTot
+        level_spacing_probs /= self.lvl_densTot
 
         return level_spacing_probs, iMax
     
@@ -402,7 +402,7 @@ class RunMaster:
     """
 
     def __init__(self, E, EB:tuple,
-                 level_spacing_dists:Distributions, FreqF:float=0.0,
+                 level_spacing_dists:Distributions, false_dens:float=0.0,
                  Prior=None, log_likelihood_prior:float=None,
                  err:float=1e-9):
         """
@@ -416,7 +416,7 @@ class RunMaster:
             The ladder energy boundaries.
         level_spacing_dists  :: Distributions
             The level-spacing distributions object.
-        FreqF                :: float
+        false_dens                :: float
             The false level-density. Default = 0.0.
         Prior                :: float, array-like
             The prior probabilitiy distribution for each spingroup. Default = None.
@@ -441,24 +441,24 @@ class RunMaster:
         self.EB = tuple(EB)
         self.level_spacing_dists = level_spacing_dists
 
-        self.Freq = np.concatenate((self.level_spacing_dists.Freq, [FreqF]))
+        self.lvl_dens = np.concatenate((self.level_spacing_dists.lvl_dens, [false_dens]))
 
         self.L = len(E) # Number of resonances
-        self.G = len(self.Freq) - 1 # number of spingroups (not including false group)
+        self.G = len(self.lvl_dens) - 1 # number of spingroups (not including false group)
 
         if Prior is None:
-            self.Prior = np.tile(self.Freq/self.FreqTot, (self.L,1))
+            self.Prior = np.tile(self.lvl_dens/self.lvl_densTot, (self.L,1))
         else:
             self.Prior = Prior
         self.log_likelihood_prior = log_likelihood_prior
         self.err = err
     
     @property
-    def FreqTot(self):
-        return np.sum(self.Freq)
+    def lvl_densTot(self):
+        return np.sum(self.lvl_dens)
     @property
-    def FreqF(self):
-        return self.Freq[-1]
+    def false_dens(self):
+        return self.lvl_dens[-1]
 
     def mergePartitioner(s, partitions:list):
         """
@@ -503,7 +503,7 @@ class RunMaster:
             The sampled IDs for each resonance and trial.
         """
 
-        # Only 1 spingroup (merge not needed):
+        # 1 spingroup (merge not needed):
         if   s.G == 1:
             if verbose: print(f'Preparing level-spacings')
             level_spacing_probs_g, iMax_g, prior_g = s.mergePartitioner([[0]])
@@ -514,12 +514,12 @@ class RunMaster:
             if verbose: print(f'Finished WigBayes calculation')
 
             if return_log_likelihood:
-                log_likelihood = ENCORE.LogLikelihood(s.EB, s.FreqF, s.log_likelihood_prior)
+                log_likelihood = ENCORE.LogLikelihood(s.EB, s.false_dens, s.log_likelihood_prior)
                 return sg_probs, log_likelihood
             else:
                 return sg_probs
         
-        # Only 2 spingroups (merge not needed):
+        # 2 spingroups (merge not needed):
         elif s.G == 2:
             if verbose: print(f'Preparing level-spacings')
             level_spacing_probs_g, iMax_g, prior_g = s.mergePartitioner([[0], [1]])
@@ -530,7 +530,7 @@ class RunMaster:
             if verbose: print(f'Finished WigBayes calculation')
 
             if return_log_likelihood:
-                log_likelihood = ENCORE.LogLikelihood(s.EB, s.FreqF, s.log_likelihood_prior)
+                log_likelihood = ENCORE.LogLikelihood(s.EB, s.false_dens, s.log_likelihood_prior)
                 return sg_probs, log_likelihood
             else:
                 return sg_probs
@@ -554,8 +554,8 @@ class RunMaster:
 
                 if return_log_likelihood:
                     # FIXME: I DON'T KNOW LOG Likelihood CORRECTION FACTOR FOR MERGED CASES! 
-                    # Freq_comb = np.array([s.Freq[0,g], s.FreqTot-s.Freq[0,g]]).reshape(1,-1)
-                    log_likelihood[g] = ENCORE.LogLikelihood(s.EB, s.FreqF, s.log_likelihood_prior)
+                    # lvl_dens_comb = np.array([s.lvl_dens[0,g], s.lvl_densTot-s.lvl_dens[0,g]]).reshape(1,-1)
+                    log_likelihood[g] = ENCORE.LogLikelihood(s.EB, s.false_dens, s.log_likelihood_prior)
 
             # Combine probabilities for each merge case:
             combined_sg_probs = s.probCombinator(sg_probs)
@@ -565,7 +565,7 @@ class RunMaster:
                 if verbose: print('Finished spingroup 999 level-spacing calculation')
                 ENCORE = Encore(prior_1, level_spacing_probs_1, iMax_1)
                 if verbose: print('Finished spingroup 999 CP calculation')
-                base_log_likelihood = ENCORE.LogLikelihood(s.EB, s.FreqF, s.log_likelihood_prior)
+                base_log_likelihood = ENCORE.LogLikelihood(s.EB, s.false_dens, s.log_likelihood_prior)
                 combined_log_likelihood = s.logLikelihoodCombinator(log_likelihood, base_log_likelihood)
                 if verbose: print('Finished!')
                 return combined_sg_probs, combined_log_likelihood
@@ -590,7 +590,7 @@ class RunMaster:
             The sampled IDs for each resonance and trial.
         """
 
-        # Only 1 spingroup (merge not needed):
+        # 1 spingroup (merge not needed):
         if s.G == 1:
             if verbose: print(f'Preparing level-spacings')
             level_spacing_probs_g, iMax_g, prior_g = s.mergePartitioner([[0]])
@@ -601,7 +601,7 @@ class RunMaster:
             if verbose: print(f'Finished WigBayes calculation')
             return samples
         
-        # Only 2 spingroups (merge not needed):
+        # 2 spingroups (merge not needed):
         elif s.G == 2:
             if verbose: print(f'Preparing level-spacings')
             level_spacing_probs_g, iMax_g, prior_g = s.mergePartitioner([[0], [1]])
@@ -612,7 +612,7 @@ class RunMaster:
             if verbose: print(f'Finished WigBayes calculation')
             return samples
 
-        # More than 2 spingroups (Merge needed):
+        # More than 2 spingroups (merge needed):
         else:
             raise NotImplementedError('WigSample for more than two spingroups has not been implemented yet.')
 

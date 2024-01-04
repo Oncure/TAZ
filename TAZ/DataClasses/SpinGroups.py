@@ -1,17 +1,17 @@
 
 __doc__ = """
-This file defines all classes related to spingroups. "halfint" is a class for half-integers.
+This file defines all classes related to spingroups. "HalfInt" is a class for half-integers.
 "SpinGroup" is a class to define one spingroup (a pair of orbital angular momentum, total angular
 momentum, and channel spin). "SpinGroups" is a class for storing multiple "SpinGroup" objects.
 """
 
-class halfint:
+class HalfInt:
     """
     Data type for half-integers to represent spins.
     """
 
     def __init__(self, value):
-        if type(value) == halfint:
+        if type(value) == HalfInt:
             self = value
         else:
             if value % 0.5 != 0.0:
@@ -108,13 +108,13 @@ class SpinGroup:
     ----------
     L :: int
         Orbital angular momentum.
-    J :: halfint
+    J :: HalfInt
         Total angular momentum.
-    S :: halfint
+    S :: HalfInt
         Channel spin. Default = None.
     """
 
-    def __init__(self, l:int, j:halfint, s:halfint=None):
+    def __init__(self, l:int, j:HalfInt, s:HalfInt=None):
         """
         Creates a SpinGroup object based on the quantum numbers for the reaction.
 
@@ -122,18 +122,18 @@ class SpinGroup:
         ----------
         l :: int
             Orbital angular momentum.
-        j :: halfint
+        j :: HalfInt
             Total angular momentum.
-        s :: halfint
+        s :: HalfInt
             Channel spin. Default = None.
         """
 
         self.L = int(l)
         
-        if type(j) == halfint:      self.J = j
-        else:                       self.J = halfint(j)
+        if type(j) == HalfInt:      self.J = j
+        else:                       self.J = HalfInt(j)
 
-        if s is not None:   self.S = halfint(s)
+        if s is not None:   self.S = HalfInt(s)
         else:               self.S = None
 
     def __format__(self, spec:str):
@@ -153,7 +153,7 @@ class SpinGroup:
     def __str__(self):
         return f'{self:jpi}'
     
-    def g(self, spin_target:halfint, spin_proj:halfint):
+    def g(self, spin_target:HalfInt, spin_proj:HalfInt):
         'Statistical spin factor'
         return (2*self.J+1) / ((2*spin_target+1) * (2*spin_proj+1))
 
@@ -168,14 +168,14 @@ class SpinGroups:
         List of spingroups.
     l_max       :: int
         Maximum orbital angular momentum. Default = None.
-    spin_target :: halfint
+    spin_target :: HalfInt
         Intrinsic spin of the target particle. Default = None.
-    spin_proj   :: halfint
+    spin_proj   :: HalfInt
         Intrinsic spin of the projectile particle. Default = None.
     """
 
     def __init__(self, SGs:list, l_max:int=None,
-                 spin_target:halfint=None, spin_proj:halfint=None):
+                 spin_target:HalfInt=None, spin_proj:HalfInt=None):
         """
         Makes a SpinGroups object that holds information on the possible spingroup states.
 
@@ -185,19 +185,19 @@ class SpinGroups:
             List of possible spingroups.
         l_max       :: int
             Maximum orbital angular momentum. Default = None.
-        spin_target :: halfint
+        spin_target :: HalfInt
             Intrinsic spin of the target particle. Default = None.
-        spin_proj   :: halfint
+        spin_proj   :: HalfInt
             Intrinsic spin of the projectile particle. Default = None.
         """
         self.SGs   = SGs
         self.l_max = l_max
         # Target spin:
         if spin_target is None:     self.spin_target = None
-        else:                       self.spin_target = halfint(spin_target)
+        else:                       self.spin_target = HalfInt(spin_target)
         # Projectile spin:
         if spin_proj is None:       self.spin_proj = None
-        else:                       self.spin_proj = halfint(spin_proj)
+        else:                       self.spin_proj = HalfInt(spin_proj)
 
     @classmethod
     def make(cls, Ls:list, Js:list, Ss:list=None):
@@ -208,9 +208,9 @@ class SpinGroups:
         ----------
         Ls :: list [int]
             The ordered list of orbital angular momentums numbers.
-        Js :: list [halfint]
+        Js :: list [HalfInt]
             The ordered list of total angular momentum numbers.
-        Ss :: list [halfint]
+        Ss :: list [HalfInt]
             The ordered list of channel spin numbers.
 
         Returns:
@@ -229,15 +229,15 @@ class SpinGroups:
         return cls(sgs, l_max=l_max)
 
     @classmethod
-    def find(cls, spin_target:halfint, spin_proj:halfint=1/2, l_max:int=1):
+    def find(cls, spin_target:HalfInt, spin_proj:HalfInt=1/2, l_max:int=1):
         """
         Finds all of the valid spingroups with "l" less than or equal to "l_max".
 
         Parameters:
         ----------
-        spin_target :: halfint
+        spin_target :: HalfInt
             The quantum spin number for the target nuclei.
-        spin_proj   :: halfint
+        spin_proj   :: HalfInt
             The quantum spin number for the projectile nuclei.
         l_max       :: int
             The maximum orbital angular momentum number generated.

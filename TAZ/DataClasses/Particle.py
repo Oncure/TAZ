@@ -1,4 +1,4 @@
-from . import halfint
+from . import HalfInt
 
 __doc__ = """
 This file stores the "Particle" class. The "Particle" class contains all relevent information to a
@@ -10,8 +10,8 @@ specific particle. Objects of this class are used when defining a reaction's pro
 #    Particle:
 # =================================================================================================
 
-mass_neutron = 1.00866491588 #  amu  (source: ENDF-6 manual Table H.2)
-mass_proton  = 1.007276466621 # amu  (source: ENDF-6 manual Table H.2)
+MASS_NEUTRON = 1.00866491588  # amu  (source: ENDF-6 manual Table H.2)
+MASS_PROTON  = 1.007276466621 # amu  (source: ENDF-6 manual Table H.2)
 
 class Particle:
     """
@@ -19,7 +19,7 @@ class Particle:
     number, atomic mass number, nuclei mass, nuclear radius, and the name of the particle.
     """
 
-    def __init__(self, Z:int, A:int, I:halfint, mass:float,
+    def __init__(self, Z:int, A:int, I:HalfInt, mass:float,
                  radius:float=None, name:str=None):
         """
         Initialize a Particle object.
@@ -30,7 +30,7 @@ class Particle:
             Atomic number
         A      :: int
             Atomic mass number
-        I      :: halfint
+        I      :: HalfInt
             Particle spin
         mass   :: float
             Nuclei mass in atomic mass units (amu)
@@ -46,7 +46,7 @@ class Particle:
         # Atomic Mass:
         self._A = int(A)
         # Isotope Spin:
-        self._I = halfint(I)
+        self._I = HalfInt(I)
         # Mass: (amu)
         self._mass = float(mass)
         # Nuclear Radius: (fm)
@@ -91,7 +91,7 @@ class Particle:
     @property
     def AWRI(self):
         'Nuclei mass divided by neutron mass'
-        return self._mass / mass_neutron
+        return self._mass / MASS_NEUTRON
 
     def __repr__(self):
         txt  = f'Particle       = {self._name}\n'
@@ -105,5 +105,5 @@ class Particle:
     def __str__(self):
         return self.name
     
-Neutron = Particle(Z=0, A=1, I=0.5, mass=mass_neutron, radius=0.8, name='neutron')
-Proton  = Particle(Z=1, A=1, I=0.5, mass=mass_proton , radius=0.833, name='proton')
+Neutron = Particle(Z=0, A=1, I=0.5, mass=MASS_NEUTRON, radius=0.8  , name='neutron')
+Proton  = Particle(Z=1, A=1, I=0.5, mass=MASS_PROTON , radius=0.833, name='proton' )
