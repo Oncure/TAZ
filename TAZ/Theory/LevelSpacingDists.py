@@ -384,7 +384,7 @@ class Distributions:
         'The mean level-spacing for each distribution.'
         return 1.0 / self.__lvl_dens
     @property
-    def lvl_densTot(self):
+    def lvl_dens_tot(self):
         'The total level-density between all distributions.'
         return np.sum(self.__lvl_dens)
     @property
@@ -449,7 +449,7 @@ def deltaMehta3(E, EB:tuple):
 
     Returns:
     -------
-    delta_3 :: float
+    delta3 :: float
         The Dyson-Mehta ∆3 metric.
     """
 
@@ -459,8 +459,8 @@ def deltaMehta3(E, EB:tuple):
     s2 = np.sum(z**2)
     a = np.arange( len(z)-1, -1, -1 )
     s3 = np.sum((2*a+1)*z)
-    delta_3 = 6*s1*s2 - 4*s1**2 - 3*s2**2 + s3
-    return delta_3
+    delta3 = 6*s1*s2 - 4*s1**2 - 3*s2**2 + s3
+    return delta3
 
 def deltaMehtaPredict(L:int, ensemble:str='GOE'):
     """

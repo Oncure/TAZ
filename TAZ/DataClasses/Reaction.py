@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from .. import RMatrix
+from .. import Theory
 from . import SpinGroups
 from . import Particle, Neutron
 from . import Resonances
@@ -191,7 +191,7 @@ class Reaction:
             self.MissFrac = spingroupParameter(MissFrac, self.num_groups, dtype=float) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
             self.given_miss_frac = True
         elif Gn_trunc is not None:
-            self.MissFrac = RMatrix.FractionMissing(self.Gn_trunc, self.Gnm, self.nDOF) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
+            self.MissFrac = Theory.FractionMissing(self.Gn_trunc, self.Gnm, self.nDOF) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
             self.given_miss_frac = False
         else:
             self.MissFrac = np.zeros((self.num_groups,), dtype=float)
@@ -287,14 +287,14 @@ class Reaction:
         for g in range(self.num_groups):
             # Energy sampling:
             brody_param = self.brody_param[g] if self.brody_param is not None else None
-            E_group  = RMatrix.SampleEnergies(self.EB, self.lvl_dens[g], w=brody_param, ensemble=ensemble, rng=rng)
+            E_group  = Theory.SampleEnergies(self.EB, self.lvl_dens[g], w=brody_param, ensemble=ensemble, rng=rng)
             
             # Width sampling:
             len_group = len(E_group)
-            Gn_group = RMatrix.SampleNeutronWidth(E_group, self.Gnm[g], self.nDOF[g], self.L[g], ac=self.ac,
+            Gn_group = Theory.SampleNeutronWidth(E_group, self.Gnm[g], self.nDOF[g], self.L[g], ac=self.ac,
                                                   mass_targ=self.targ.mass, mass_proj=self.proj.mass,
                                                   rng=rng)
-            Gg_group = RMatrix.SampleGammaWidth(len_group, self.Ggm[g], self.gDOF[g], rng=rng)
+            Gg_group = Theory.SampleGammaWidth(len_group, self.Ggm[g], self.gDOF[g], rng=rng)
             
             # Append to group:
             E          = np.concatenate((E         , E_group ))
@@ -305,7 +305,7 @@ class Reaction:
         # False Resonances:
         if self.false_dens != 0.0:
             # Energy sampling:
-            E_false = RMatrix.SampleEnergies(self.EB, self.false_dens, w=None, ensemble='Poisson')
+            E_false = Theory.SampleEnergies(self.EB, self.false_dens, w=None, ensemble='Poisson')
             
             # False width sampling:
             # False widths are sampled by taking the level-density-weighted average of each spingroup's width distributions.
@@ -313,10 +313,10 @@ class Reaction:
             Gn_false_group = np.zeros((num_false,self.num_groups))
             Gg_false_group = np.zeros((num_false,self.num_groups))
             for g in range(self.num_groups):
-                Gn_false_group[:,g] = RMatrix.SampleNeutronWidth(E_false, self.Gnm[g], self.nDOF[g], self.L[g], ac=self.ac,
+                Gn_false_group[:,g] = Theory.SampleNeutronWidth(E_false, self.Gnm[g], self.nDOF[g], self.L[g], ac=self.ac,
                                                                  mass_targ=self.targ.mass, mass_proj=self.proj.mass,
                                                                  rng=rng)
-                Gg_false_group[:,g] = RMatrix.SampleGammaWidth(num_false, self.Ggm[g], self.gDOF[g], rng=rng)
+                Gg_false_group[:,g] = Theory.SampleGammaWidth(num_false, self.Ggm[g], self.gDOF[g], rng=rng)
             cumprobs = np.cumsum(self.lvl_dens) / np.sum(self.lvl_dens)
             R = rng.uniform(size=(num_false,1))
             idx = np.arange(num_false)
@@ -347,7 +347,7 @@ class Reaction:
                 rGn = np.zeros(Gn.shape)
                 for g in range(self.num_groups):
                     spingroup_g = (spingroups == g)
-                    rGn[spingroup_g] = Gn[spingroup_g] * RMatrix.ReduceFactor(E[spingroup_g], self.L[g], ac=self.ac,
+                    rGn[spingroup_g] = Gn[spingroup_g] * Theory.ReduceFactor(E[spingroup_g], self.L[g], ac=self.ac,
                                                                               mass_targ=self.targ.mass, mass_proj=self.proj.mass)
                 missed_idx = (rGn <= Gn_trunc[spingroups])
 
@@ -387,11 +387,11 @@ class Reaction:
         """
 
         if   dist_type == 'Wigner':
-            distributions = RMatrix.Distributions.wigner(self.lvl_dens)
+            distributions = Theory.Distributions.wigner(self.lvl_dens)
         elif dist_type == 'Brody':
-            distributions = RMatrix.Distributions.brody(self.lvl_dens, self.brody_param)
+            distributions = Theory.Distributions.brody(self.lvl_dens, self.brody_param)
         elif dist_type == 'Missing':
-            distributions = RMatrix.Distributions.missing(self.lvl_dens, self.MissFrac, err)
+            distributions = Theory.Distributions.missing(self.lvl_dens, self.MissFrac, err)
         else:
             raise NotImplementedError(f'The distribution type, "{dist_type}", has not been implemented yet.')
         return distributions
@@ -449,12 +449,12 @@ class Reaction:
                     fit = lambda x: 1.0 - self.distributions(dist_type)[g].f1(x)
         elif quantity == 'neutron width':
             if not cdf: # PDF
-                fit = lambda rGn: RMatrix.PorterThomasPDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
+                fit = lambda rGn: Theory.PorterThomasPDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
             else: # CDF
-                fit = lambda rGn: RMatrix.PorterThomasCDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
+                fit = lambda rGn: Theory.PorterThomasCDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
         elif quantity in ('gamma width', 'capture width'):
             if not cdf: # PDF
-                fit = lambda rGg: RMatrix.PorterThomasPDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
+                fit = lambda rGg: Theory.PorterThomasPDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
             else: # CDF
-                fit = lambda rGg: RMatrix.PorterThomasCDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
+                fit = lambda rGg: Theory.PorterThomasCDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
         return fit

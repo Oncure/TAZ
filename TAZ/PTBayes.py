@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import chi2
 
-from .RMatrix import ReduceFactor
+from .Theory import ReduceFactor
 from . import Reaction, Resonances
 
 __doc__ = """

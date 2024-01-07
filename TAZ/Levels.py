@@ -3,14 +3,14 @@ from scipy.integrate import quad as integrate
 from scipy.optimize import root_scalar
 
 from .Encore import Encore
-from .RMatrix import Distributions
+from .Theory import Distributions
 
 __doc__ = """
 This module serves as a preprocessor and postprocessor for the 2-spingroup assignment algorithm,
 "Encore.py". This module extends the 2-spingroup algorithm to multiple-spingroups by "merging"
-spingroups. This module finds the probabilities for various merge cases and combines
-the expected probabilities. Unlike the 2-spingroup case that gives the best answer given its
-information (i.e. mean level spacings, reduced widths, false resonance probabilities, etc.), the
+spingroups. This module finds the probabilities for various merge cases and combines the expected
+probabilities. Unlike the 2-spingroup case that gives the best answer given its information
+(i.e. mean level spacings, reduced widths, false resonance probabilities, etc.), the
 multiple-spingroup case is an approximation.
 """
 
@@ -84,13 +84,13 @@ class Merger:
         self.xMax, self.xMaxB = self.__findxMax(err, xMax_limits)
 
     @property
-    def lvl_densTot(self):
+    def lvl_dens_tot(self):
         'Gives the total level density for the combined group.'
         return np.sum(self.lvl_dens)
     @property
     def MLSTot(self):
         'Gives the combined mean level-spacing for the group.'
-        return 1.0 / self.lvl_densTot
+        return 1.0 / self.lvl_dens_tot
 
     def __xMax_limits(self, err:float):
         """
@@ -102,7 +102,7 @@ class Merger:
         xMax = -np.log(err)/self.lvl_dens
         return xMax
 
-    def __findZ(s, xMax_limits):
+    def __findZ(self, xMax_limits):
         """
         A function that calculates normalization matrices using the spingroups. When paired with
         the prior probabilities, the arrays, `Z` and `ZB` are the normalization factors for the
@@ -110,21 +110,21 @@ class Merger:
         """
 
         def offDiag(x, i:int, j:int):
-            F2, R1, R2 = s.level_spacing_dists.parts(x)
+            F2, R1, R2 = self.level_spacing_dists.parts(x)
             C = np.prod(F2, axis=1)
             return C[0] * R2[0,i] * R2[0,j]
         def mainDiag(x, i:int):
-            F2, R1, R2 = s.level_spacing_dists.parts(x)
+            F2, R1, R2 = self.level_spacing_dists.parts(x)
             C = np.prod(F2, axis=1)
             return C[0] * R1[0,i] * R2[0,i]
         def boundaries(x, i:int):
-            F2, R1, R2 = s.level_spacing_dists.parts(x)
+            F2, R1, R2 = self.level_spacing_dists.parts(x)
             C = np.prod(F2, axis=1)
             return C[0] * R2[0,i]
 
         # Level Spacing Normalization Matrix:
-        Z = np.zeros((s.G,s.G), dtype='f8')
-        for i in range(s.G):
+        Z = np.zeros((self.G,self.G), dtype='f8')
+        for i in range(self.G):
             for j in range(i):
                 # Off-diagonal:
                 min_xMax_limit = min(xMax_limits[i], xMax_limits[j])
@@ -134,7 +134,7 @@ class Merger:
             Z[i,i] = integrate(lambda _x: mainDiag(_x,i), a=0.0, b=xMax_limits[i])[0]
         
         # Level Spacing Normalization at Boundaries:
-        ZB = np.array([integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limits[i])[0] for i in range(s.G)], dtype='f8')
+        ZB = np.array([integrate(lambda _x: boundaries(_x,i), a=0.0, b=xMax_limits[i])[0] for i in range(self.G)], dtype='f8')
 
         # Error Checking:
         if   (Z  == np.nan).any():  raise RuntimeError('The normalization matrix, "Z", has some "NaN" values.')
@@ -145,33 +145,33 @@ class Merger:
         elif (ZB <  0.0   ).any():  raise RuntimeError('The normalization array, "ZB", has some negative values.')
         return Z, ZB
     
-    def __findxMax(s, err:float, xMax_limits):
+    def __findxMax(self, err:float, xMax_limits):
         """
         An upper limit on the level-spacing beyond which is improbable, as determined by the
         probability threshold, `err`. To ensure the solution is found a rough estimate must be
         provided: `xMax_limit`.
         """
         mthd   = 'brentq' # method for root-finding
-        bounds = [s.MLSTot, np.max(xMax_limits)]
-        if s.G == 1:
-            xMax  = root_scalar(lambda x: s.level_spacing_dists.f0(x) - err     , method=mthd, bracket=bounds).root
-            xMaxB = root_scalar(lambda x: s.level_spacing_dists.f1(x) - err, method=mthd, bracket=bounds).root
+        bounds = [self.MLSTot, np.max(xMax_limits)]
+        if self.G == 1:
+            xMax  = root_scalar(lambda x: self.level_spacing_dists.f0(x) - err, method=mthd, bracket=bounds).root
+            xMaxB = root_scalar(lambda x: self.level_spacing_dists.f1(x) - err, method=mthd, bracket=bounds).root
         else:
             # Bounding the equation from above:
             def upperBoundLevelSpacing(x):
-                f2, r1, r2 = s.level_spacing_dists.parts(x)
+                f2, r1, r2 = self.level_spacing_dists.parts(x)
                 c = np.prod(f2, axis=1)
                 # Minimum normalization possible. This is the lower bound on the denominator with regards to the priors:
-                Norm_LB = np.min(s.Z)
+                Norm_LB = np.min(self.Z)
                 # Finding maximum numerator for the upper bound on the numerator:
                 case_1 = np.max(r1*r2, axis=1)
                 case_2 = np.max(r2**2)
                 return (c / Norm_LB) * max(case_1, case_2)
             def upperBoundLevelSpacingBoundary(x):
-                f2, r1, r2 = s.level_spacing_dists.parts(x)
+                f2, r1, r2 = self.level_spacing_dists.parts(x)
                 c = np.prod(f2, axis=1)
                 # Minimum normalization possible for lower bound:
-                Norm_LB = np.min(s.ZB)
+                Norm_LB = np.min(self.ZB)
                 return (c / Norm_LB) * np.max(r2, axis=1) # Bounded above by bounding the priors from above
             
             xMax  = root_scalar(lambda x: upperBoundLevelSpacing(x)-err        , method=mthd, bracket=bounds).root
@@ -239,18 +239,15 @@ class Merger:
             level_spacing_probs[1:-1,-1] = self.levelSpacingMergeBounds(EB[1] - E, prior)
 
         # Error checking:
-        if (level_spacing_probs == np.nan).any():
-            raise RuntimeError('Level-spacing probabilities have "NaN" values.')
-        if (level_spacing_probs == np.inf).any():
-            raise RuntimeError('Level-spacing probabilities have "Inf" values.')
-        if (level_spacing_probs <  0.0).any():
-            raise RuntimeError('Level-spacing probabilities have negative values.')
+        if (level_spacing_probs == np.nan).any():   raise RuntimeError('Level-spacing probabilities have "NaN" values.')
+        if (level_spacing_probs == np.inf).any():   raise RuntimeError('Level-spacing probabilities have "Inf" values.')
+        if (level_spacing_probs <  0.0).any():      raise RuntimeError('Level-spacing probabilities have negative values.')
         
         # Verbose:
-        if verbose: print('Finished level-spacing calculations')
+        if verbose: print('Finished level-spacing calculations.')
 
         # The normalization factor is duplicated in the prior. One must be removed: FIXME!!!!!
-        level_spacing_probs /= self.lvl_densTot
+        level_spacing_probs /= self.lvl_dens_tot
 
         return level_spacing_probs, iMax
     
@@ -308,7 +305,7 @@ class Merger:
 
         return iMax
 
-    def levelSpacingMerge(s, X, prior_L, prior_R):
+    def levelSpacingMerge(self, X, prior_L, prior_R):
         """
         A function that calculates the merged level-spacing probability density at a level-spacing
         of `X` with prior spingroup probabilities on the left and right resonances, `prior_L` and
@@ -336,26 +333,27 @@ class Merger:
             evaluated at the given level-spacings, `X`.
         """
 
-        f2, r1, r2 = s.level_spacing_dists.parts(X.reshape(-1,))
+        f2, r1, r2 = self.level_spacing_dists.parts(X.reshape(-1,))
         c = np.prod(f2, axis=1)
         d = r2 * (r1 - r2)
 
         # Calculating normalization factor:
-        Z = s.Z.reshape(1,s.G,s.G)
-        wL = prior_L.reshape(-1,1,s.G)
-        wR = prior_R.reshape(-1,s.G,1)
+        Z = self.Z.reshape(1,self.G,self.G)
+        wL = prior_L.reshape(-1,1,self.G)
+        wR = prior_R.reshape(-1,self.G,1)
         norm = (wL @ Z @ wR)[:,0,0] # the normalization factor for the merged level-spacing distribution
 
         # Full probability calculation:
         wL = prior_L
         wR = prior_R
         probs = (c / norm) * ( \
-                np.sum(wL * r2, axis=1) \
-              * np.sum(wR * r2, axis=1) \
-              + np.sum(wL * wR * d, axis=1) )
+                    np.sum(wL * r2, axis=1) \
+                  * np.sum(wR * r2, axis=1) \
+                  + np.sum(wL * wR * d, axis=1) \
+                )
         return probs.reshape(X.shape)
 
-    def levelSpacingMergeBounds(s, X, prior):
+    def levelSpacingMergeBounds(self, X, prior):
         """
         A function that calculates the merged level-spacing probability density at a distance of
         `X` from the boundary of the recorded enrgy range. The level-spacing distribution is
@@ -377,11 +375,11 @@ class Merger:
             evaluated at the given level-spacings, `X`.
         """
 
-        f2, r1, r2 = s.level_spacing_dists.parts(X.reshape(-1,))
+        f2, r1, r2 = self.level_spacing_dists.parts(X.reshape(-1,))
         c = np.prod(f2, axis=1)
 
         # Calculating normalization factor:
-        norm = (prior @ s.ZB)
+        norm = prior @ self.ZB
 
         # Full probability calculation:
         probs = (c / norm) * np.sum(prior*r2, axis=1)
@@ -447,14 +445,14 @@ class RunMaster:
         self.G = len(self.lvl_dens) - 1 # number of spingroups (not including false group)
 
         if Prior is None:
-            self.Prior = np.tile(self.lvl_dens/self.lvl_densTot, (self.L,1))
+            self.Prior = np.tile(self.lvl_dens/self.lvl_dens_tot, (self.L,1))
         else:
             self.Prior = Prior
         self.log_likelihood_prior = log_likelihood_prior
         self.err = err
     
     @property
-    def lvl_densTot(self):
+    def lvl_dens_tot(self):
         return np.sum(self.lvl_dens)
     @property
     def false_dens(self):
@@ -554,7 +552,7 @@ class RunMaster:
 
                 if return_log_likelihood:
                     # FIXME: I DON'T KNOW LOG Likelihood CORRECTION FACTOR FOR MERGED CASES! 
-                    # lvl_dens_comb = np.array([s.lvl_dens[0,g], s.lvl_densTot-s.lvl_dens[0,g]]).reshape(1,-1)
+                    # lvl_dens_comb = np.array([s.lvl_dens[0,g], s.lvl_dens_tot-s.lvl_dens[0,g]]).reshape(1,-1)
                     log_likelihood[g] = ENCORE.LogLikelihood(s.EB, s.false_dens, s.log_likelihood_prior)
 
             # Combine probabilities for each merge case:

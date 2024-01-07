@@ -149,13 +149,120 @@ class SpinGroup:
 
     def __repr__(self):
         return f'{self:ljs}'
-    
     def __str__(self):
         return f'{self:jpi}'
+    
+    def __hash__(self):
+        return hash((self.L, self.J, self.S))
     
     def g(self, spin_target:HalfInt, spin_proj:HalfInt):
         'Statistical spin factor'
         return (2*self.J+1) / ((2*spin_target+1) * (2*spin_proj+1))
+    
+    @classmethod
+    def zip(cls, Ls, Js, Ss=None):
+        """
+        Generates spingroups from the provided "Ls", "Js" and "Ss" quantities.
+
+        Parameters:
+        ----------
+        Ls :: list [int]
+            The ordered list of orbital angular momentums numbers.
+        Js :: list [HalfInt]
+            The ordered list of total angular momentum numbers.
+        Ss :: list [HalfInt]
+            The ordered list of channel spin numbers.
+
+        Returns:
+        -------
+        spingroups :: SpinGroups
+            The generated spingroups.
+        """
+        if Ss is None:
+            if not (len(Ls) == len(Js)):
+                raise ValueError('The number of "L" and "J" values for spin-groups are not equal.')
+            spingroups = [cls(l, j) for l, j in zip(Ls, Js)]
+        else:
+            if not (len(Ls) == len(Js) == len(Ss)):
+                raise ValueError('The number of "L", "J", and "S" values for spin-groups are not equal.')
+            spingroups = [cls(l, j, s) for l, j, s in zip(Ls, Js, Ss)]
+        return spingroups
+    
+    @classmethod
+    def unzip(cls, spingroups:list):
+        """
+        Given a list of spingroups, unzip returns a tuple of lists of orbital angular momentums,
+        total angular momentums, and channel spins.
+
+        Parameter:
+        ---------
+        spingroups :: list [SpinGroup]
+            The list of spingroup objects.
+
+        Returns:
+        -------
+        Ls :: list [int]
+            The ordered list of orbital angular momentums numbers.
+        Js :: list [HalfInt]
+            The ordered list of total angular momentum numbers.
+        Ss :: list [HalfInt]
+            The ordered list of channel spin numbers.
+        """
+        Ls = [];  Js = [];  Ss = []
+        for spingroup in spingroups:
+            Ls.append(spingroup.L)
+            Js.append(spingroup.J)
+            Ss.append(spingroup.S)
+        return Ls, Js, Ss
+
+    @classmethod
+    def find(cls, spin_targ, spin_proj=1/2, l_max:int=1):
+        """
+        Finds all of the valid spingroups with "l" less than or equal to "l_max".
+
+        Parameters:
+        ----------
+        spin_target :: HalfInt
+            The quantum spin number for the target nuclei.
+        spin_proj   :: HalfInt
+            The quantum spin number for the projectile nuclei.
+        l_max       :: int
+            The maximum orbital angular momentum number generated.
+
+        Returns:
+        -------
+        spingroups  :: SpinGroups
+            The generated spingroups.
+        """
+        l_max = int(l_max)
+        spingroups = []
+        for l in range(l_max+1):
+            for s in range(abs(spin_targ-spin_proj), (spin_targ+spin_proj+1), 1):
+                for j in range(abs(s-l), s+l+1, 1):
+                    spingroups.append(cls(l, j, s))
+        return spingroups
+    
+    @classmethod
+    def id(cls, spingroup, spingroups:list):
+        """
+        Returns an integer index ID if provided a spingroup. If an integer id is provided, the id
+        is passed.
+        """
+
+        if spingroup in ('false', 'False'):
+            return len(spingroups)
+        elif type(spingroup) == SpinGroup:
+            for g, candidate in enumerate(spingroups):
+                if spingroup == candidate:
+                    return g
+            raise ValueError(f'The provided spingroup, {spingroup}, does not match any of the recorded spingroups.')
+        elif type(spingroup) == int:
+            num_sgs = len(spingroups)
+            if (spingroup > num_sgs) or (spingroup <= 0):
+                raise ValueError(f'The provided spingroup id, {spingroup}, is above the number of spingroups, {num_sgs}.')
+            return spingroup
+        else:
+            raise TypeError(f'The provided spingroup, {spingroup}, is not an integer ID nor is it a "SpinGroup" object.')
 
 class SpinGroups:
     """
