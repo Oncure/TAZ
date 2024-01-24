@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from . import SpinGroups
+from TAZ.DataClasses import Spingroups
 
 __doc__ = """
 This file keeps the "Resonances" class. The "Resonances" class contains resonance-specific
@@ -29,7 +29,7 @@ class Resonances:
         Resonance fission A widths. Default is None.
     GfB           :: float, array-like
         Resonance fission B widths. Default is None.
-    SG            :: int or SpinGroup, array-like
+    SG            :: int or Spingroup, array-like
         Resonance spingroup assignments. Default is None.
     ladder_bounds ::  float [2]
         Resonance ladder bounds. Default is None.
@@ -51,7 +51,7 @@ class Resonances:
             Resonance fission A widths. Default is None.
         GfB           :: float, array-like
             Resonance fission B widths. Default is None.
-        SG            :: int or SpinGroup, array-like
+        SG            :: int or Spingroup, array-like
             Resonance spingroup assignments. Default is None.
         ladder_bounds :: tuple[float]
             Resonance ladder bounds. Default is None.
@@ -74,7 +74,7 @@ class Resonances:
             self.GfB = np.array(GfB).reshape(-1)[indices]
         if SG  is not None:
             self.properties.append('SG')
-            if type(SG) == SpinGroups:
+            if type(SG) == Spingroups:
                 SG = SG.SGs
             self.SG  = np.array(SG ).reshape(-1)[indices]
         if ladder_bounds is not None:

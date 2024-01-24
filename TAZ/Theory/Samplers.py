@@ -2,8 +2,8 @@ from math import pi, sqrt
 import numpy as np
 from scipy.linalg import eigvalsh_tridiagonal
 
-from .WidthDists import ReduceFactor
-from .LevelSpacingDists import Distribution
+from TAZ.Theory.WidthDists import ReduceFactor
+from TAZ.Theory.LevelSpacingDists import Distribution
 
 __doc__ = """
 This module contains sampler codes for the neutron width, gamma (capture) width, and resonance
@@ -14,7 +14,7 @@ energies.
 #    Partial Width Sampling:
 # =================================================================================================
 
-def SampleNeutronWidth(E, Gnm:float, dof:int, l:int, ac:float,
+def SampleNeutronWidth(E, gn2m:float, dof:int, l:int, ac:float,
                        mass_targ:float, mass_proj:float,
                        rng=None, seed:int=None):
     """
@@ -25,7 +25,7 @@ def SampleNeutronWidth(E, Gnm:float, dof:int, l:int, ac:float,
     E         :: float [n]
         Resonance energies, where `n` is the number of resonances.
 
-    Gnm       :: float
+    gn2m      :: float
         Mean reduced neutron width.
 
     dof       :: int
@@ -58,11 +58,11 @@ def SampleNeutronWidth(E, Gnm:float, dof:int, l:int, ac:float,
     if rng is None:
         rng = np.random.default_rng(seed)
 
-    rGn = (Gnm/dof) * rng.chisquare(dof, (len(E),)) # reduced neutron widths
+    rGn = (gn2m/dof) * rng.chisquare(dof, (len(E),)) # reduced neutron widths
     Gn = rGn / ReduceFactor(np.array(E), l, ac=ac, mass_targ=mass_targ, mass_proj=mass_proj) # neutron widths
     return Gn
 
-def SampleGammaWidth(L:int, Ggm:float, dof:int,
+def SampleGammaWidth(L:int, gg2m:float, dof:int,
                      rng=None, seed:int=None):
     """
     Samples gamma (capture) widths according to the chi-squared distribution.
@@ -72,8 +72,8 @@ def SampleGammaWidth(L:int, Ggm:float, dof:int,
     L    :: int
         Number of gamma (capture) widths to sample.
 
-    Gnm  :: float
-        Mean reduced neutron width.
+    gg2m :: float
+        Mean reduced gamma (capture) width.
 
     dof  :: int
         Chi-squared degrees of freedom.
@@ -93,7 +93,7 @@ def SampleGammaWidth(L:int, Ggm:float, dof:int,
     if rng is None:
         rng = np.random.default_rng(seed)
 
-    return (Ggm/dof) * rng.chisquare(dof, (L,))
+    return (gg2m/dof) * rng.chisquare(dof, (L,))
 
 # =================================================================================================
 #    Energy Level Sampling:
@@ -163,19 +163,19 @@ def sampleGEEnergies(EB:tuple, lvl_dens:float=1.0, beta:int=1,
 
     Parameters:
     ----------
-    EB   :: float [2]
+    EB       :: float [2]
         The energy range for sampling.
 
     lvl_dens :: float
         The mean level-density.
     
-    beta :: 1, 2, or 4
+    beta     :: 1, 2, or 4
         The ensemble parameter, where β = 1 is GOE, β = 2 is GUE, and β = 4 is GSE.
 
-    rng  :: default_rng
+    rng      :: default_rng
         A provided `default_rng`. Default is `None`.
     
-    seed :: int
+    seed     :: int
         If no `rng` is provided, then a random number seed can be specified.
 
     Returns:
@@ -213,7 +213,7 @@ def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
     EB       :: float [2]
         The energy range for sampling.
 
-    lvl_dens     :: float
+    lvl_dens :: float
         The mean level-density.
 
     w        :: float or None

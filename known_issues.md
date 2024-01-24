@@ -1,2 +1,2 @@
 This is the list of known issues with TAZ:
-* Nothing found yet.
+* Check if PTBayes.py is normalizing its PT probabilities correctly.

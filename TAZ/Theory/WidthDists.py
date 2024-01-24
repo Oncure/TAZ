@@ -2,8 +2,8 @@ import numpy as np
 from scipy.special import gammainc, iv
 from scipy.stats import chi2
 
-from ..DataClasses import MASS_NEUTRON
-from .RMatrix import PenetrationFactor, Rho
+from TAZ.DataClasses import MASS_NEUTRON
+from TAZ.Theory.RMatrix import PenetrationFactor, Rho
 
 __doc__ = """
 This module contains partial width probability distributions.
@@ -13,7 +13,7 @@ This module contains partial width probability distributions.
 #    Width Probability Distributions
 # =================================================================================================
 
-def FractionMissing(trunc:float, Gnm:float=1.0, dof:int=1):
+def FractionMissing(trunc:float, gn2m:float=1.0, dof:int=1):
     """
     Gives the fraction of missing resonances due to the truncation in neutron width.
 
@@ -21,7 +21,7 @@ def FractionMissing(trunc:float, Gnm:float=1.0, dof:int=1):
     ----------
     trunc :: float
         The lower limit on the reduced neutron width.
-    Gnm   :: float
+    gn2m  :: float
         The mean reduced neutron width. Default = 1.0.
     dof   :: int
         The number of degrees of freedom for the chi-squared distribution.
@@ -31,10 +31,10 @@ def FractionMissing(trunc:float, Gnm:float=1.0, dof:int=1):
     fraction_missing :: float
         The fraction of missing resonances within the spingroup.
     """
-    fraction_missing = gammainc(dof/2, dof*trunc/(2*Gnm))
+    fraction_missing = gammainc(dof/2, dof*trunc/(2*gn2m))
     return fraction_missing
 
-def PorterThomasPDF(G, Gm:float, trunc:float=0.0, dof:int=1):
+def PorterThomasPDF(G, g2m:float, trunc:float=0.0, dof:int=1):
     """
     The probability density function (PDF) for Porter-Thomas distribution on the width. There is
     an additional width truncation factor, `trunc`, that ignores widths below the truncation
@@ -44,8 +44,8 @@ def PorterThomasPDF(G, Gm:float, trunc:float=0.0, dof:int=1):
     ----------
     G     :: float [n]
         Partial resonance widths.
-    Gm    :: float
-        Mean partial resonance width.
+    g2m   :: float
+        Mean reduced partial resonance width.
     trunc :: float
         Width truncation factor for the distribution. Resonance widths below `trunc` are not
         considered in the distribution. Default = 0.0 (no truncation).
@@ -59,15 +59,15 @@ def PorterThomasPDF(G, Gm:float, trunc:float=0.0, dof:int=1):
     """
     
     if trunc == 0.0:
-        prob = chi2.pdf(G, df=dof, scale=Gm/dof)
+        prob = chi2.pdf(G, df=dof, scale=g2m/dof)
     else:
         prob = np.zeros(len(G))
-        fraction_missing = FractionMissing(trunc, Gm, dof)
-        prob[G >  trunc] = chi2.pdf(G[G > trunc], df=dof, scale=Gm/dof) / (1 - fraction_missing)
+        fraction_missing = FractionMissing(trunc, g2m, dof)
+        prob[G >  trunc] = chi2.pdf(G[G > trunc], df=dof, scale=g2m/dof) / (1 - fraction_missing)
         prob[G <= trunc] = 0.0
     return prob
 
-def PorterThomasCDF(G, Gm:float=1.0, trunc:float=0.0, dof:int=1):
+def PorterThomasCDF(G, g2m:float=1.0, trunc:float=0.0, dof:int=1):
     """
     The cumulative density function (CDF) for Porter-Thomas Distribution on the width. There is
     an additional width truncation factor, `trunc`, that ignores widths below the truncation
@@ -77,8 +77,8 @@ def PorterThomasCDF(G, Gm:float=1.0, trunc:float=0.0, dof:int=1):
     ----------
     G     :: float [n]
         Partial resonance widths.
-    Gm    :: float
-        Mean partial resonance width.
+    g2m   :: float
+        Mean reduced partial resonance width.
     trunc :: float
         Width truncation factor for the distribution. Resonance widths below `trunc` are not
         considered in the distribution. Default = 0.0 (no truncation).
@@ -92,11 +92,11 @@ def PorterThomasCDF(G, Gm:float=1.0, trunc:float=0.0, dof:int=1):
     """
     
     if trunc == 0.0:
-        prob = chi2.cdf(G, df=dof, scale=Gm/dof)
+        prob = chi2.cdf(G, df=dof, scale=g2m/dof)
     else:
-        fraction_missing = FractionMissing(trunc, Gm, dof)
+        fraction_missing = FractionMissing(trunc, g2m, dof)
         prob = np.zeros(len(G))
-        prob[G >  trunc] = (chi2.cdf(G, df=dof, scale=Gm/dof) - fraction_missing) / (1 - fraction_missing)
+        prob[G >  trunc] = (chi2.cdf(G, df=dof, scale=g2m/dof) - fraction_missing) / (1 - fraction_missing)
         prob[G <= trunc] = 0.0
     return prob
     
@@ -134,16 +134,16 @@ def ReduceFactor(E, l:int, mass_targ:float, ac:float,
     reduce_factor = 1.0 / (2.0*PenetrationFactor(rho,l))
     return reduce_factor
 
-def FissionDistPDF(G,
-                   GmfA:float     , dofA:int=1,
-                   GmfB:float=None, dofB:int=1,
+def FissionDistPDF(Gf,
+                   gf2mA:float     , dofA:int=1,
+                   gf2mB:float=None, dofB:int=1,
                    trunc:float=0.0):
     """
     ...
     """
 
-    if GmfB == None:
-        return PorterThomasPDF(G, GmfA, trunc, dofA)
+    if gf2mB == None:
+        return PorterThomasPDF(Gf, gf2mA, trunc, dofA)
     else:
         if trunc != 0.0:
             raise NotImplementedError('Truncation has not been implemented yet.')
@@ -151,7 +151,7 @@ def FissionDistPDF(G,
             raise NotImplementedError('The fission distribution with more than 1 degree of freedom has not been implemented yet.')
         
         # Source:   https://www.publish.csiro.au/ph/pdf/PH750489
-        a = G * (1/GmfB - 1/GmfA)/4
-        b = G * (1/GmfB + 1/GmfA)/4
-        prob = np.exp(-b) * iv(0, a) / np.sqrt(4*GmfA*GmfB)
+        a = Gf * (1/gf2mB - 1/gf2mA)/4
+        b = Gf * (1/gf2mB + 1/gf2mA)/4
+        prob = np.exp(-b) * iv(0, a) / np.sqrt(4*gf2mA*gf2mB)
         return prob

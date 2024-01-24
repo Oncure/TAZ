@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.stats import chi2
 
-from .Theory import ReduceFactor
-from . import Reaction, Resonances
+from TAZ.Theory import ReduceFactor
+from TAZ import Reaction, Resonances
 
 __doc__ = """
 This module contains Bayes' update for the probabilistic distribution on the neutron widths (and
@@ -56,13 +56,13 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
     posterior = prior
 
     # Neutron widths:
-    mult_factor = (reaction.nDOF/reaction.Gnm).reshape(1,-1) * ReduceFactor(res.E, reaction.L, ac=reaction.ac,
+    mult_factor = (reaction.nDOF/reaction.gn2m).reshape(1,-1) * ReduceFactor(res.E, reaction.L, ac=reaction.ac,
                                                                                   mass_targ=reaction.targ.mass, mass_proj=reaction.proj.mass)
     posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gn.reshape(-1,1), reaction.nDOF)
 
     # Gamma widths: (if gamma_width_on is True)
     if gamma_width_on:
-        mult_factor = (reaction.gDOF/reaction.Ggm).reshape(1,-1)
+        mult_factor = (reaction.gDOF/reaction.gg2m).reshape(1,-1)
         posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg.reshape(-1,1), reaction.gDOF)
 
     # False distribution:

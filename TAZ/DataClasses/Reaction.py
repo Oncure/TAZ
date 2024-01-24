@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
+from typing import List
 
-from .. import Theory
-from . import SpinGroups
-from . import Particle, Neutron
-from . import Resonances
+from TAZ import Theory
+from TAZ.DataClasses import Spingroup
+from TAZ.DataClasses import Particle, Neutron
+from TAZ.DataClasses import Resonances
 
 __doc__ = """
 This file keeps the "Reaction" class. The "Reaction" class contains all relevent
@@ -55,11 +56,11 @@ class Reaction:
                  targ:Particle=None, proj:Particle=Neutron,
                  ac:float=None,
                  EB:tuple=None, false_dens:float=0.0,
-                 spingroups:SpinGroups=None,
+                 spingroups:List[Spingroup]=None,
                  lvl_dens:list=None, MLS:list=None,
                  brody_param:list=None,
-                 Gnm:list=None, nDOF:list=None,
-                 Ggm:list=None, gDOF:list=None,
+                 gn2m:list=None, nDOF:list=None,
+                 gg2m:list=None, gDOF:list=None,
                  Gn_trunc:list=None, MissFrac:list=None):
         """
         Initializes reaction parameters with keyword arguments.
@@ -76,7 +77,7 @@ class Reaction:
             Energy range for evaluation.
         false_dens  :: float
             False resonance level density.
-        spingroups  :: SpinGroups
+        spingroups  :: List [Spingroup]
             Spingroups for the reaction.
         lvl_dens    :: float [G]
             Resonance level densities for each spingroup.
@@ -84,14 +85,14 @@ class Reaction:
             Resonance mean level spacings for each spingroup.
         brody_param :: float [G]
             Brody resonance parameter.
-        Gnm         :: float [G]
-            Resonance mean neutron widths for each spingroup.
+        gn2m        :: float [G]
+            Resonance mean reduced neutron widths for each spingroup.
         nDOF        :: float [G]
             Resonance neutron width degrees of freedom for each spingroup.
         Gn_trunc    :: float [G]
             Lowest recordable neutron width.
-        Ggm         :: float [G]
-            Resonance mean gamma (capture) width for each spingroup.
+        gg2m        :: float [G]
+            Resonance mean reduced gamma (capture) width for each spingroup.
         gDOF        :: float [G]
             Resonance gamma (capture) width degrees of freedom for each spingroup.
         MissFrac    :: float [G]
@@ -140,10 +141,10 @@ class Reaction:
         # Spingroups:
         if spingroups is None:
             raise ValueError('The spingroups are a required argument for initialization of a "Reaction" object.')
-        elif type(spingroups) != SpinGroups:
-            raise TypeError('"spingroups" must have type "SpinGroups".')
+        elif (type(spingroups) != list) or (type(spingroups[0]) != Spingroup):
+            raise TypeError('"spingroups" must be a list of "Spingroup" objects.')
         self.spingroups = spingroups
-        self.num_groups = self.spingroups.num_sgs
+        self.num_groups = len(spingroups)
         
         # Level Densities:
         if lvl_dens is not None and MLS is not None:
@@ -165,16 +166,16 @@ class Reaction:
             self.brody_param = np.ones((self.num_groups,))
 
         # Mean Neutron Widths:
-        if Gnm is not None:     self.Gnm = spingroupParameter(Gnm, self.num_groups, dtype=float)
-        else:                   self.Gnm = None
+        if gn2m is not None:    self.gn2m = spingroupParameter(gn2m, self.num_groups, dtype=float)
+        else:                   self.gn2m = None
 
         # Neutron Channel Degrees of Freedom:
         if nDOF is not None:    self.nDOF = spingroupParameter(nDOF, self.num_groups, dtype=int)
         else:                   self.nDOF = np.ones((self.num_groups,), dtype=int)
 
         # Mean Gamma Widths:
-        if Ggm is not None:     self.Ggm = spingroupParameter(Ggm, self.num_groups, dtype=float)
-        else:                   self.Ggm = None
+        if gg2m is not None:    self.gg2m = spingroupParameter(gg2m, self.num_groups, dtype=float)
+        else:                   self.gg2m = None
 
         # Gamma Channel Degrees of Freedom:
         if gDOF is not None:    self.gDOF = spingroupParameter(gDOF, self.num_groups, dtype=int)
@@ -191,7 +192,7 @@ class Reaction:
             self.MissFrac = spingroupParameter(MissFrac, self.num_groups, dtype=float) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
             self.given_miss_frac = True
         elif Gn_trunc is not None:
-            self.MissFrac = Theory.FractionMissing(self.Gn_trunc, self.Gnm, self.nDOF) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
+            self.MissFrac = Theory.FractionMissing(self.Gn_trunc, self.gn2m, self.nDOF) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
             self.given_miss_frac = False
         else:
             self.MissFrac = np.zeros((self.num_groups,), dtype=float)
@@ -200,15 +201,15 @@ class Reaction:
     @property
     def L(self):
         'Orbital Angular Momentum'
-        return np.array(self.spingroups.L)
+        return np.array([spingroup.L for spingroup in self.spingroups])
     @property
     def J(self):
         'Total Angular Momentum'
-        return np.array(self.spingroups.J)
+        return np.array([spingroup.J for spingroup in self.spingroups])
     @property
     def S(self):
         'Channel Spin'
-        return np.array(self.spingroups.S)
+        return np.array([spingroup.S for spingroup in self.spingroups])
     @property
     def MLS(self):
         'Mean Level Spacing'
@@ -226,7 +227,7 @@ class Reaction:
         txt += f'Energy Bounds       = {self.EB[0]:.3e} < E < {self.EB[1]:.3e} (eV)\n'
         txt += f'False Level Density = {self.false_dens:.7f} (1/eV)\n'
         txt += '\n'
-        data = np.vstack((self.lvl_dens, self.brody_param, self.Gnm, self.nDOF, self.Ggm, self.gDOF, self.Gn_trunc, self.MissFrac))
+        data = np.vstack((self.lvl_dens, self.brody_param, self.gn2m, self.nDOF, self.gg2m, self.gDOF, self.Gn_trunc, self.MissFrac))
         properties = ['Level Densities', \
                       'Brody Parameters', \
                       'Mean Neutron Width', \
@@ -235,7 +236,7 @@ class Reaction:
                       'Gamma Width DOF', \
                       'Truncation N Width', \
                       'Missing Fraction']
-        txt += str(pd.DataFrame(data=data, index=properties, columns=self.spingroups.SGs))
+        txt += str(pd.DataFrame(data=data, index=properties, columns=self.spingroups))
         return txt
     def __str__(self):
         return self.__repr__()
@@ -266,13 +267,13 @@ class Reaction:
 
         Returns:
         -------
-        resonances_caught :: Resonances
+        resonances_caught  :: Resonances
             The recorded resonances.
-        spingroups_caught :: int, array-like
+        spingroups_caught  :: int, array-like
             An ID for the recorded resonances' spingroups.
         resonances_missing :: Resonances
             The missed resonances.
-        spingroups_missed :: int, array-like
+        spingroups_missed  :: int, array-like
             An ID for the missed resonances' spingroups.
         """
 
@@ -291,10 +292,10 @@ class Reaction:
             
             # Width sampling:
             len_group = len(E_group)
-            Gn_group = Theory.SampleNeutronWidth(E_group, self.Gnm[g], self.nDOF[g], self.L[g], ac=self.ac,
+            Gn_group = Theory.SampleNeutronWidth(E_group, self.gn2m[g], self.nDOF[g], self.L[g], ac=self.ac,
                                                   mass_targ=self.targ.mass, mass_proj=self.proj.mass,
                                                   rng=rng)
-            Gg_group = Theory.SampleGammaWidth(len_group, self.Ggm[g], self.gDOF[g], rng=rng)
+            Gg_group = Theory.SampleGammaWidth(len_group, self.gg2m[g], self.gDOF[g], rng=rng)
             
             # Append to group:
             E          = np.concatenate((E         , E_group ))
@@ -313,10 +314,10 @@ class Reaction:
             Gn_false_group = np.zeros((num_false,self.num_groups))
             Gg_false_group = np.zeros((num_false,self.num_groups))
             for g in range(self.num_groups):
-                Gn_false_group[:,g] = Theory.SampleNeutronWidth(E_false, self.Gnm[g], self.nDOF[g], self.L[g], ac=self.ac,
+                Gn_false_group[:,g] = Theory.SampleNeutronWidth(E_false, self.gn2m[g], self.nDOF[g], self.L[g], ac=self.ac,
                                                                  mass_targ=self.targ.mass, mass_proj=self.proj.mass,
                                                                  rng=rng)
-                Gg_false_group[:,g] = Theory.SampleGammaWidth(num_false, self.Ggm[g], self.gDOF[g], rng=rng)
+                Gg_false_group[:,g] = Theory.SampleGammaWidth(num_false, self.gg2m[g], self.gDOF[g], rng=rng)
             cumprobs = np.cumsum(self.lvl_dens) / np.sum(self.lvl_dens)
             R = rng.uniform(size=(num_false,1))
             idx = np.arange(num_false)
@@ -344,12 +345,12 @@ class Reaction:
                 missed_idx = (rng.uniform(size=E.shape) < miss_frac[spingroups])
             else: # given Gn_trunc
                 Gn_trunc = np.concatenate((self.Gn_trunc, [0]))
-                rGn = np.zeros(Gn.shape)
+                gn2 = np.zeros(Gn.shape)
                 for g in range(self.num_groups):
                     spingroup_g = (spingroups == g)
-                    rGn[spingroup_g] = Gn[spingroup_g] * Theory.ReduceFactor(E[spingroup_g], self.L[g], ac=self.ac,
+                    gn2[spingroup_g] = Gn[spingroup_g] * Theory.ReduceFactor(E[spingroup_g], self.L[g], ac=self.ac,
                                                                               mass_targ=self.targ.mass, mass_proj=self.proj.mass)
-                missed_idx = (rGn <= Gn_trunc[spingroups])
+                missed_idx = (gn2 <= Gn_trunc[spingroups])
 
         # Caught resonances:
         E_caught  =  E[~missed_idx]
@@ -405,7 +406,7 @@ class Reaction:
         ----------
         quantity  :: 'energies', 'level spacing', 'neutron width', 'gamma width', or 'capture width'
             The quantity for which the expected distribution is given.
-        spingroup :: int or SpinGroup
+        spingroup :: int or Spingroup
             The spingroup for the expected distribution.
         cdf       :: bool
             If true, the expected cumulative density function is provided; else, the probability
@@ -418,7 +419,7 @@ class Reaction:
         """
 
         # Matching spingroup to id:
-        g = self.spingroups.id(spingroup)
+        g = Spingroup.id(spingroup, self.spingroups)
 
         # Determining and returning distribution:
         if   quantity == 'energies':
@@ -449,12 +450,12 @@ class Reaction:
                     fit = lambda x: 1.0 - self.distributions(dist_type)[g].f1(x)
         elif quantity == 'neutron width':
             if not cdf: # PDF
-                fit = lambda rGn: Theory.PorterThomasPDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
+                fit = lambda rGn: Theory.PorterThomasPDF(rGn, self.gn2m[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
             else: # CDF
-                fit = lambda rGn: Theory.PorterThomasCDF(rGn, self.Gnm[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
+                fit = lambda rGn: Theory.PorterThomasCDF(rGn, self.gn2m[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
         elif quantity in ('gamma width', 'capture width'):
             if not cdf: # PDF
-                fit = lambda rGg: Theory.PorterThomasPDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
+                fit = lambda rGg: Theory.PorterThomasPDF(rGg, self.gg2m[g], trunc=0.0, dof=self.gDOF[g])
             else: # CDF
-                fit = lambda rGg: Theory.PorterThomasCDF(rGg, self.Ggm[g], trunc=0.0, dof=self.gDOF[g])
+                fit = lambda rGg: Theory.PorterThomasCDF(rGg, self.gg2m[g], trunc=0.0, dof=self.gDOF[g])
         return fit

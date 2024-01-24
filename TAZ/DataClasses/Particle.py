@@ -1,4 +1,4 @@
-from . import HalfInt
+from TAZ.DataClasses import HalfInt
 
 __doc__ = """
 This file stores the "Particle" class. The "Particle" class contains all relevent information to a

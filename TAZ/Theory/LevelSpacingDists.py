@@ -95,20 +95,20 @@ class Distribution:
 
         Parameters:
         ----------
-        f0    :: function
+        f0       :: function
             Probability density function for the distribution.
-        f1    :: function
+        f1       :: function
             The reversed CDF of the level-spacing distribution.
-        f2    :: function
+        f2       :: function
             The doubly integrated level-spacing distribution.
-        parts :: function
+        parts    :: function
             Function that finds f2, f0/f1, and f1/f2 which are used when merging
             distributions. Default = None (calculated from f0, f1, and f2).
-        if1   :: function
+        if1      :: function
             The inverse function of f1. Default = None.
-        if2   :: function
+        if2      :: function
             The inverse function of f2. Default = None.
-        lvl_dens  :: float
+        lvl_dens :: float
             The expected level-density for the distribution. Default = None (calculated from f0).
         """
         self.__f0 = f0
@@ -238,7 +238,7 @@ class Distribution:
         ----------
         lvl_dens :: float
             Mean level-density. Default = 1.0.
-        w    :: float
+        w        :: float
             Brody parameter. Default = 0.0.
 
         Returns:
@@ -278,9 +278,9 @@ class Distribution:
         ----------
         lvl_dens :: float
             Mean level-density. Default = 1.0.
-        pM   :: float
+        pM       :: float
             Fraction of missing resonances. Default = 0.0.
-        err  :: float
+        err      :: float
             Maximum error in PDF. Default = 0.005.
 
         Returns:

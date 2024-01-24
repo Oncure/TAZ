@@ -2,8 +2,8 @@ import numpy as np
 from scipy.integrate import quad as integrate
 from scipy.optimize import root_scalar
 
-from .Encore import Encore
-from .Theory import Distributions
+from TAZ.Encore import Encore
+from TAZ.Theory import Distributions
 
 __doc__ = """
 This module serves as a preprocessor and postprocessor for the 2-spingroup assignment algorithm,
@@ -74,7 +74,7 @@ class Merger:
 
         self.level_spacing_dists = level_spacing_dists
         self.lvl_dens = self.level_spacing_dists.lvl_dens
-        self.G    = len(self.lvl_dens)
+        self.G = len(self.lvl_dens)
 
         xMax_limits = self.__xMax_limits(err) # xMax must be bounded by the error for spingroup alone
 

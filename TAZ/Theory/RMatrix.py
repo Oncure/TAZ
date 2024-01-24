@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..DataClasses import MASS_NEUTRON
+from TAZ.DataClasses import MASS_NEUTRON
 
 __doc__ = """
 This module is the collection of relevant R-Matrix Theory quantities. Many of these equations are

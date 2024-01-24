@@ -1,6 +1,6 @@
 import numpy as np
 
-from . import Resonances
+from TAZ import Resonances
 
 def readENDF(file):
     with open(file, 'r') as contents:

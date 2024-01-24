@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.optimize import curve_fit
 
-from .WidthDists import FractionMissing, PorterThomasCDF
-from ..DataClasses import HalfInt
+from TAZ.Theory.WidthDists import FractionMissing, PorterThomasCDF
+from TAZ.DataClasses import HalfInt
 
 __doc__ = """
 This module compiles mean parameter estimation methods.
@@ -178,7 +178,7 @@ def MeanWidthCDFRegression(widths, dof:int=1, thres:float=0.0):
     num_thres_widths = len(widths)
     X = np.linspace(0, 20*np.max(widths), 10_000)
     Y = np.searchsorted(widths, X) / num_thres_widths
-    func = lambda G, Gm: PorterThomasCDF(G, Gm, thres, dof)
+    func = lambda G, g2m: PorterThomasCDF(G, g2m, thres, dof)
     mean_width, mean_width_cov = curve_fit(func, X, Y, bounds=(0, np.max(widths)))
     mean_width_std = np.sqrt(mean_width_cov)
     frac_below_thres = FractionMissing(thres, mean_width, dof)
