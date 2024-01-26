@@ -7,9 +7,10 @@ This module is the collection of relevant R-Matrix Theory quantities. Many of th
 found in the ENDF and SAMMY manuals.
 """
 
-HBAR       = 6.582119569e-16 # eV*s
-LIGHTSPEED = 299792458 # m/s
-AMU_MEV    = 931.3680888469 # MeV/(c^2*amu)
+# Physical constants: (Table 1 in appendix H of ENDF manual)
+HBAR       = 6.582_119_514e-16 # eV*s
+LIGHTSPEED = 299_792_458 # m/s
+AMU_EV    = 931.494_095_4e6 # eV/(c^2*amu)
 
 def NuclearRadius(A:int) -> float:
     """
@@ -74,7 +75,8 @@ def Rho(mass_targ:float, ac:float, E,
     if any(E < E_thres):
         raise ValueError(f'The given energies are below the threshold energy of {E_thres} eV.')
 
-    CONSTANT = 0.0001546691274; # ((amu)^{1/2} * fm) / h_bar --> eV^{-1/2}
+    CONSTANT = np.sqrt(AMU_EV * LIGHTSPEED**2) / HBAR * 1e-15 # = 0.0001546691274 -- ((amu)^{1/2} * fm) / h_bar --> eV^{-1/2}
+
     mass_ratio_before = mass_targ / (mass_proj + mass_targ)
     mass_ratio_after  = 2 * mass_proj_after * mass_targ_after / (mass_proj_after + mass_targ_after)
     Delta_E = E-E_thres

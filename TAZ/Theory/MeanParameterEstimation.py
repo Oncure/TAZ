@@ -111,7 +111,7 @@ def MeanSpacingRegression(E, EB:tuple):
     dx = np.diff(x)
     dx2 = np.diff(x**2)
     y = np.arange(N+1)
-    Delta  = EB[1] - EB[0]
+    # Delta  = EB[1] - EB[0]
     Delta2 = EB[1]**2 - EB[0]**2
     Delta3 = EB[1]**3 - EB[0]**3
 
