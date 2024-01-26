@@ -7,6 +7,10 @@ This module is the collection of relevant R-Matrix Theory quantities. Many of th
 found in the ENDF and SAMMY manuals.
 """
 
+HBAR       = 6.582119569e-16 # eV*s
+LIGHTSPEED = 299792458 # m/s
+AMU_MEV    = 931.3680888469 # MeV/(c^2*amu)
+
 def NuclearRadius(A:int) -> float:
     """
     Finds the nuclear radius from the atomic mass.
