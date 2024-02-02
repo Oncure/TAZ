@@ -1,8 +1,7 @@
 import sys
 sys.path.append('../TAZ')
 import TAZ
-from TAZ.Theory.LevelSpacingDists import deltaMehta3, deltaMehtaPredict
-from TAZ.Theory.distributions import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist
+from TAZ.Theory.distributions import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist, deltaMehta3, deltaMehtaPredict
 from TAZ.Theory.WidthDists import ReduceFactor
 
 import numpy as np

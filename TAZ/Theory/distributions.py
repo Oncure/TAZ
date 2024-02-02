@@ -193,7 +193,7 @@ def deltaMehtaPredict(L:int, ensemble:str='GOE'):
     """
 
     if   ensemble.lower() == 'goe':
-        delta_3 = pi**(-2) * (log(L) - 0.0687)
+        delta_3 = pi**(-2) * (np.log(L) - 0.0687)
     elif ensemble.lower() == 'poisson':
         delta_3 = L/15
     elif ensemble.lower() == 'picket':
