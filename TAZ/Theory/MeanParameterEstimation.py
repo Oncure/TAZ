@@ -10,8 +10,8 @@ This module compiles mean parameter estimation methods.
 
 
 """
-Methods for mean-level spacing estimation:
-  / 1. Bethe formula for level-densities.
+Proposed methods for mean-level spacing estimation:
+    1. Bethe formula for level-densities.
     2. Ladder size over number of levels.
     3. Linear regression on the cumulative level function.
   / 4. Fitting Wigner distribution.

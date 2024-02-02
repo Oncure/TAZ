@@ -4,6 +4,7 @@ from scipy.linalg import eigvalsh_tridiagonal
 
 from TAZ.Theory.WidthDists import ReduceFactor
 from TAZ.Theory.LevelSpacingDists import Distribution
+from TAZ.Theory.distributions import porter_thomas_dist, semicircle_dist
 
 __doc__ = """
 This module contains sampler codes for the neutron width, gamma (capture) width, and resonance
@@ -58,9 +59,12 @@ def SampleNeutronWidth(E, gn2m:float, dof:int, l:int, ac:float,
     if rng is None:
         rng = np.random.default_rng(seed)
 
-    rGn = (gn2m/dof) * rng.chisquare(dof, (len(E),)) # reduced neutron widths
-    Gn = rGn / ReduceFactor(np.array(E), l, ac=ac, mass_targ=mass_targ, mass_proj=mass_proj) # neutron widths
+    gn2 = porter_thomas_dist(mean=gn2m, df=dof, trunc=0.0).rvs((len(E),), rng)
+    Gn = gn2 / ReduceFactor(np.array(E), l, ac=ac, mass_targ=mass_targ, mass_proj=mass_proj)
     return Gn
+    # gn2 = (gn2m/dof) * rng.chisquare(dof, (len(E),)) # reduced neutron widths
+    # Gn = gn2 / ReduceFactor(np.array(E), l, ac=ac, mass_targ=mass_targ, mass_proj=mass_proj)
+    # return Gn
 
 def SampleGammaWidth(L:int, gg2m:float, dof:int,
                      rng=None, seed:int=None):
@@ -93,18 +97,12 @@ def SampleGammaWidth(L:int, gg2m:float, dof:int,
     if rng is None:
         rng = np.random.default_rng(seed)
 
-    return (gg2m/dof) * rng.chisquare(dof, (L,))
+    return porter_thomas_dist(mean=gg2m, df=dof, trunc=0.0).rvs((L,), rng)
+    # return (gg2m/dof) * rng.chisquare(dof, (L,))
 
 # =================================================================================================
 #    Energy Level Sampling:
 # =================================================================================================
-
-def wigSemicircleCDF(x):
-    """
-    CDF of Wigner's semicircle law distribution.
-    """
-
-    return (x/pi) * np.sqrt(1.0 - x**2) + np.arcsin(x)/pi + 0.5
 
 def sampleGEEigs(n:int, beta:int=1,
                  rng=None, seed:int=None):
@@ -198,7 +196,7 @@ def sampleGEEnergies(EB:tuple, lvl_dens:float=1.0, beta:int=1,
 
     # Using semicircle law CDF to make the resonances uniformly spaced:
     # Source: https://github.com/LLNL/fudge/blob/master/brownies/BNL/restools/level_generator.py
-    E = EB[0] + (N_Tot / lvl_dens) * (wigSemicircleCDF(eigs) - wigSemicircleCDF(-1.0+margin))
+    E = EB[0] + (N_Tot / lvl_dens) * (semicircle_dist.cdf(eigs) - semicircle_dist.cdf(-1.0+margin))
     E = E[E < EB[1]]
     E = np.sort(E)
     return E
