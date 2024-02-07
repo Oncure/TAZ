@@ -165,7 +165,7 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
         prob_ans_cor_est, prob_ans_cor_std = __fractionEstimation(count_all2, count_cor2)
 
         # Plotting:
-        plt.figure(fig_num)
+        plt.figure(fig_num+t)
         plt.clf()
         plt.errorbar(X2,prob_ans_cor_est, prob_ans_cor_std, capsize=3, ls='none', c='k')
         plt.scatter(X2,prob_ans_cor_est, marker='.', s=14, c='k')

@@ -3,7 +3,7 @@ import numpy as np
 from scipy.linalg import eigvalsh_tridiagonal
 
 from TAZ.Theory.WidthDists import ReduceFactor
-from TAZ.Theory.LevelSpacingDists import Distribution
+from TAZ.Theory.LevelSpacingDists import WignerGen, BrodyGen
 from TAZ.Theory.distributions import porter_thomas_dist, semicircle_dist
 
 __doc__ = """
@@ -185,14 +185,14 @@ def sampleGEEnergies(EB:tuple, lvl_dens:float=1.0, beta:int=1,
     if rng is None:
         rng = np.random.default_rng(seed)
 
-    margin = 0.1 # a margin of safety where we consider the GOE samples to properly follow the semicircle law. This removes the uncooperative tails
+    margin = 0.1 # a margin of safety where we consider the GOE samples to properly follow the semicircle law. This removes the uncooperative tails.
     N_res_est = (EB[1]-EB[0]) * lvl_dens # estimate number of resonances
     N_Tot = round((1 + 2*margin) * N_res_est) # buffer number of resonances
 
     eigs = sampleGEEigs(N_Tot, beta=beta, rng=rng)
     eigs /= 2*sqrt(N_Tot)
     eigs = eigs[eigs > -1.0+margin]
-    eigs = eigs[eigs <  1.0-margin]
+    # eigs = eigs[eigs <  1.0-margin]
 
     # Using semicircle law CDF to make the resonances uniformly spaced:
     # Source: https://github.com/LLNL/fudge/blob/master/brownies/BNL/restools/level_generator.py
@@ -251,9 +251,9 @@ def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
         L_Guess = round( lvl_dens * (EB[1] - EB[0]) * MULTIPLIER )
         LS = np.zeros(L_Guess+1, dtype='f8')
         if w == 1.0:
-            distribution = Distribution.wigner(lvl_dens)
+            distribution = WignerGen(lvl_dens=lvl_dens)
         else:
-            distribution = Distribution.brody(lvl_dens, w)
+            distribution = BrodyGen(lvl_dens=lvl_dens, w=w)
         LS[0]  = EB[0] + distribution.sample_f1(rng=rng)
         LS[1:] = distribution.sample_f0(size=(L_Guess,), rng=rng)
         E = np.cumsum(LS)

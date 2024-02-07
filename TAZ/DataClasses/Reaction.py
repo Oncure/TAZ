@@ -387,12 +387,19 @@ class Reaction:
             The `Distributions` object for level-spacings, based on the mean parameters.
         """
 
+        distributions = []
         if   dist_type == 'Wigner':
-            distributions = Theory.Distributions.wigner(self.lvl_dens)
+            for g in range(self.num_groups):
+                distribution = Theory.LevelSpacingDists.WignerGen(lvl_dens=self.lvl_dens[g])
+                distributions.append(distribution)
         elif dist_type == 'Brody':
-            distributions = Theory.Distributions.brody(self.lvl_dens, self.brody_param)
+            for g in range(self.num_groups):
+                distribution = Theory.LevelSpacingDists.BrodyGen(lvl_dens=self.lvl_dens[g], w=self.brody_param[g])
+                distributions.append(distribution)
         elif dist_type == 'Missing':
-            distributions = Theory.Distributions.missing(self.lvl_dens, self.MissFrac, err)
+            for g in range(self.num_groups):
+                distribution = Theory.LevelSpacingDists.MissingGen(lvl_dens=self.lvl_dens[g], pM=self.MissFrac[g], err=err)
+                distributions.append(distribution)
         else:
             raise NotImplementedError(f'The distribution type, "{dist_type}", has not been implemented yet.')
         return distributions
