@@ -56,7 +56,8 @@ class SpacingDistribution:
         'Sampling of "f0" distribution.'
         if rng is None:
             rng = np.random.RandomState(seed)
-        return self.if1(rng.random(size))
+        f1_0 = self.f1(0)
+        return self.if1(f1_0*rng.random(size))
     def sample_f1(self, size:tuple=None, rng=None, seed:int=None):
         'Sampling of "f1" distribution.'
         if rng is None:
