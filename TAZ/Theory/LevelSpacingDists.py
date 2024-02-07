@@ -27,11 +27,11 @@ class SpacingDistribution:
     def f1(self, x):
         func = lambda t: self.f0(t)
         intfunc = lambda x: quad(func, a=x, b=np.inf)[0]
-        return np.vectorize(intfunc)(x)
+        return np.vectorize(intfunc)(x) / self.lvl_dens
     def f2(self, x):
         func = lambda t,x: (t-x)*self.f0(t)
         intfunc = lambda x: quad(func, a=x, b=np.inf, args=(x,))[0]
-        return np.vectorize(intfunc)(x)
+        return np.vectorize(intfunc)(x) / self.lvl_dens**2
     
     # Distribution Ratios:
     def r1(self, x):
@@ -70,10 +70,11 @@ class SpacingDistribution:
         return self.f0(x, *args, **kwargs)
     def cdf(self, x, *args, **kwargs):
         'Cumulative probability density function.'
-        return 1 - self.f1(x, *args, **kwargs)
+        return 1 - self.sf(x, *args, **kwargs)
     def sf(self, x, *args, **kwargs):
         'Survival function.'
-        return self.f1(x, *args, **kwargs)
+        # return self.f1(x, *args, **kwargs)
+        return self.f1(x, *args, **kwargs) / self.lvl_dens
     
 # =================================================================================================
 #    Wigner Distribution:
@@ -88,16 +89,20 @@ class WignerGen(SpacingDistribution):
         return (2*coef) * x * np.exp(-coef * x*x)
     def f1(self, x):
         coef = (pi/4)*self.lvl_dens*self.lvl_dens
-        return np.exp(-coef * x*x)
+        # return np.exp(-coef * x*x)
+        return np.exp(-coef * x*x) * self.lvl_dens
     def f2(self, x):
         root_coef = sqrt(pi/4)*self.lvl_dens
-        return erfc(root_coef * x) / self.lvl_dens
+        # return erfc(root_coef * x) / self.lvl_dens
+        return erfc(root_coef * x) * self.lvl_dens
     def r1(self, x):
-        coef = (pi/4)*self.lvl_dens*self.lvl_dens
-        return 2 * coef * x
+        # coef = (pi/4)*self.lvl_dens*self.lvl_dens
+        # return 2 * coef * x
+        return ((pi/2)*self.lvl_dens) * x
     def r2(self, x):
         root_coef = sqrt(pi/4)*self.lvl_dens
-        return self.lvl_dens / erfcx(root_coef*x)
+        # return self.lvl_dens / erfcx(root_coef*x)
+        return 1.0 / erfcx(root_coef*x)
     def if1(self, q):
         coef = (pi/4)*self.lvl_dens*self.lvl_dens
         return np.sqrt(-np.log(q) / coef)
@@ -121,21 +126,25 @@ class BrodyGen(SpacingDistribution):
     def f1(self, x):
         w1i = 1.0 / (self.w+1)
         a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
-        return np.exp(-a*x**(self.w+1))
+        # return np.exp(-a*x**(self.w+1))
+        return np.exp(-a*x**(self.w+1)) * self.lvl_dens
     def f2(self, x):
         w1i = 1.0 / (self.w+1)
         a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
-        return (w1i*a**(-w1i)) * gammaincc(w1i, a*x**(self.w+1))
+        # return (w1i*a**(-w1i)) * gammaincc(w1i, a*x**(self.w+1))
+        return (w1i*a**(-w1i)) * gammaincc(w1i, a*x**(self.w+1)) * self.lvl_dens*self.lvl_dens
     def r1(self, x):
         w1i = 1.0 / (self.w+1)
         a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
-        return (self.w+1)*a*x**self.w
+        # return (self.w+1)*a*x**self.w
+        return (self.w+1)*a*x**self.w / self.lvl_dens
     def r2(self, x):
         w1i = 1.0 / (self.w+1)
         a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
         axw1 = a*x**(self.w+1)
         F2 = (w1i * a**(-w1i)) * gammaincc(w1i, axw1)
-        return np.exp(-axw1) / F2
+        # return np.exp(-axw1) / F2
+        return np.exp(-axw1) / (F2 * self.lvl_dens)
     def if1(self, q):
         w1i = 1.0 / (self.w+1)
         a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
@@ -264,21 +273,25 @@ class HighOrderSpacingGen(SpacingDistribution):
         if n <= 15: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
-            return gammaincc((a+1)/2, (rB * x)**2)
+            # return gammaincc((a+1)/2, (rB * x)**2)
+            return gammaincc((a+1)/2, (rB * x)**2) * self.lvl_dens
         else: # Higher n --> Gaussian Approximation
             sig = np.sqrt(_high_order_variance(n))
-            return (1/2) * erfc((x+n+1)/(sig*np.sqrt(2)))
+            # return (1/2) * erfc((x+n+1)/(sig*np.sqrt(2)))
+            return (1/2) * erfc((x+n+1)/(sig*np.sqrt(2))) * self.lvl_dens
         
     def f2(self, x, n:int):
         if n <= 15: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
-            return gammaincc((a+2)/2, (rB * x)**2)
+            # return gammaincc((a+2)/2, (rB * x)**2)
+            return gammaincc((a+2)/2, (rB * x)**2) * self.lvl_dens**2
         else: # Higher n --> Gaussian Approximation
             sig = np.sqrt(_high_order_variance(n))
             f0 = norm.pdf(x, n+1, sig)
             f1 = (1/2) * erfc((x+n+1)/(sig*np.sqrt(2)))
-            return sig**2*f0 + (x+1)*f1 - 1
+            # return sig**2*f0 + (x+1)*f1 - 1
+            return (sig**2*f0 + (x+1)*f1 - 1) * self.lvl_dens**2
         
 high_order_spacing_dist = HighOrderSpacingGen()
 
@@ -287,6 +300,9 @@ high_order_spacing_dist = HighOrderSpacingGen()
 # =================================================================================================
 
 class MergedDistributionBase:
+    """
+    ...
+    """
     def __init__(self, lvl_dens:float):
         self.lvl_dens = lvl_dens
     def f0(self, x, priorL, priorR):
@@ -352,15 +368,15 @@ def merge(*distributions:Tuple[SpacingDistribution]):
         Z0 = np.zeros((G,G))
         for i in range(1,G):
             for j in range(i):
-                func = lambda x: c_func(x) * distributions[i].r2(x) * distributions[j].r2(x) / (distributions[i].lvl_dens*distributions[j].lvl_dens)
+                func = lambda x: c_func(x) * distributions[i].r2(x) * distributions[j].r2(x)
                 Z0[i,j] = quad(func, a=0.0, b=np.inf)[0]
                 Z0[j,i] = Z0[i,j]
         for i in range(G):
-            func = lambda x: c_func(x) * distributions[i].r2(x) * distributions[i].r1(x) / (distributions[i].lvl_dens)**2
+            func = lambda x: c_func(x) * distributions[i].r2(x) * distributions[i].r1(x)
             Z0[i,i] = quad(func, a=0.0, b=np.inf)[0]
         Z1 = np.zeros((G,))
         for i in range(G):
-            func = lambda x: c_func(x) * distributions[i].r2(x) / distributions[i].lvl_dens
+            func = lambda x: c_func(x) * distributions[i].r2(x)
             Z1[i] = quad(func, a=0.0, b=np.inf)[0]
         Z2 = quad(c_func, a=0.0, b=np.inf)[0]
 
@@ -375,8 +391,8 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                 d = np.zeros((L,G))
                 norm = (priorL[:,NA,:] @ Z0[NA,:,:] @ priorR[:,:,NA])[:,0,0]
                 for i, distribution in enumerate(distributions):
-                    v[:,i] = distribution.r2(x) / distribution.lvl_dens
-                    u = distribution.r1(x) / distribution.lvl_dens
+                    v[:,i] = distribution.r2(x)
+                    u = distribution.r1(x)
                     d[:,i] = v[:,i] * (u - v[:,i])
                 F = c_func(x) / norm * ( \
                     np.sum(priorL * v, axis=1) \
@@ -390,7 +406,7 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                 prior = np.array(prior)
                 v = np.zeros((L,G))
                 for i, distribution in enumerate(distributions):
-                    v[:,i] = distribution.r2(x) / distribution.lvl_dens
+                    v[:,i] = distribution.r2(x)
                 F = c_func(x) / norm * np.sum(prior*v, axis=1)
                 return F
             def f2(self, x):
@@ -404,7 +420,7 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                     def _pdf(self, x):
                         f0_f2_max = 0.0
                         for distribution in distributions:
-                            f0_f2 = distribution.r2(x) * distribution.r1(x) / (distribution.lvl_dens)**2
+                            f0_f2 = distribution.r2(x) * distribution.r1(x)
                             if f0_f2 > f0_f2_max:
                                 f0_f2_max = f0_f2
                         return c_func(x) / np.min(Z0) * f0_f2
@@ -417,7 +433,7 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                     def _pdf(self, x):
                         f1_f2_max = 0.0
                         for distribution in distributions:
-                            f1_f2 = distribution.r2(x) / distribution.lvl_dens
+                            f1_f2 = distribution.r2(x)
                             if f1_f2 > f1_f2_max:
                                 f1_f2_max = f1_f2
                         return c_func(x) / np.min(Z1) * f1_f2
