@@ -1,0 +1,314 @@
+from typing import Tuple, List
+import numpy as np
+
+from TAZ.Encore import Encore
+from TAZ.Theory.LevelSpacingDists import SpacingDistribution, merge
+
+__doc__ = """
+This module serves as a preprocessor and postprocessor for the 2-spingroup assignment algorithm,
+"Encore.py". This module extends the 2-spingroup algorithm to multiple-spingroups by "merging"
+spingroups. This module finds the probabilities for various merge cases and combines the expected
+probabilities. Unlike the 2-spingroup case that gives the best answer given its information
+(i.e. mean level spacings, reduced widths, false resonance probabilities, etc.), the
+multiple-spingroup case is an approximation.
+"""
+
+class RunMaster:
+    f"""
+    A wrapper over Encore responsible for partitioning spingroups, merging distributions, and
+    combining spingroup probabilities. For 1 or 2 spingroups, partitioning and merging
+    distributions is not necessary and RunMaster will pass to Encore. Once a RunMaster object has
+    been initialized, the specific algorithm can be chosen (i.e. WigBayes, WigSample, etc.).
+
+    ...
+    """
+
+    # =============================================================================================
+    # Initialization and Creating Pipeline
+    # =============================================================================================
+
+    def __init__(self, E, EB:tuple,
+                 level_spacing_dists:Tuple[SpacingDistribution], false_dens:float=0.0,
+                 Prior=None, log_likelihood_prior:float=None,
+                 err:float=1e-9,
+                 verbose:bool=False):
+        
+        """
+        Initializes a RunMaster object.
+
+        Parameters:
+        ----------
+        E                    :: float, array-like
+            Resonance energies for the ladder.
+        EB                   :: float [2]
+            The ladder energy boundaries.
+        level_spacing_dists  :: ndarray[SpacingDistribution]
+            The level-spacing distributions object.
+        false_dens           :: float
+            The false level-density. Default = 0.0.
+        Prior                :: float, array-like
+            The prior probabilitiy distribution for each spingroup. Default = None.
+        log_likelihood_prior :: float
+            The log-likelihood provided from the prior. Default = None.
+        err                  :: float
+            A probability threshold where resonances are considered to be too far apart to be
+            nearest neighbors.
+        verbose              :: bool
+            The verbosity controller.
+        """
+
+        # Error Checking:
+        # if type(level_spacing_dists) != Distributions:
+        #     raise TypeError('The level-spacing distributions must be a "Distributions" object.')
+        if not (0.0 < err < 1.0):
+            raise ValueError('The probability threshold, "err", must be strictly between 0 and 1.')
+        if len(EB) != 2:
+            raise ValueError('"EB" must be a tuple with two elements: an lower and upper bound on the resonance ladder energies.')
+        if EB[0] >= EB[1]:
+            raise ValueError('EB[0] must be strictly less than EB[1].')
+        
+        self.E  = np.sort(E)
+        self.EB = tuple(EB)
+        self.level_spacing_dists = np.array(level_spacing_dists)
+        self.lvl_dens = np.array([lvl_spacing_dist.lvl_dens for lvl_spacing_dist in level_spacing_dists] + [false_dens])
+
+        self.L = len(E) # Number of resonances
+        self.G = len(self.lvl_dens) - 1 # number of spingroups (not including false group)
+
+        if Prior is None:
+            self.Prior = np.tile(self.lvl_dens/self.lvl_dens_tot, (self.L,1))
+        else:
+            self.Prior = Prior
+        self.log_likelihood_prior = log_likelihood_prior
+        self.verbose = verbose
+
+        self._find_encore_pipes(err)
+
+    def _find_encore_pipes(self, err:float):
+        """
+        ...
+        """
+
+        if self.G <= 2: # no merge needed
+            iMax = np.zeros((self.L+2, 2, self.G), 'i4')
+            level_spacing_probs = np.zeros((self.L+2, self.L+2, self.G), 'f8')
+            for g in range(self.G):
+                if self.verbose:    print(f'Finding level-spacing probabilities for group {g}.')
+                iMax[:,:,g] = self._find_iMax(self.level_spacing_dists[g], err)
+                level_spacing_probs[:,:,g] = self._find_probs(self.level_spacing_dists[g], iMax[:,:,g])
+            if self.verbose:    print(f'Creating ENCORE pipeline.')
+            encore_pipe = Encore(self.Prior, level_spacing_probs, iMax)
+            self.encore_pipes = encore_pipe
+            if self.verbose:    print(f'Finished ENCORE initialization.')
+        else: # merge needed
+            self.encore_pipes = []
+            for g in range(self.G):
+                partition = ([g_ for g_ in range(self.G) if g_ != g], [g])
+                encore_pipe = self._partition_encore(partition, err)
+                self.encore_pipes.append(encore_pipe)
+            # Base partition:
+            partition = ([g for g in range(self.G)],)
+            encore_pipe = self._partition_encore(partition, err)
+            self.encore_pipes.append(encore_pipe)
+    
+    def _partition_encore(self, partition:Tuple[List[int]], err:float):
+        """
+        ...
+        """
+
+        num_partitions = len(partition)
+        level_spacing_probs = np.zeros((self.L+2, self.L+2, num_partitions), 'f8')
+        iMax = np.zeros((self.L+2, 2, num_partitions), 'i4')
+        prior_merged = np.zeros((self.L, num_partitions+1), 'f8')
+        for g, groups in enumerate(partition):
+            if self.verbose:    print(f'Partitioning groups {groups} for partition {g}.')
+            distribution = merge(*self.level_spacing_dists[groups])
+            if self.verbose:    print(f'Finding level-spacing probabilities for groups {groups}.')
+            iMax[:,:,g] = self._find_iMax(distribution, err)
+            level_spacing_probs[:,:,g] = self._find_probs(distribution, iMax[:,:,g], self.Prior[:,groups])
+            if hasattr(groups, '__iter__'):
+                prior_merged[:,g] = np.sum(self.Prior[:,groups], axis=1)
+            else:
+                prior_merged[:,g] = self.Prior[:,groups]
+        prior_merged[:,-1] = self.Prior[:,-1]
+        if self.verbose:    print(f'Creating ENCORE pipeline for group {g}.')
+        encore_pipe = Encore(prior_merged, level_spacing_probs, iMax)
+        if self.verbose:    print(f'Finished ENCORE initialization for partition, {partition}.')
+        return encore_pipe
+        
+    def _find_iMax(s, distribution:SpacingDistribution, err:float):
+        """
+        ...
+        """
+
+        L = s.E.size
+        iMax = np.full((L+2,2), -1, dtype='i4')
+        xMax_f0 = distribution.xMax_f0(err)
+        xMax_f1 = distribution.xMax_f1(err)
+
+        # Lower boundary cases:
+        for j in range(L):
+            if s.E[j] - s.EB[0] >= xMax_f1:
+                iMax[0,0]    = j
+                iMax[:j+1,1] = 0
+                break
+
+        # Intermediate cases:
+        for i in range(L-1):
+            for j in range(iMax[i,0]+1,L):
+                if s.E[j] - s.E[i] >= xMax_f0:
+                    iMax[i+1,0] = j
+                    iMax[iMax[i-1,0]:j+1,1] = i+1
+                    break
+            else:
+                iMax[i:,0] = L+1
+                iMax[iMax[i-1,0]:,1] = i+1
+                break
+
+        # Upper boundary cases:
+        for j in range(L-1,-1,-1):
+            if s.EB[1] - s.E[j] >= xMax_f1:
+                iMax[-1,1] = j
+                iMax[j:,0] = L+1
+                break
+
+        return iMax
+    
+    def _find_probs(s, distribution:SpacingDistribution, iMax, prior=None):
+        """
+        ...
+        """
+
+        level_spacing_probs = np.zeros((s.L+2,s.L+2), dtype='f8')
+        for i in range(s.L-1):
+            X = s.E[i+1:iMax[i+1,0]-1] - s.E[i]
+            if prior is None:
+                lvl_spacing_prob = distribution.f0(X)
+            else:
+                prior_L = np.tile(prior[i,:], (iMax[i+1,0]-i-2, 1))
+                prior_R = prior[i+1:iMax[i+1,0]-1,:]
+                lvl_spacing_prob = distribution.f0(X, prior_L, prior_R)
+            level_spacing_probs[i+1,i+2:iMax[i+1,0]] = lvl_spacing_prob
+        # Boundary distribution:
+        if prior is None:
+            level_spacing_probs[0,1:-1]  = distribution.f1(s.E - s.EB[0])
+            level_spacing_probs[1:-1,-1] = distribution.f1(s.EB[1] - s.E)
+        else:
+            level_spacing_probs[0,1:-1]  = distribution.f1(s.E - s.EB[0], prior)
+            level_spacing_probs[1:-1,-1] = distribution.f1(s.EB[1] - s.E, prior)
+
+        # Error checking:
+        if (level_spacing_probs == np.nan).any():   raise RuntimeError('Level-spacing probabilities have "NaN" values.')
+        if (level_spacing_probs == np.inf).any():   raise RuntimeError('Level-spacing probabilities have "Inf" values.')
+        if (level_spacing_probs <  0.0).any():      raise RuntimeError('Level-spacing probabilities have negative values.')
+
+        # The normalization factor is duplicated in the prior. One must be removed: FIXME!!!!!
+        level_spacing_probs /= distribution.lvl_dens
+        return level_spacing_probs
+    
+    # =============================================================================================
+    # Combining Merge Case Probabilities
+    # =============================================================================================
+    
+    def _prob_combinator(self, sg_probs):
+        """
+        Combines probabilities from various spingroup partitions.
+
+        ...
+        """
+
+        combined_sg_probs = np.zeros((self.L,self.G+1), dtype='f8')
+        for g in range(self.G):
+            combined_sg_probs[:,g] = sg_probs[:,1,g]
+        combined_sg_probs[:,-1] = np.prod(sg_probs[:,1,:-1], axis=1) * self.Prior[:,-1] ** (1-self.G)
+        combined_sg_probs[self.Prior[:,-1]==0.0, -1] = 0.0
+        combined_sg_probs /= np.sum(combined_sg_probs, axis=1, keepdims=True)
+        return combined_sg_probs
+
+    def _log_likelihood_combinator(self, partition_log_likelihoods, base_log_likelihoods:float):
+        """
+        Combines log-likelihoods from from various partitions.
+        """
+
+        # FIXME: I DON'T KNOW LOG LIKELIHOOD CORRECTION FACTOR FOR MERGED CASES! 
+        return np.sum(partition_log_likelihoods) - (self.G-1)*base_log_likelihoods
+
+    # =============================================================================================
+    # Properties
+    # =============================================================================================
+
+    @property
+    def lvl_dens_tot(self):
+        'Total level-density over all spingroups.'
+        return np.sum(self.lvl_dens)
+    @property
+    def false_dens(self):
+        'Level-density for false resonances.'
+        return self.lvl_dens[-1]
+    
+    # =============================================================================================
+    # Methods
+    # =============================================================================================
+
+    def WigBayes(self):
+        """
+        Returns spingroup probabilities for each resonance based on level-spacing distributions,
+        and any provided prior.
+
+        Returns:
+        -------
+        sg_probs :: int [L,G]
+            The spingroup probabilities for each resonance.
+        """
+
+        if self.G <= 2:
+            encore = self.encore_pipes
+            sg_probs = encore.WigBayes()
+            return sg_probs
+        else:
+            sg_probs = np.zeros((self.L,3,self.G),dtype='f8')
+            for g in range(self.G):
+                sg_probs[:,:,g] = self.encore_pipes[g].WigBayes()
+            combined_sg_probs = self._prob_combinator(sg_probs)
+            return combined_sg_probs
+    
+    def WigSample(self, num_trials:int=1):
+        """
+        Returns random spingroup assignment samples based on its Bayesian probability.
+
+        Returns:
+        -------
+        samples :: int [L,trials]
+            The sampled IDs for each resonance and trial.
+        """
+        
+        if self.G <= 2:
+            encore = self.encore_pipes
+            samples = encore.WigSample(num_trials)
+            return samples
+        else:
+            raise NotImplementedError('WigSample for more than two spingroups has not been implemented yet.')
+    
+    def LogLikelihood(self):
+        """
+        ...
+        """
+
+        if self.G <= 2:
+            encore = self.encore_pipes
+            log_likelihood = encore.LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior)
+            return log_likelihood
+        else:
+            log_likelihoods = np.zeros(self.G, dtype='f8')
+            for g, encore in enumerate(self.encore_pipes[:-1]):
+                log_likelihoods[g] = encore.LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior) # FIXME this may have incorrect prior
+            base_log_likelihood = self.encore_pipes[-1].LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior)
+            combined_log_likelihood = self._log_likelihood_combinator(log_likelihoods, base_log_likelihood)
+            return combined_log_likelihood
+        
+    def ProbOfSample(self, spingroup_assignments):
+        """
+        ...
+        """
+
+        raise NotImplementedError('ProbOfSample has not been implemented yet.')

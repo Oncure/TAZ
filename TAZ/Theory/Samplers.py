@@ -201,6 +201,50 @@ def sampleGEEnergies(EB:tuple, lvl_dens:float=1.0, beta:int=1,
     E = np.sort(E)
     return E
 
+def sampleNNEEnergies(EB:tuple, lvl_dens:float, w:float=1.0, rng=None, seed:int=None):
+    """
+    Sampler for the resonance energies according to the Nearest Neighbor Ensemble.
+
+    Parameters:
+    ----------
+    EB       :: float [2]
+        The energy range for sampling.
+
+    lvl_dens :: float
+        The mean level-density.
+
+    w        :: float
+        The brody parameter. Default is 1.0, giving a Wigner distribution.
+
+    rng      :: default_rng
+        A provided `default_rng`. Default is `None`.
+    
+    seed     :: int
+        If no `rng` is provided, then a random number seed can be specified.
+
+    Returns:
+    -------
+    E        :: float [n]
+        Sampled resonance energies, where `n` is the number of resonances.
+    """
+
+    MULTIPLIER = 5 # a multiplication factor for conservative estimate of the number of resonances
+
+    if rng is None:
+        rng = np.random.default_rng(seed)
+
+    L_Guess = round( lvl_dens * (EB[1] - EB[0]) * MULTIPLIER )
+    LS = np.zeros(L_Guess+1, dtype='f8')
+    if w == 1.0:
+        distribution = WignerGen(lvl_dens=lvl_dens)
+    else:
+        distribution = BrodyGen(lvl_dens=lvl_dens, w=w)
+    LS[0]  = EB[0] + distribution.sample_f1(rng=rng)
+    LS[1:] = distribution.sample_f0(size=(L_Guess,), rng=rng)
+    E = np.cumsum(LS)
+    E = E[E < EB[1]]
+    return E
+
 def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
                    rng=None, seed:int=None):
     """
@@ -214,7 +258,7 @@ def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
     lvl_dens :: float
         The mean level-density.
 
-    w        :: float or None
+    w        :: float
         The brody parameter. Default is 1.0, giving a Wigner distribution.
 
     ensemble :: NNE, GOE, GUE, GSE, or Poisson
@@ -248,27 +292,17 @@ def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
 
     # Sampling based on ensemble:
     if   ensemble == 'NNE': # Nearest Neighbor Ensemble
-        L_Guess = round( lvl_dens * (EB[1] - EB[0]) * MULTIPLIER )
-        LS = np.zeros(L_Guess+1, dtype='f8')
-        if w == 1.0:
-            distribution = WignerGen(lvl_dens=lvl_dens)
-        else:
-            distribution = BrodyGen(lvl_dens=lvl_dens, w=w)
-        LS[0]  = EB[0] + distribution.sample_f1(rng=rng)
-        LS[1:] = distribution.sample_f0(size=(L_Guess,), rng=rng)
-        E = np.cumsum(LS)
-        E = E[E < EB[1]]
+        E = sampleNNEEnergies(EB, lvl_dens, w=w, rng=rng)
     elif ensemble == 'GOE': # Gaussian Orthogonal Ensemble
-        E = sampleGEEnergies(EB, lvl_dens, beta=1)
+        E = sampleGEEnergies(EB, lvl_dens, beta=1, rng=rng)
     elif ensemble == 'GUE': # Gaussian Unitary Ensemble
-        E = sampleGEEnergies(EB, lvl_dens, beta=2)
+        E = sampleGEEnergies(EB, lvl_dens, beta=2, rng=rng)
     elif ensemble == 'GSE': # Gaussian Symplectic Ensemble
-        E = sampleGEEnergies(EB, lvl_dens, beta=4)
+        E = sampleGEEnergies(EB, lvl_dens, beta=4, rng=rng)
     elif ensemble == 'Poisson': # Poisson Ensemble
         num_samples = rng.poisson(lvl_dens * (EB[1]-EB[0]))
         E = rng.uniform(*EB, size=num_samples)
     else:
         raise NotImplementedError(f'The {ensemble} ensemble has not been implemented yet.')
-
     E.sort()
     return E

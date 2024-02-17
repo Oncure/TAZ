@@ -183,20 +183,19 @@ class Reaction:
 
         # Truncation Width:
         if Gn_trunc is not None:
-            self.Gn_trunc = spingroupParameter(Gn_trunc, self.num_groups, dtype=float) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
+            self.Gn_trunc = float(Gn_trunc) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
+            self.Gn_trunc_provided = True
         else:
-            self.Gn_trunc = np.zeros((self.num_groups,), dtype=float)
+            self.Gn_trunc = 0.0 # meV
+            self.Gn_trunc_provided = False
 
         # Missing Fraction:
         if MissFrac is not None:
             self.MissFrac = spingroupParameter(MissFrac, self.num_groups, dtype=float) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
-            self.given_miss_frac = True
-        elif Gn_trunc is not None:
-            self.MissFrac = Theory.FractionMissing(self.Gn_trunc, self.gn2m, self.nDOF) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
-            self.given_miss_frac = False
+        elif self.Gn_trunc_provided:
+            self.MissFrac = Theory.fraction_missing_Gn(self.Gn_trunc, self.gn2m, self.nDOF, self.ac, self.gn2m, self.nDOF)
         else:
             self.MissFrac = np.zeros((self.num_groups,), dtype=float)
-            self.given_miss_frac = False
 
     @property
     def L(self):
@@ -221,22 +220,31 @@ class Reaction:
     
     def __repr__(self):
         txt = ''
-        txt += f'Target Particle     = {self.targ.name}\n'
-        txt += f'Projectile Particle = {self.proj.name}\n'
-        txt += f'Channel Radius      = {self.ac:.7f} (fm)\n'
-        txt += f'Energy Bounds       = {self.EB[0]:.3e} < E < {self.EB[1]:.3e} (eV)\n'
-        txt += f'False Level Density = {self.false_dens:.7f} (1/eV)\n'
+        txt += f'Target Particle      = {self.targ.name}\n'
+        txt += f'Projectile Particle  = {self.proj.name}\n'
+        txt += f'Channel Radius       = {self.ac:.7f} (fm)\n'
+        txt += f'Energy Bounds        = {self.EB[0]:.3e} < E < {self.EB[1]:.3e} (eV)\n'
+        txt += f'False Level Density  = {self.false_dens:.7f} (1/eV)\n'
+
+        if self.Gn_trunc_provided:
+            txt += f'Trunc. Neutron Width = {self.Gn_trunc:.7f} (1/meV)\n'
+            
         txt += '\n'
-        data = np.vstack((self.lvl_dens, self.brody_param, self.gn2m, self.nDOF, self.gg2m, self.gDOF, self.Gn_trunc, self.MissFrac))
-        properties = ['Level Densities', \
+
+        param_vals  = [self.lvl_dens, self.brody_param, self.gn2m, self.nDOF, self.gg2m, self.gDOF]
+        param_names = ['Level Densities', \
                       'Brody Parameters', \
                       'Mean Neutron Width', \
                       'Neutron Width DOF', \
                       'Mean Gamma Width', \
-                      'Gamma Width DOF', \
-                      'Truncation N Width', \
-                      'Missing Fraction']
-        txt += str(pd.DataFrame(data=data, index=properties, columns=self.spingroups))
+                      'Gamma Width DOF']
+        
+        if isinstance(self.MissFrac, np.ndarray):
+            param_names.append('Missing Fraction')
+            param_vals.append(self.MissFrac)
+
+        data = np.vstack(param_vals)
+        txt += str(pd.DataFrame(data=data, index=param_names, columns=self.spingroups))
         return txt
     def __str__(self):
         return self.__repr__()
@@ -318,10 +326,8 @@ class Reaction:
                                                                  mass_targ=self.targ.mass, mass_proj=self.proj.mass,
                                                                  rng=rng)
                 Gg_false_group[:,g] = Theory.SampleGammaWidth(num_false, self.gg2m[g], self.gDOF[g], rng=rng)
-            cumprobs = np.cumsum(self.lvl_dens) / np.sum(self.lvl_dens)
-            R = rng.uniform(size=(num_false,1))
             idx = np.arange(num_false)
-            group_idx = np.sum(cumprobs <= R, axis=1)
+            group_idx = rng.choice(self.num_groups, size=(num_false,), p=self.lvl_dens/np.sum(self.lvl_dens))
             Gn_false = Gn_false_group[idx,group_idx]
             Gg_false = Gg_false_group[idx,group_idx]
 
@@ -339,18 +345,11 @@ class Reaction:
         spingroups = spingroups[idx]
 
         # Missing Resonances:
-        if self.MissFrac is not None:
-            if self.given_miss_frac: # given "MissFrac" directly
-                miss_frac = np.concatenate((self.MissFrac, [0]))
-                missed_idx = (rng.uniform(size=E.shape) < miss_frac[spingroups])
-            else: # given Gn_trunc
-                Gn_trunc = np.concatenate((self.Gn_trunc, [0]))
-                gn2 = np.zeros(Gn.shape)
-                for g in range(self.num_groups):
-                    spingroup_g = (spingroups == g)
-                    gn2[spingroup_g] = Gn[spingroup_g] * Theory.ReduceFactor(E[spingroup_g], self.L[g], ac=self.ac,
-                                                                              mass_targ=self.targ.mass, mass_proj=self.proj.mass)
-                missed_idx = (gn2 <= Gn_trunc[spingroups])
+        if self.Gn_trunc_provided: # given Gn_trunc
+            missed_idx = (Gn <= self.Gn_trunc)
+        else:
+            miss_frac = np.concatenate((self.MissFrac, [0]))
+            missed_idx = (rng.uniform(size=E.shape) < miss_frac[spingroups])
 
         # Caught resonances:
         E_caught  =  E[~missed_idx]
@@ -398,6 +397,8 @@ class Reaction:
                 distributions.append(distribution)
         elif dist_type == 'Missing':
             for g in range(self.num_groups):
+                if type(self.MissFrac[g]) != float:
+                    raise NotImplementedError('Missing Level-spacing generator only works with constant float MissFrac at this time.')
                 distribution = Theory.LevelSpacingDists.MissingGen(lvl_dens=self.lvl_dens[g], pM=self.MissFrac[g], err=err)
                 distributions.append(distribution)
         else:
@@ -452,17 +453,18 @@ class Reaction:
                     else:
                         raise NotImplementedError('The level-spacing distribution for Brody distribution with missing levels has not been implemented yet.')
                 if not cdf: # PDF
-                    fit = self.distributions(dist_type)[g].f0
+                    fit = self.distributions(dist_type)[g].pdf
                 else: # CDF
-                    fit = lambda x: 1.0 - self.distributions(dist_type)[g].f1(x)
+                    fit = self.distributions(dist_type)[g].cdf
         elif quantity == 'neutron width':
+            # FIXME: THESE TRUNCTATIONS ARE NOT THE SAME AS GN_TRUNC!!!
             if not cdf: # PDF
-                fit = lambda rGn: Theory.PorterThomasPDF(rGn, self.gn2m[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
+                fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=self.Gn_trunc[g]).pdf
             else: # CDF
-                fit = lambda rGn: Theory.PorterThomasCDF(rGn, self.gn2m[g], trunc=self.Gn_trunc[g], dof=self.nDOF[g])
+                fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=self.Gn_trunc[g]).cdf
         elif quantity in ('gamma width', 'capture width'):
             if not cdf: # PDF
-                fit = lambda rGg: Theory.PorterThomasPDF(rGg, self.gg2m[g], trunc=0.0, dof=self.gDOF[g])
+                fit = Theory.porter_thomas_dist(mean=self.gg2m[g], df=self.gDOF[g], trunc=0.0).pdf
             else: # CDF
-                fit = lambda rGg: Theory.PorterThomasCDF(rGg, self.gg2m[g], trunc=0.0, dof=self.gDOF[g])
+                fit = Theory.porter_thomas_dist(mean=self.gg2m[g], df=self.gDOF[g], trunc=0.0).cdf
         return fit

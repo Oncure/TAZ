@@ -16,66 +16,92 @@ class SpacingDistribution:
     ...
     """
 
-    def __init__(self, **kwargs):
-        # Setting Provided Attributes:
+    def __init__(self, lvl_dens:float=1.0, **kwargs):
+        'Sets SpacingDistribution attributes.'
+        self.lvl_dens = float(lvl_dens)
         for key, value in kwargs.items():
             setattr(self, key, value)
 
     # Probability Distributions:
-    def f0(self, x):
-        raise ValueError('A "f0" method must be defined.')
-    def f1(self, x):
-        func = lambda t: self.f0(t)
+    def _f0(self, x):
+        raise ValueError('A "_f0" method must be defined.')
+    def _f1(self, x):
+        func = lambda t: self._f0(t)
         intfunc = lambda x: quad(func, a=x, b=np.inf)[0]
-        return np.vectorize(intfunc)(x) / self.lvl_dens
-    def f2(self, x):
-        func = lambda t,x: (t-x)*self.f0(t)
+        return np.vectorize(intfunc)(x) * self.lvl_dens
+    def _f2(self, x):
+        func = lambda t,x: (t-x)*self._f0(t)
         intfunc = lambda x: quad(func, a=x, b=np.inf, args=(x,))[0]
-        return np.vectorize(intfunc)(x) / self.lvl_dens**2
+        return np.vectorize(intfunc)(x) * self.lvl_dens**2
     
     # Distribution Ratios:
-    def r1(self, x):
-        return self.f0(x) / self.f1(x)
-    def r2(self, x):
-        return self.f1(x) / self.f2(x)
+    def _r1(self, x):
+        return self._f0(x) / self._f1(x)
+    def _r2(self, x):
+        return self._f1(x) / self._f2(x)
     
-    # Inverse Functions:
-    def if1(self, q):
-        'Inverse of "f1" probability density function.'
-        func = lambda t, y: self.f1(-np.log(t)) - y
-        invfunc = lambda y: np.exp(-brentq(func, a=0.0, b=1.0, args=(y,))[0])
-        return np.vectorize(invfunc)(q)
-    def if2(self, q):
-        'Inverse of "f2" probability density function.'
-        func = lambda t, y: self.f2(-np.log(t)) - y
-        invfunc = lambda y: np.exp(-brentq(func, a=0.0, b=1.0, args=(y,))[0])
-        return np.vectorize(invfunc)(q)
+    # Survival Inverse Functions:
+    def _iF0(self, q):
+        'Inverse of the survival function of the "f0" probability density function.'
+        func = lambda t, y: self._f1(-np.log(t)) - y
+        def __invfunc(y):
+            u = brentq(func, a=0.0, b=1.0, args=(y,))
+            return np.exp(-u)
+        return np.vectorize(__invfunc)(q)
+    def _iF1(self, q):
+        'Inverse of the survival function of the "f1" probability density function.'
+        func = lambda t, y: self._f2(-np.log(t)) - y
+        def __invfunc(y):
+            u = brentq(func, a=0.0, b=1.0, args=(y,))
+            return np.exp(-u)
+        return np.vectorize(__invfunc)(q)
+    
+    # Level density handlers:
+    def f0(self, x):
+        return self.lvl_dens * self._f0(self.lvl_dens * x)
+    def f1(self, x):
+        return self.lvl_dens * self._f1(self.lvl_dens * x)
+    def f2(self, x):
+        return self.lvl_dens * self._f2(self.lvl_dens * x)
+    def r1(self, x):
+        return self._r1(self.lvl_dens * x)
+    def r2(self, x):
+        return self._r2(self.lvl_dens * x)
+    def iF0(self, q):
+        'Inverse of the survival function of the "f0" probability density function.'
+        return self._iF0(q) / self.lvl_dens
+    def iF1(self, q):
+        'Inverse of the survival function of the "f1" probability density function.'
+        return self._iF1(q) / self.lvl_dens
     
     # Samplers:
     def sample_f0(self, size:tuple=None, rng=None, seed:int=None):
         'Sampling of "f0" distribution.'
         if rng is None:
             rng = np.random.RandomState(seed)
-        f1_0 = self.f1(0)
-        return self.if1(f1_0*rng.random(size))
+        return self.iF0(rng.random(size))
     def sample_f1(self, size:tuple=None, rng=None, seed:int=None):
         'Sampling of "f1" distribution.'
         if rng is None:
             rng = np.random.RandomState(seed)
-        f2_0 = self.f2(0)
-        return self.if2(f2_0*rng.random(size))
+        return self.iF1(rng.random(size))
     
     # Nicely Named Functions:
-    def pdf(self, x, *args, **kwargs):
+    def pdf(self, x):
         'Probability density function (same as f0).'
-        return self.f0(x, *args, **kwargs)
-    def cdf(self, x, *args, **kwargs):
+        return self.lvl_dens*self._f0(self.lvl_dens * x)
+    def cdf(self, x):
         'Cumulative probability density function.'
-        return 1 - self.sf(x, *args, **kwargs)
-    def sf(self, x, *args, **kwargs):
+        return 1 - self.sf(x)
+    def sf(self, x):
         'Survival function.'
-        # return self.f1(x, *args, **kwargs)
-        return self.f1(x, *args, **kwargs) / self.lvl_dens
+        return self._f1(self.lvl_dens * x)
+    
+    # xMax functions:
+    def xMax_f0(self, err):
+        return self.iF0(err)
+    def xMax_f1(self, err):
+        return self.iF1(err)
     
 # =================================================================================================
 #    Wigner Distribution:
@@ -85,31 +111,24 @@ class WignerGen(SpacingDistribution):
     """
     Generates a Wigner level-spacing distribution.
     """
-    def f0(self, x):
-        coef = (pi/4)*self.lvl_dens*self.lvl_dens
-        return (2*coef) * x * np.exp(-coef * x*x)
-    def f1(self, x):
-        coef = (pi/4)*self.lvl_dens*self.lvl_dens
-        # return np.exp(-coef * x*x)
-        return np.exp(-coef * x*x) * self.lvl_dens
-    def f2(self, x):
-        root_coef = sqrt(pi/4)*self.lvl_dens
-        # return erfc(root_coef * x) / self.lvl_dens
-        return erfc(root_coef * x) * self.lvl_dens
-    def r1(self, x):
-        # coef = (pi/4)*self.lvl_dens*self.lvl_dens
-        # return 2 * coef * x
-        return ((pi/2)*self.lvl_dens) * x
-    def r2(self, x):
-        root_coef = sqrt(pi/4)*self.lvl_dens
-        # return self.lvl_dens / erfcx(root_coef*x)
-        return 1.0 / erfcx(root_coef*x)
-    def if1(self, q):
-        coef = (pi/4)*self.lvl_dens*self.lvl_dens
-        return np.sqrt(-np.log(q) / coef)
-    def if2(self, q):
-        root_coef = sqrt(pi/4)*self.lvl_dens
-        return erfcinv(self.lvl_dens*q) / root_coef
+    def _f0(self, x):
+        coef = pi/4
+        return 2 * coef * x * np.exp(-coef * x*x)
+    def _f1(self, x):
+        return np.exp((-pi/4) * x*x)
+    def _f2(self, x):
+        root_coef = sqrt(pi/4)
+        return erfc(root_coef * x)
+    def _r1(self, x):
+        return (pi/2) * x
+    def _r2(self, x):
+        root_coef = sqrt(pi/4)
+        return 1.0 / erfcx(root_coef * x)
+    def _iF0(self, q):
+        return np.sqrt((-4/pi) * np.log(q))
+    def _iF1(self, q):
+        root_coef = sqrt(pi/4)
+        return erfcinv(q) / root_coef
     
 # =================================================================================================
 #    Brody Distribution:
@@ -119,41 +138,42 @@ class BrodyGen(SpacingDistribution):
     """
     Generates a Brody level-spacing distribution.
     """
-    def f0(self, x):
-        w1i = 1.0 / (self.w+1)
-        a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
+    def _f0(self, x):
+        w1 = self.w + 1.0
+        a = gamma(1/w1+1)**w1
         axw = a*x**self.w
-        return (self.w+1) * axw * np.exp(-axw*x)
-    def f1(self, x):
-        w1i = 1.0 / (self.w+1)
-        a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
-        # return np.exp(-a*x**(self.w+1))
-        return np.exp(-a*x**(self.w+1)) * self.lvl_dens
-    def f2(self, x):
-        w1i = 1.0 / (self.w+1)
-        a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
-        # return (w1i*a**(-w1i)) * gammaincc(w1i, a*x**(self.w+1))
-        return (w1i*a**(-w1i)) * gammaincc(w1i, a*x**(self.w+1)) * self.lvl_dens*self.lvl_dens
-    def r1(self, x):
-        w1i = 1.0 / (self.w+1)
-        a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
-        # return (self.w+1)*a*x**self.w
-        return (self.w+1)*a*x**self.w / self.lvl_dens
-    def r2(self, x):
-        w1i = 1.0 / (self.w+1)
-        a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
-        axw1 = a*x**(self.w+1)
+        return w1 * axw * np.exp(-axw*x)
+    def _f1(self, x):
+        w1 = self.w + 1.0
+        a = gamma(1/w1+1)**w1
+        return np.exp(-a*x**w1)
+    def _f2(self, x):
+        w1 = self.w + 1.0
+        w1i = 1.0 / w1
+        a = gamma(w1i+1)**w1
+        return (w1i*a**(-w1i)) * gammaincc(w1i, a*x**w1)
+    def _r1(self, x):
+        w1 = self.w + 1.0
+        a = gamma(1/w1+1)**w1
+        return w1*a*x**self.w
+    def _r2(self, x):
+        w1 = self.w + 1.0
+        w1i = 1.0 / w1
+        a = gamma(w1i+1)**w1
+        axw1 = a*x**w1
         F2 = (w1i * a**(-w1i)) * gammaincc(w1i, axw1)
-        # return np.exp(-axw1) / F2
-        return np.exp(-axw1) / (F2 * self.lvl_dens)
-    def if1(self, q):
-        w1i = 1.0 / (self.w+1)
-        a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
+        return np.exp(-axw1) / F2
+    def _iF0(self, q):
+        w1 = self.w + 1.0
+        w1i = 1.0 / w1
+        a = gamma(w1i+1)**w1
         return (-np.log(q) / a) ** w1i
-    def if2(self, q):
-        w1i = 1.0 / (self.w+1)
-        a = (self.lvl_dens*w1i*gamma(w1i))**(self.w+1)
-        return (gammainccinv(w1i, q*(a**w1i/w1i)) / a) ** w1i
+    def iF1(self, q):
+        w1 = self.w + 1
+        w1i = 1.0 / w1
+        a = gamma(w1i+1)**w1
+        inside = (w1*(a**w1i)) * q
+        return (gammainccinv(w1i, inside) / a) ** w1i
     
 # =================================================================================================
 #    Missing Distribution:
@@ -163,29 +183,29 @@ class MissingGen(SpacingDistribution):
     """
     Generates a missing resonances level-spacing distribution.
     """
-    def f0(self, x):
+    def _f0(self, x):
         N_max = ceil(log(self.err, self.pM))
         coef = (self.pM**np.arange(N_max+1))[NA,:]
         func_n = np.zeros((len(x),N_max+1))
         mult_fact = self.lvl_dens * (1-self.pM) / (1 - self.pM**(N_max+1))
         for n in range(N_max+1):
-            func_n[:,n] = high_order_spacing_dist.f0(self.lvl_dens*x, n)
+            func_n[:,n] = HighOrderSpacingGen(n=n)._f0(x)
         return mult_fact * np.sum(coef * func_n, axis=1)
-    def f1(self, x):
+    def _f1(self, x):
         N_max = ceil(log(self.err, self.pM))
         coef = (self.pM**np.arange(N_max+1))[NA,:]
         func_n = np.zeros((len(x),N_max+1))
         mult_fact = self.lvl_dens * (1-self.pM) / (1 - self.pM**(N_max+1))
         for n in range(N_max+1):
-            func_n[:,n] = high_order_spacing_dist.f1(self.lvl_dens*x, n)
+            func_n[:,n] = HighOrderSpacingGen(n=n)._f1(x)
         return mult_fact * np.sum(coef * func_n, axis=1)
-    def f2(self, x):
+    def _f2(self, x):
         N_max = ceil(log(self.err, self.pM))
         coef = (self.pM**np.arange(N_max+1))[NA,:]
         func_n = np.zeros((len(x),N_max+1))
         mult_fact = self.lvl_dens * (1-self.pM) / (1 - self.pM**(N_max+1))
         for n in range(N_max+1):
-            func_n[:,n] = high_order_spacing_dist.f2(self.lvl_dens*x, n)
+            func_n[:,n] = HighOrderSpacingGen(n=n)._f2(x)
         return mult_fact * np.sum(coef * func_n, axis=1)
     
 # =================================================================================================
@@ -259,7 +279,8 @@ class HighOrderSpacingGen(SpacingDistribution):
     Source: https://journals.aps.org/pre/pdf/10.1103/PhysRevE.60.5371
     """
 
-    def f0(self, x, n:int):
+    def _f0(self, x):
+        n = self.n
         if n <= 15: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
@@ -270,31 +291,27 @@ class HighOrderSpacingGen(SpacingDistribution):
             sig = np.sqrt(_high_order_variance(n))
             return norm.pdf(x, n+1, sig)
         
-    def f1(self, x, n:int):
+    def _f1(self, x):
+        n = self.n
         if n <= 15: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
-            # return gammaincc((a+1)/2, (rB * x)**2)
-            return gammaincc((a+1)/2, (rB * x)**2) * self.lvl_dens
+            return gammaincc((a+1)/2, (rB * x)**2)
         else: # Higher n --> Gaussian Approximation
             sig = np.sqrt(_high_order_variance(n))
-            # return (1/2) * erfc((x+n+1)/(sig*np.sqrt(2)))
-            return (1/2) * erfc((x+n+1)/(sig*np.sqrt(2))) * self.lvl_dens
+            return (1/2) * erfc((x+n+1)/(sig*np.sqrt(2)))
         
-    def f2(self, x, n:int):
+    def _f2(self, x):
+        n = self.n
         if n <= 15: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
-            # return gammaincc((a+2)/2, (rB * x)**2)
-            return gammaincc((a+2)/2, (rB * x)**2) * self.lvl_dens**2
+            return gammaincc((a+2)/2, (rB * x)**2)
         else: # Higher n --> Gaussian Approximation
             sig = np.sqrt(_high_order_variance(n))
             f0 = norm.pdf(x, n+1, sig)
             f1 = (1/2) * erfc((x+n+1)/(sig*np.sqrt(2)))
-            # return sig**2*f0 + (x+1)*f1 - 1
-            return (sig**2*f0 + (x+1)*f1 - 1) * self.lvl_dens**2
-        
-high_order_spacing_dist = HighOrderSpacingGen()
+            return sig**2*f0 + (x+1)*f1 - 1
 
 # =================================================================================================
 #    Higher-Order Spacing Distributions:
@@ -320,9 +337,9 @@ class MergedDistributionBase:
         return self.f0(x) / self.f1(x)
     def r2(self, x):
         return self.f1(x) / self.f2(x)
-    def if1(self, *args, **kwargs):
+    def iF0(self, *args, **kwargs):
         return NotImplementedError('Inverse functions have not been implemented for merged distributions.')
-    def if2(self, *args, **kwargs):
+    def iF1(self, *args, **kwargs):
         return NotImplementedError('Inverse functions have not been implemented for merged distributions.')
     def sample_f0(self, *args, **kwargs):
         return NotImplementedError('Sampling has not been implemented for merged distributions.')
@@ -352,9 +369,9 @@ def merge(*distributions:Tuple[SpacingDistribution]):
             def f2(self, x):
                 return distribution.f2(x)
             def xMax_f0(self, err):
-                return distribution.if1(err)
+                return distribution.iF0(err)
             def xMax_f1(self, err):
-                return distribution.if2(err)
+                return distribution.iF1(err)
         Z0 = Z1 = Z2 = None
     else:
         lvl_dens_comb = np.sum([distribution.lvl_dens for distribution in distributions])
@@ -415,7 +432,7 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                 return F
             
             def xMax_f0(self, err):
-                # func = lambda x: self.f1(-np.log(x)) - err
+                # func = lambda x: self._f1(-np.log(x)) - err
                 # return np.exp(-brentq(func, a=0.0, b=1.0)[0])
                 class F0Gen(rv_continuous):
                     def _pdf(self, x):
@@ -428,7 +445,7 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                 f0_dist = F0Gen(a=0.0, b=np.inf)
                 return f0_dist.isf(err)
             def xMax_f1(self, err):
-                # func = lambda x: self.f2(-np.log(x)) - err
+                # func = lambda x: self._f2(-np.log(x)) - err
                 # return np.exp(-brentq(func, a=0.0, b=1.0)[0])
                 class F1Gen(rv_continuous):
                     def _pdf(self, x):
@@ -449,3 +466,8 @@ def merge(*distributions:Tuple[SpacingDistribution]):
 
     merged_spacing_distribution = MergedSpacingDistributionGen(lvl_dens=lvl_dens_comb)
     return merged_spacing_distribution
+
+
+
+
+
