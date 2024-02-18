@@ -255,8 +255,8 @@ class Spingroup:
                     spingroups.append(cls(l, j, s))
         return spingroups
     
-    @classmethod
-    def id(cls, spingroup, spingroups:list):
+    @staticmethod
+    def id(spingroup, spingroups:list):
         """
         Returns an integer index ID if provided a spingroup. If an integer id is provided, the id
         is passed.

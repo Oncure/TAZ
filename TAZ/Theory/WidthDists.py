@@ -14,7 +14,7 @@ This module contains partial width probability distributions.
 
 def fraction_missing_gn2(trunc:float, gn2m:float=1.0, dof:int=1):
     """
-    Gives the fraction of missing resonances due to the truncation in neutron width.
+    Gives the fraction of missing resonances due to the truncation in reduced neutron width.
 
     Parameters:
     ----------
@@ -37,7 +37,27 @@ def fraction_missing_Gn(trunc:float,
                         l:int, mass_targ:float, ac:float,
                         gn2m:float=1.0, dof:int=1):
     """
-    ...
+    Gives the fraction of missing resonances due to the truncation in partial neutron width.
+
+    Parameters:
+    ----------
+    trunc     :: float
+        The lower limit on the reduced neutron width.
+    l         :: int
+        The orbital-angular momentum for the channel.
+    mass_targ :: float
+        Mass of the target nucleus.
+    ac        :: float
+        Channel radius.
+    gn2m      :: float
+        The mean reduced neutron width. Default = 1.0.
+    dof       :: int
+        The number of degrees of freedom for the chi-squared distribution.
+
+    Returns:
+    -------
+    fraction_missing :: function: float -> float
+        The fraction of missing resonances within the spingroup as a function of energy.
     """
 
     def func(E):

@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import newaxis as NA
 from scipy.stats import chi2
 
 from TAZ.Theory import ReduceFactor
@@ -56,14 +57,15 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
     posterior = prior
 
     # Neutron widths:
-    mult_factor = (reaction.nDOF/reaction.gn2m).reshape(1,-1) * ReduceFactor(res.E, reaction.L, ac=reaction.ac,
+    mult_factor = (reaction.nDOF/reaction.gn2m)[NA,:] * ReduceFactor(res.E, reaction.L, ac=reaction.ac,
                                                                                   mass_targ=reaction.targ.mass, mass_proj=reaction.proj.mass)
-    posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gn.reshape(-1,1), reaction.nDOF)
+    posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gn[:,NA], reaction.nDOF)
 
     # Gamma widths: (if gamma_width_on is True)
     if gamma_width_on:
-        mult_factor = (reaction.gDOF/reaction.gg2m).reshape(1,-1)
-        posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg.reshape(-1,1), reaction.gDOF)
+        mult_factor = (reaction.gDOF/reaction.gg2m)[NA,:]
+        # posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg[:,NA], reaction.gDOF)
+        posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg[:,NA], reaction.gDOF)
 
     # False distribution:
     if (reaction.false_dens != 0.0) and (false_width_dist is not None):
@@ -73,7 +75,7 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
 
     # Normalization:
     total_probability = np.sum(posterior, axis=1)
-    posterior /= total_probability.reshape(-1,1)
+    posterior /= total_probability[:,NA]
 
     # Log likelihood:
     log_likelihood = np.sum(np.log(total_probability))

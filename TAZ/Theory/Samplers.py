@@ -62,9 +62,6 @@ def SampleNeutronWidth(E, gn2m:float, dof:int, l:int, ac:float,
     gn2 = porter_thomas_dist(mean=gn2m, df=dof, trunc=0.0).rvs((len(E),), rng)
     Gn = gn2 / ReduceFactor(np.array(E), l, ac=ac, mass_targ=mass_targ, mass_proj=mass_proj)
     return Gn
-    # gn2 = (gn2m/dof) * rng.chisquare(dof, (len(E),)) # reduced neutron widths
-    # Gn = gn2 / ReduceFactor(np.array(E), l, ac=ac, mass_targ=mass_targ, mass_proj=mass_proj)
-    # return Gn
 
 def SampleGammaWidth(L:int, gg2m:float, dof:int,
                      rng=None, seed:int=None):
@@ -97,8 +94,9 @@ def SampleGammaWidth(L:int, gg2m:float, dof:int,
     if rng is None:
         rng = np.random.default_rng(seed)
 
-    return porter_thomas_dist(mean=gg2m, df=dof, trunc=0.0).rvs((L,), rng)
-    # return (gg2m/dof) * rng.chisquare(dof, (L,))
+    gg2 = porter_thomas_dist(mean=gg2m, df=dof, trunc=0.0).rvs((L,), rng)
+    Gg = gg2 #* 2
+    return Gg
 
 # =================================================================================================
 #    Energy Level Sampling:

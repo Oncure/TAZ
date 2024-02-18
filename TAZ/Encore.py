@@ -3,6 +3,7 @@
 
 import math
 import numpy as np
+from numpy import newaxis as NA
 # import autograd.numpy as np
 
 __doc__ = """
@@ -77,7 +78,7 @@ This exceeds the set limit of {p_thres:.3f}%. This error could be attributed to 
 numerical instability.
 """
 
-    TP_error_threshold = 1.0 # % (percent)
+    TP_ERROR_THRESHOLD = 1.0 # % (percent)
 
     # ==================================================================================
     # Constructor
@@ -353,8 +354,8 @@ numerical instability.
 
         # If the two sides are past a threshold percent difference, raise a warning:
         percent_error = 100.0 * abs(TP1 - TP2) / s.TP
-        if percent_error > s.TP_error_threshold:
-            print(RuntimeWarning(s.TP_PERCENT_ERROR.format(p_error=percent_error, p_thres=s.TP_error_threshold)))
+        if percent_error > s.TP_ERROR_THRESHOLD:
+            print(RuntimeWarning(s.TP_PERCENT_ERROR.format(p_error=percent_error, p_thres=s.TP_ERROR_THRESHOLD)))
 
     # ==================================================================================
     # Level Spacing Bayes Theorem
@@ -392,16 +393,17 @@ numerical instability.
                     # else:   sp[iL:iRMax-1,0] += np.array([s.CP[i,iL,0] * np.sum(ls[i-iL-1:] * s.CP[i,i+1:iRMax+1,1]) for i in range(iL+1, iRMax)])
 
         # Factors shared throughout the sum including the normalization factor, "TP":
-        sp *= s.Prior[1:-1,:s.G] * s.PW[1:-1].reshape(-1,1) / s.TP
+        sp *= s.Prior[1:-1,:s.G] * s.PW[1:-1][:,NA] / s.TP
 
         # False probabilities appended by taking one minus the other probabilities:
-        posterior = np.append(sp, (1.0 - np.sum(sp, axis=1)).reshape(-1,1), 1)
+        posterior = np.append(sp, (1.0 - np.sum(sp, axis=1))[:,NA], 1)
         return posterior
 
     # ==================================================================================
     # Sample Spacing-Updated Spin-Groups
     # ==================================================================================
-    def WigSample(s, trials:int=1):
+    def WigSample(s, num_trials:int=1,
+                  rng:np.random.Generator=None, seed:int=None):
         """
         `WigSample` randomly samples spingroup assignments based its Bayesian probability. This is
         performed by sampling spingroup assignments for each resonance one at a time from low-to-
@@ -412,18 +414,22 @@ numerical instability.
         ...
         """
 
+        # Setting random number generator:
+        if rng is None:
+            rng = np.random.default_rng(seed)
+
         # Error checking:
         if s.G != 2:
             raise NotImplementedError("Currently sampling only works with 2 spingroups.")
 
         L = s.L
-        ssg  = np.zeros((L,trials), dtype='u1') # The sampled spingroups
+        sampled_groups = np.zeros((L,num_trials), dtype='u1') # The sampled spingroups
 
-        Last = np.zeros((2,trials), dtype='u4') # Latest indices for each spingroup, for each trial
-        rand_nums = np.random.rand(L, trials)   # Random numbers used to sample the spingroups
+        last_seen = np.zeros((2,num_trials), dtype='u4') # Latest indices for each spingroup, for each trial
+        # rand_nums = rng.uniform(size=(L,num_trials)) # Random numbers used to sample the spingroups
 
         iMax = int(3)
-        sp = np.zeros((trials,3), dtype='f8')
+        sp = np.zeros((num_trials,3), dtype='f8')
         for i in range(L):
             i1 = i + 1
 
@@ -433,32 +439,36 @@ numerical instability.
             Idx = range(i1+1,iMax+1)
             l = iMax - i1
 
-            ls1 = np.zeros((1,trials,2),dtype='f8')
-            ls2 = np.zeros((l,trials,2),dtype='f8')
+            ls1 = np.zeros((1,num_trials,2),dtype='f8')
+            ls2 = np.zeros((l,num_trials,2),dtype='f8')
             for t in range(2):
-                ls1[0,:,t] = s.LSP[Last[t,:],i1,t].T
-                for tr in range(trials):
-                    ls2[:,tr,t] = s.LSP[Last[1-t,tr],Idx,1-t]
-            cp = np.concatenate((s.CP[i1,Idx,1].reshape(-1,1,1), s.CP[Idx,i1,1].reshape(-1,1,1)), axis=2)
-            sp[:,:2] = (s.Prior[i1,:2].reshape(1,1,2)*ls1*np.sum(ls2*cp, axis=0))[0,:,:]
+                ls1[0,:,t] = s.LSP[last_seen[t,:],i1,t].T
+                for tr in range(num_trials):
+                    ls2[:,tr,t] = s.LSP[last_seen[1-t,tr],Idx,1-t]
+            cp = np.concatenate((s.CP[i1,Idx,1][:,NA,NA], s.CP[Idx,i1,1][:,NA,NA]), axis=2)
+            sp[:,:2] = (s.Prior[i1,:2][NA,NA,:]*ls1*np.sum(ls2*cp, axis=0))[0,:,:]
             
-            sp[:,2]  = np.array([s.Prior[i1,2] * np.sum(ls2[:,tr,0].reshape(-1,1) \
-                                                      * ls2[:,tr,1].reshape(1,-1) \
+            sp[:,2]  = np.array([s.Prior[i1,2] * np.sum(ls2[:,tr,0][:,NA] \
+                                                      * ls2[:,tr,1][NA,:] \
                                                       * s.CP[Idx,Idx,1], axis=(0,1)) \
-                                                        for tr in range(trials)])
+                                                        for tr in range(num_trials)])
 
-            sp_sum = np.sum(sp, axis=1)
-            p2       = sp[:,2] / sp_sum      # false probability
-            p1       = sp[:,1] / sp_sum + p2 # false or second spingroup probability
-
-            # Sampling New Spin-groups:
-            ssg[i,:] =  np.int_(rand_nums[i,:] <= p2) + np.int_(rand_nums[i,:] <= p1)
+            for tr in range(num_trials):
+                # Sampling new spin-groups:
+                sample_probs = sp[tr,:]
+                sample_probs /= np.sum(sample_probs)
+                g = rng.choice(3, p=sample_probs)
+                sampled_groups[i,tr] = g
+                # Rewriting the last used resonance of spingroup sg:
+                if g != 2:
+                    last_seen[g,tr] = i1
 
             # Rewriting the last used resonance of spingroup sg:
-            for tr,sg in enumerate(ssg[i,:]):
-                if sg != 2:     Last[sg,tr] = i1
+            for tr,g in enumerate(sampled_groups[i,:]):
+                if g != 2:
+                    last_seen[g,tr] = i1
 
-        return ssg
+        return sampled_groups
     
     # ==================================================================================
     # Sample Probability

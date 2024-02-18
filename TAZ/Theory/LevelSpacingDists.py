@@ -1,11 +1,12 @@
 from typing import Tuple
 from math import pi, sqrt, log, ceil
+from sys import float_info
 import numpy as np
 from numpy import newaxis as NA
 from scipy.special import gamma, gammaincc, gammainccinv, erfc, erfcx, erfcinv
 from scipy.integrate import quad
-from scipy.optimize import brentq
-from scipy.stats import norm, rv_continuous
+from scipy.optimize import brentq, bisect
+from scipy.stats import norm
 
 # =================================================================================================
 #    Spacing Distribution:
@@ -43,17 +44,23 @@ class SpacingDistribution:
     # Survival Inverse Functions:
     def _iF0(self, q):
         'Inverse of the survival function of the "f0" probability density function.'
-        func = lambda t, y: self._f1(-np.log(t)) - y
+        def func(u, y):
+            x = -np.log(u)
+            return self._f1(x) - y
         def __invfunc(y):
-            u = brentq(func, a=0.0, b=1.0, args=(y,))
-            return np.exp(-u)
+            u = brentq(func, a=0.0, b=1.0, args=(y,), xtol=float_info.epsilon, rtol=1e-15)
+            x = -np.log(u)
+            return x
         return np.vectorize(__invfunc)(q)
     def _iF1(self, q):
         'Inverse of the survival function of the "f1" probability density function.'
-        func = lambda t, y: self._f2(-np.log(t)) - y
+        def func(u, y):
+            x = -np.log(u)
+            return self._f2(x) - y
         def __invfunc(y):
-            u = brentq(func, a=0.0, b=1.0, args=(y,))
-            return np.exp(-u)
+            u = brentq(func, a=0.0, b=1.0, args=(y,), xtol=float_info.epsilon, rtol=1e-15)
+            x = -np.log(u)
+            return x
         return np.vectorize(__invfunc)(q)
     
     # Level density handlers:
@@ -398,6 +405,11 @@ def merge(*distributions:Tuple[SpacingDistribution]):
             Z1[i] = quad(func, a=0.0, b=np.inf)[0]
         Z2 = quad(c_func, a=0.0, b=np.inf)[0]
 
+        # Level-densities:
+        lvl_denses = np.zeros((G,))
+        for i,distribution in enumerate(distributions):
+            lvl_denses[i] = distribution.lvl_dens
+
         # Merged Distribution:
         class MergedSpacingDistributionGen(MergedDistributionBase):
             def f0(self, x, priorL, priorR):
@@ -432,31 +444,30 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                 return F
             
             def xMax_f0(self, err):
-                func = lambda x: self.f1(-np.log(x))/self.f1(0) - err
-                return np.exp(-brentq(func, a=0.0, b=1.0)[0])
-                # class F0Gen(rv_continuous):
-                #     def _pdf(self, x):
-                #         f0_f2_max = 0.0
-                #         for distribution in distributions:
-                #             f0_f2 = distribution.r2(x) * distribution.r1(x)
-                #             if f0_f2 > f0_f2_max:
-                #                 f0_f2_max = f0_f2
-                #         return c_func(x) / np.min(Z0) * f0_f2
-                # f0_dist = F0Gen(a=0.0, b=np.inf)
-                # return f0_dist.isf(err)
+                def func(u):
+                    if u == 0.0:
+                        return -err
+                    x = -np.log(u)
+                    fx_max = 0.0
+                    for g,distribution in enumerate(distributions):
+                        fx = distribution.r2(x) / np.min(lvl_denses*Z0[:,g])
+                        if fx > fx_max:
+                            fx_max = fx
+                    fx *= c_func(x)
+                    return fx - err
+                u = brentq(func, a=0.0, b=1.0, xtol=float_info.epsilon, rtol=1e-15)
+                x = -np.log(u)
+                return x
             def xMax_f1(self, err):
-                func = lambda x: self.f2(-np.log(x))/self.f2(0) - err
-                return np.exp(-brentq(func, a=0.0, b=1.0)[0])
-                # class F1Gen(rv_continuous):
-                #     def _pdf(self, x):
-                #         f1_f2_max = 0.0
-                #         for distribution in distributions:
-                #             f1_f2 = distribution.r2(x)
-                #             if f1_f2 > f1_f2_max:
-                #                 f1_f2_max = f1_f2
-                #         return c_func(x) / np.min(Z1) * f1_f2
-                # f1_dist = F1Gen(a=0.0, b=np.inf)
-                # return f1_dist.isf(err)
+                def func(u):
+                    if u == 0.0:
+                        return -err
+                    x = -np.log(u)
+                    fx = c_func(x) / np.min(lvl_denses*Z1)
+                    return fx - err
+                u = brentq(func, a=0.0, b=1.0, xtol=float_info.epsilon, rtol=1e-15)
+                x = -np.log(u)
+                return x
 
     merged_spacing_distribution = MergedSpacingDistributionGen(lvl_dens=lvl_dens_comb)
     return merged_spacing_distribution
