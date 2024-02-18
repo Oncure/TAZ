@@ -117,8 +117,8 @@ class Reaction:
 
         # Channel Radius:
         if ac is not None:
-            if   ac > 1e2:      print(Warning(f'The channel radius, {ac}, is quite high. Make sure it is in units of femtometers.'))
-            elif ac > 1e-2:     print(Warning(f'The channel radius, {ac}, is quite low. Make sure it is in units of femtometers.'))
+            if   ac > 1.00: print(Warning(f'The channel radius, {ac} 1e-12 cm, is quite high. Make sure it is in units of square-root barns or 1e-12 cm.'))
+            elif ac < 0.08: print(Warning(f'The channel radius, {ac} 1e-12 cm, is quite low. Make sure it is in units of square-root barns or 1e-12 cm.'))
             self.ac = float(ac)
         elif (self.proj is not None and self.proj.radius is not None) \
          and (self.targ is not None and self.targ.radius is not None):
@@ -228,7 +228,7 @@ class Reaction:
 
         if self.Gn_trunc_provided:
             txt += f'Trunc. Neutron Width = {self.Gn_trunc:.7f} (1/meV)\n'
-            
+
         txt += '\n'
 
         param_vals  = [self.lvl_dens, self.brody_param, self.gn2m, self.nDOF, self.gg2m, self.gDOF]
@@ -397,8 +397,8 @@ class Reaction:
                 distributions.append(distribution)
         elif dist_type == 'Missing':
             for g in range(self.num_groups):
-                if type(self.MissFrac[g]) != float:
-                    raise NotImplementedError('Missing Level-spacing generator only works with constant float MissFrac at this time.')
+                # if type(self.MissFrac[g]) != float:
+                #     raise NotImplementedError('Missing Level-spacing generator only works with constant float MissFrac at this time.')
                 distribution = Theory.LevelSpacingDists.MissingGen(lvl_dens=self.lvl_dens[g], pM=self.MissFrac[g], err=err)
                 distributions.append(distribution)
         else:
@@ -458,10 +458,14 @@ class Reaction:
                     fit = self.distributions(dist_type)[g].cdf
         elif quantity == 'neutron width':
             # FIXME: THESE TRUNCTATIONS ARE NOT THE SAME AS GN_TRUNC!!!
+            # if not cdf: # PDF
+            #     fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=self.Gn_trunc[g]).pdf
+            # else: # CDF
+            #     fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=self.Gn_trunc[g]).cdf
             if not cdf: # PDF
-                fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=self.Gn_trunc[g]).pdf
+                fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=0.0).pdf
             else: # CDF
-                fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=self.Gn_trunc[g]).cdf
+                fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=0.0).cdf
         elif quantity in ('gamma width', 'capture width'):
             if not cdf: # PDF
                 fit = Theory.porter_thomas_dist(mean=self.gg2m[g], df=self.gDOF[g], trunc=0.0).pdf

@@ -5,7 +5,6 @@ from TAZ.Theory.distributions import wigner_dist, lvl_spacing_ratio_dist, porter
 from TAZ.Theory.WidthDists import ReduceFactor
 
 import numpy as np
-import pandas as pd
 from scipy.stats import chisquare
 
 import unittest

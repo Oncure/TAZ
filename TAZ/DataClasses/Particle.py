@@ -44,18 +44,22 @@ class Particle:
         # Atomic Number:
         self._Z = int(Z)
         # Atomic Mass:
+        if A < Z:
+            raise ValueError(f'The atomic mass number, {A}, cannot be less than the atomic number, {Z}.')
         self._A = int(A)
         # Isotope Spin:
         self._I = HalfInt(I)
         # Mass: (amu)
+        if   mass > 300.0:     print(Warning(f'The particle mass, {mass} amu, is quite high. Make sure it is in units of amu.'))
+        elif mass <   1.0:     print(Warning(f'The particle mass, {mass} amu, is quite low. Make sure it is in units of amu.'))
         self._mass = float(mass)
         # Nuclear Radius: (fm)
         if radius is not None:
-            if   radius > 1e2:      print(Warning(f'The channel radius, {radius} fm, is quite high. Make sure it is in units of femtometers.'))
-            elif radius < 1e-2:     print(Warning(f'The channel radius, {radius} fm, is quite low. Make sure it is in units of femtometers.'))
+            if   radius > 1.00:     print(Warning(f'The nuclear radius, {radius} 1e-12 cm, is quite high. Make sure it is in units of square-root barns or 1e-12 cm.'))
+            elif radius < 0.05:     print(Warning(f'The nuclear radius, {radius} 1e-12 cm, is quite low. Make sure it is in units of square-root barns or 1e-12 cm.'))
             self._radius = float(radius)
         else:
-            self._radius = 1.23 * self.A**(1/3)
+            self._radius = 0.123 * self.A**(1/3) # 1e-12 cm
         # Particle Name:
         if name is not None:    self._name = str(name)
         else:                   self._name = str(self.Z*1000+self.A) # MCNP ID for the isotope.
@@ -99,7 +103,7 @@ class Particle:
         txt += f'Atomic Mass    = {self._A}\n'
         txt += f'Nuclear Spin   = {self._I}\n'
         txt += f'Mass           = {self._mass:.7f} (amu)\n'
-        txt += f'Nuclear Radius = {self._radius:.7f} (fm)\n'
+        txt += f'Nuclear Radius = {self._radius:.7f} (√b)\n'
         return txt
     
     def __str__(self):

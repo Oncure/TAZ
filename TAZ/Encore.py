@@ -545,9 +545,9 @@ def wigMaxLikelihood2(prior, level_spacing_probs, iMax, threshold:float=math.inf
     """
     ...
     """
-    spingroups   = []
-    likelihoods  = []
-    last_indices = []
+    spingroups   = [] # list of lists
+    likelihoods  = [] # list of floats
+    last_indices = [] # list of G-tuples
     raise NotImplementedError()
 
 # ==================================================================================

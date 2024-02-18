@@ -13,8 +13,8 @@ TAZ uses the following standard units throughout the code.
 | Quantity       | Units |
 |:-------------- |:-----:|
 | Mass           | amu   |
-| Nuclear Radius | fm    |
-| Channel Radius | fm    |
+| Nuclear Radius | √b    |
+| Channel Radius | √b    |
 | Energy         | eV    |
 | Partial Widths | meV   |
 | Level Density  | 1/eV  |

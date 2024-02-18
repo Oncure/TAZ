@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.special import gammainc, iv
-from scipy.stats import chi2
 
 from TAZ.DataClasses import MASS_NEUTRON
 from TAZ.Theory.RMatrix import PenetrationFactor, Rho
@@ -46,72 +45,6 @@ def fraction_missing_Gn(trunc:float,
         fraction_missing = fraction_missing_gn2(gn2_trunc, gn2m, dof)
         return fraction_missing
     return func
-
-# def PorterThomasPDF(G, g2m:float, trunc:float=0.0, dof:int=1):
-#     """
-#     The probability density function (PDF) for Porter-Thomas distribution on the width. There is
-#     an additional width truncation factor, `trunc`, that ignores widths below the truncation
-#     threshold (meant for missing resonances hidden in the statistical noise).
-
-#     Parameters:
-#     ----------
-#     G     :: float [n]
-#         Partial resonance widths.
-#     g2m   :: float
-#         Mean reduced partial resonance width.
-#     trunc :: float
-#         Width truncation factor for the distribution. Resonance widths below `trunc` are not
-#         considered in the distribution. Default = 0.0 (no truncation).
-#     dof   :: int
-#         Chi-squared degrees of freedom for the partial widths, `G`.
-
-#     Returns:
-#     -------
-#     prob  :: float [n]
-#         Probability density at the specified partial resonance widths.
-#     """
-    
-#     if trunc == 0.0:
-#         prob = chi2.pdf(G, df=dof, scale=g2m/dof)
-#     else:
-#         prob = np.zeros(len(G))
-#         fraction_missing = FractionMissing(trunc, g2m, dof)
-#         prob[G >  trunc] = chi2.pdf(G[G > trunc], df=dof, scale=g2m/dof) / (1 - fraction_missing)
-#         prob[G <= trunc] = 0.0
-#     return prob
-
-# def PorterThomasCDF(G, g2m:float=1.0, trunc:float=0.0, dof:int=1):
-#     """
-#     The cumulative density function (CDF) for Porter-Thomas Distribution on the width. There is
-#     an additional width truncation factor, `trunc`, that ignores widths below the truncation
-#     threshold (meant for missing resonances hidden in the statistical noise).
-
-#     Parameters:
-#     ----------
-#     G     :: float [n]
-#         Partial resonance widths.
-#     g2m   :: float
-#         Mean reduced partial resonance width.
-#     trunc :: float
-#         Width truncation factor for the distribution. Resonance widths below `trunc` are not
-#         considered in the distribution. Default = 0.0 (no truncation).
-#     dof   :: int
-#         Chi-squared degrees of freedom for the partial widths.
-
-#     Returns:
-#     -------
-#     prob  :: float [n]
-#         Cumulative probability at the specified partial resonance widths, `G`.
-#     """
-    
-#     if trunc == 0.0:
-#         prob = chi2.cdf(G, df=dof, scale=g2m/dof)
-#     else:
-#         fraction_missing = FractionMissing(trunc, g2m, dof)
-#         prob = np.zeros(len(G))
-#         prob[G >  trunc] = (chi2.cdf(G, df=dof, scale=g2m/dof) - fraction_missing) / (1 - fraction_missing)
-#         prob[G <= trunc] = 0.0
-#     return prob
     
 def ReduceFactor(E, l:int, mass_targ:float, ac:float,
                  mass_proj:float=MASS_NEUTRON,

@@ -432,42 +432,31 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                 return F
             
             def xMax_f0(self, err):
-                # func = lambda x: self._f1(-np.log(x)) - err
-                # return np.exp(-brentq(func, a=0.0, b=1.0)[0])
-                class F0Gen(rv_continuous):
-                    def _pdf(self, x):
-                        f0_f2_max = 0.0
-                        for distribution in distributions:
-                            f0_f2 = distribution.r2(x) * distribution.r1(x)
-                            if f0_f2 > f0_f2_max:
-                                f0_f2_max = f0_f2
-                        return c_func(x) / np.min(Z0) * f0_f2
-                f0_dist = F0Gen(a=0.0, b=np.inf)
-                return f0_dist.isf(err)
+                func = lambda x: self.f1(-np.log(x))/self.f1(0) - err
+                return np.exp(-brentq(func, a=0.0, b=1.0)[0])
+                # class F0Gen(rv_continuous):
+                #     def _pdf(self, x):
+                #         f0_f2_max = 0.0
+                #         for distribution in distributions:
+                #             f0_f2 = distribution.r2(x) * distribution.r1(x)
+                #             if f0_f2 > f0_f2_max:
+                #                 f0_f2_max = f0_f2
+                #         return c_func(x) / np.min(Z0) * f0_f2
+                # f0_dist = F0Gen(a=0.0, b=np.inf)
+                # return f0_dist.isf(err)
             def xMax_f1(self, err):
-                # func = lambda x: self._f2(-np.log(x)) - err
-                # return np.exp(-brentq(func, a=0.0, b=1.0)[0])
-                class F1Gen(rv_continuous):
-                    def _pdf(self, x):
-                        f1_f2_max = 0.0
-                        for distribution in distributions:
-                            f1_f2 = distribution.r2(x)
-                            if f1_f2 > f1_f2_max:
-                                f1_f2_max = f1_f2
-                        return c_func(x) / np.min(Z1) * f1_f2
-                f1_dist = F1Gen(a=0.0, b=np.inf)
-                return f1_dist.isf(err)
-            # def xMax_f2(self, err):
-            #     class F2Gen(rv_continuous):
-            #         def _pdf(self, x):
-            #             return c_func(x) / Z2
-            #     f2_dist = F2Gen(a=0.0, b=np.inf)
-            #     return f2_dist.isf(err)
+                func = lambda x: self.f2(-np.log(x))/self.f2(0) - err
+                return np.exp(-brentq(func, a=0.0, b=1.0)[0])
+                # class F1Gen(rv_continuous):
+                #     def _pdf(self, x):
+                #         f1_f2_max = 0.0
+                #         for distribution in distributions:
+                #             f1_f2 = distribution.r2(x)
+                #             if f1_f2 > f1_f2_max:
+                #                 f1_f2_max = f1_f2
+                #         return c_func(x) / np.min(Z1) * f1_f2
+                # f1_dist = F1Gen(a=0.0, b=np.inf)
+                # return f1_dist.isf(err)
 
     merged_spacing_distribution = MergedSpacingDistributionGen(lvl_dens=lvl_dens_comb)
     return merged_spacing_distribution
-
-
-
-
-
