@@ -421,6 +421,13 @@ numerical instability.
         Last = np.zeros((2,trials), dtype='u4') # Latest indices for each spingroup, for each trial
         rand_nums = np.random.rand(L, trials)   # Random numbers used to sample the spingroups
 
+        # print(np.array(s.LSP[:,:,0] > 0, dtype=int))
+        for i in range(L+2):
+            for j in range(L+2):
+                print(int(s.CP[i,j,0] == s.CP[j,i,0]), end=' ')
+            print()
+
+
         iMax = int(3)
         sp = np.zeros((trials,3), dtype='f8')
         for i in range(L):
@@ -450,6 +457,7 @@ numerical instability.
             p2       = sp[:,2] / sp_sum      # false probability
             p1       = sp[:,1] / sp_sum + p2 # false or second spingroup probability
 
+            print(np.mean(p1), end=' ')
             print(np.mean(p2), end=' ')
             if i % 10 == 0:
                 print()
