@@ -64,8 +64,8 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
     # Gamma widths: (if gamma_width_on is True)
     if gamma_width_on:
         mult_factor = (reaction.gDOF/reaction.gg2m)[NA,:]
-        # posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg[:,NA], reaction.gDOF)
-        posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gg[:,NA], reaction.gDOF)
+        gg2 = 2 * res.Gg
+        posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * gg2[:,NA], reaction.gDOF)
 
     # False distribution:
     if (reaction.false_dens != 0.0) and (false_width_dist is not None):

@@ -95,7 +95,7 @@ def SampleGammaWidth(L:int, gg2m:float, dof:int,
         rng = np.random.default_rng(seed)
 
     gg2 = porter_thomas_dist(mean=gg2m, df=dof, trunc=0.0).rvs((L,), rng)
-    Gg = gg2 #* 2
+    Gg = 2 * gg2
     return Gg
 
 # =================================================================================================

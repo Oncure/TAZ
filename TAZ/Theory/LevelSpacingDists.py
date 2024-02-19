@@ -5,7 +5,7 @@ import numpy as np
 from numpy import newaxis as NA
 from scipy.special import gamma, gammaincc, gammainccinv, erfc, erfcx, erfcinv
 from scipy.integrate import quad
-from scipy.optimize import brentq, bisect
+from scipy.optimize import brentq
 from scipy.stats import norm
 
 # =================================================================================================

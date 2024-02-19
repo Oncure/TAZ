@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import math
 import numpy as np
 from numpy import newaxis as NA
@@ -424,9 +421,7 @@ numerical instability.
 
         L = s.L
         sampled_groups = np.zeros((L,num_trials), dtype='u1') # The sampled spingroups
-
         last_seen = np.zeros((2,num_trials), dtype='u4') # Latest indices for each spingroup, for each trial
-        # rand_nums = rng.uniform(size=(L,num_trials)) # Random numbers used to sample the spingroups
 
         iMax = int(3)
         sp = np.zeros((num_trials,3), dtype='f8')
@@ -551,14 +546,83 @@ numerical instability.
 # Maximum-Likelihood Assignments
 # ==================================================================================
 
-def wigMaxLikelihood2(prior, level_spacing_probs, iMax, threshold:float=math.inf):
+from copy import copy
+def wigMaxLikelihood(prior, level_spacing_probs, iMax, lvl_dens_false:float=0.0, threshold:float=1e-8):
     """
     ...
     """
+    # raise NotImplementedError()
+    L = level_spacing_probs.shape[0]
+    G = level_spacing_probs.shape[2]
+
+    # Initializing lists:
     spingroups   = [] # list of lists
     likelihoods  = [] # list of floats
-    last_indices = [] # list of G-tuples
-    raise NotImplementedError()
+    last_indices = [] # list of G-tuple lists
+    for g in range(G):
+        spingroups.append([g])
+        likelihoods.append(prior[0,g]*level_spacing_probs[0,1,g])
+        T = [0]*G
+        T[g] = 1
+        last_indices.append(T)
+    spingroups.append([G])
+    likelihoods.append(prior[0,G])
+    last_indices.append([0]*G)
+    max_lik = np.max(likelihoods)
+    for g,likelihood in enumerate(likelihoods):
+        likelihood /= max_lik
+
+    # Loop:
+    for i in range(1,L):
+        i1 = i + 1
+        spingroups_new = []
+        likelihoods_new = []
+        last_indices_new = []
+        for ladder in range(len(likelihoods)):
+            sgs0  = spingroups[ladder]
+            lik0  = likelihoods[ladder]
+            lidx0 = last_indices[ladder]
+            for g in range(G):
+                lik = lik0 * prior[i,g] * level_spacing_probs[lidx0[g],i1,g]
+                if lik < threshold:
+                    continue
+                lidx = copy(lidx0)
+                lidx[g] = i1
+                spingroups_new.append(sgs0.append(g))
+                likelihoods_new.append(lik)
+                last_indices_new.append(lidx)
+            # False group case:
+            lik = lik0 * prior[i,G] * lvl_dens_false
+            if lik < threshold:
+                break
+            spingroups_new.append(sgs0.append(G))
+            likelihoods_new.append(lik)
+            last_indices_new.append(lidx0)
+
+        # Renormalize likelihoods:
+        max_lik = np.max(likelihoods_new)
+        for g,likelihood in enumerate(likelihoods_new):
+            likelihood /= max_lik
+        
+        # Prunning:
+        spingroups = []
+        likelihoods = []
+        last_indices = []
+        for lidx in last_indices_new:
+            likelihood_max = 0.0
+            lidx_max = copy(lidx)
+            for sgs, lik, lidx_match in zip(spingroups_new, likelihoods_new, last_indices_new):
+                if lidx_max == lidx_match:
+                    if lik > likelihood_max:
+                        likelihood_max = copy(lik)
+                        spingroups_max = copy(sgs)
+                    del sgs, lik, lidx_match
+            spingroups.append(spingroups_max)
+            likelihoods.append(likelihood_max)
+            last_indices.append(lidx_max)
+
+    # Final boundary case:
+    raise NotImplementedError('...')
 
 # ==================================================================================
 # Brute Force Algorithms

@@ -4,7 +4,7 @@ This page will address any notation and units that do not have implied standards
 
 Uncommon Notation
 =================
-* SAMMY and ATARI assume a penetrability of 1.0 for gamma rays, but FUDGE and TAZ will assume the penetrability is 0.5 so that Gg = &lt;gg2&gt; for infinite degrees of freedom.
+* TAZ assumes a penetrability of 1.0 for gamma rays like SAMMY and ATARI. In other words, the expectation value of `Gg` is `2&lt;gg2&gt;` for infinite degrees of freedom.
 
 Standard Units
 ==============
@@ -23,4 +23,4 @@ TAZ uses the following standard units throughout the code.
 
 Known Bugs and Issues
 =====================
-* Need to check if PTBayes.py is normalizing its PT probabilities correctly.
+* Some of the functionalities with false resonances are not working in this version of TAZ.
