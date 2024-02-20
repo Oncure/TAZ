@@ -283,10 +283,12 @@ class RunMaster:
         """
 
         combined_sg_probs = np.zeros((self.L,self.G+1), dtype='f8')
-        for g in range(self.G):
-            combined_sg_probs[:,g] = sg_probs[:,1,g]
-        combined_sg_probs[:,-1] = np.prod(sg_probs[:,1,:-1], axis=1) * self.Prior[:,-1] ** (1-self.G)
+        
+        combined_sg_probs[:,:-1] = sg_probs[:,1,:] # lone spingroup
+        
+        combined_sg_probs[:,-1] = np.prod(sg_probs[:,2,:], axis=1) * self.Prior[:,-1] ** (1-self.G)
         combined_sg_probs[self.Prior[:,-1]==0.0, -1] = 0.0
+        
         combined_sg_probs /= np.sum(combined_sg_probs, axis=1, keepdims=True)
         return combined_sg_probs
 

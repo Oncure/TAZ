@@ -401,6 +401,10 @@ class Reaction:
                 #     raise NotImplementedError('Missing Level-spacing generator only works with constant float MissFrac at this time.')
                 distribution = Theory.LevelSpacingDists.MissingGen(lvl_dens=self.lvl_dens[g], pM=self.MissFrac[g], err=err)
                 distributions.append(distribution)
+        elif dist_type == 'Poisson':
+            for g in range(self.num_groups):
+                distribution = Theory.LevelSpacingDists.PoissonGen(lvl_dens=self.lvl_dens[g])
+                distributions.append(distribution)
         else:
             raise NotImplementedError(f'The distribution type, "{dist_type}", has not been implemented yet.')
         return distributions

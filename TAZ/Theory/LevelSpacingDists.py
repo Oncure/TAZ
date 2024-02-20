@@ -111,6 +111,31 @@ class SpacingDistribution:
         return self.iF1(err)
     
 # =================================================================================================
+#    Poisson Distribution:
+# =================================================================================================
+    
+class PoissonGen(SpacingDistribution):
+    """
+    Generates a Poisson level-spacing distribution.
+
+    Great for debugging TAZ.
+    """
+    def _f0(self, x):
+        return np.exp(-x)
+    def _f1(self, x):
+        return np.exp(-x)
+    def _f2(self, x):
+        return np.exp(-x)
+    def _r1(self, x):
+        return x/x # lazy way of making ones with same shape
+    def _r2(self, x):
+        return x/x # lazy way of making ones with same shape
+    def _iF0(self, q):
+        return -np.log(q)
+    def _iF1(self, q):
+        return -np.log(q)
+    
+# =================================================================================================
 #    Wigner Distribution:
 # =================================================================================================
     
