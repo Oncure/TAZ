@@ -420,41 +420,37 @@ numerical instability.
             rng = np.random.default_rng(seed)
 
         L = s.L
-        sampled_groups = np.zeros((L,num_trials), dtype='u1') # The sampled spingroups
-        last_seen = np.zeros((2,num_trials), dtype='u4') # Latest indices for each spingroup, for each trial
+        sampled_groups = np.zeros((L,num_trials), dtype='u1') # the sampled spingroups
+        last_seen = np.zeros((2,num_trials), dtype='u4') # last seen indices for each spingroup, for each trial
 
-        iMax = int(3)
-        sp = np.zeros((num_trials,3), dtype='f8')
+        sp = np.zeros((num_trials,3), dtype='f8') # unnormalized spingroup probabilities
         for i in range(L):
             i1 = i + 1
 
-            # FIXME: THE APROXIMATION THRESHOLD NEEDS UPDATING!!!
-            while any(s.LSP[i1,iMax,:]) and (iMax <= L):
-                iMax += 1
-            Idx = range(i1+1,iMax+1)
-            l = iMax - i1
-
-            ls1 = np.zeros((1,num_trials,2),dtype='f8')
-            ls2 = np.zeros((l,num_trials,2),dtype='f8')
-            for g in range(2):
-                ls1[0,:,g] = s.LSP[last_seen[g,:],i1,g].T
-                for tr in range(num_trials):
-                    ls2[:,tr,g] = s.LSP[last_seen[1-g,tr],Idx,1-g]
-                
-            sp[:,0] = (s.Prior[i1,0]*ls1[0,:,0]*np.sum(ls2[:,:,0]*s.CP[i1,Idx,1][:,NA], axis=0))
-            sp[:,1] = (s.Prior[i1,1]*ls1[0,:,1]*np.sum(ls2[:,:,1]*s.CP[Idx,i1,1][:,NA], axis=0))
-            
-            # False group SPs:
             for tr in range(num_trials):
+                iMaxA = s.iMax[last_seen[0,tr],0,0]
+                iMaxB = s.iMax[last_seen[1,tr],0,1]
+                IdxA = slice(i1+1, iMaxA+1)
+                IdxB = slice(i1+1, iMaxB+1)
+                sp[tr,0] = s.Prior[i1,0]*s.LSP[last_seen[0,tr],i1,0] * np.sum(s.LSP[last_seen[1,tr],IdxB,1]*s.CP[i1,IdxB,1])
+                sp[tr,1] = s.Prior[i1,1]*s.LSP[last_seen[1,tr],i1,1] * np.sum(s.LSP[last_seen[0,tr],IdxA,0]*s.CP[IdxA,i1,1])
+            
+                # False group SPs:
                 sp[tr,2] = 0
                 mult_chain = 1.0
-                for k in range(i1+1,iMax+1):
+                for k in range(i1+1,iMaxA+1): # loop for A spingroup leading
                     mult_chain *= s.PW[k] * s.Prior[k-1,2]
                     if mult_chain == 0.0:
                         break   # potential computation time improvement
-                    Idx2 = slice(k+1,iMax+1)
-                    sp[tr,2] += mult_chain * s.Prior[k,0] * s.LSP[last_seen[0,tr],k,0] * np.sum(s.LSP[last_seen[1,tr],Idx2,1] * s.CP[k,Idx2,1])
-                    sp[tr,2] += mult_chain * s.Prior[k,1] * s.LSP[last_seen[1,tr],k,1] * np.sum(s.LSP[last_seen[0,tr],Idx2,0] * s.CP[Idx2,k,1])
+                    IdxB = slice(k+1, iMaxB+1)
+                    sp[tr,2] += mult_chain * s.Prior[k,0] * s.LSP[last_seen[0,tr],k,0] * np.sum(s.LSP[last_seen[1,tr],IdxB,1] * s.CP[k,IdxB,1])
+                mult_chain = 1.0
+                for k in range(i1+1,iMaxB+1): # loop for B spingroup leading
+                    mult_chain *= s.PW[k] * s.Prior[k-1,2]
+                    if mult_chain == 0.0:
+                        break   # potential computation time improvement
+                    IdxA = slice(k+1, iMaxA+1)
+                    sp[tr,2] += mult_chain * s.Prior[k,1] * s.LSP[last_seen[1,tr],k,1] * np.sum(s.LSP[last_seen[0,tr],IdxA,0] * s.CP[IdxA,k,1])
 
             for tr in range(num_trials):
                 # Sampling new spin-groups:
@@ -463,11 +459,6 @@ numerical instability.
                 g = rng.choice(3, p=sample_probs)
                 sampled_groups[i,tr] = g
                 # Rewriting the last used resonance of spingroup sg:
-                if g != 2:
-                    last_seen[g,tr] = i1
-
-            # Rewriting the last used resonance of spingroup sg:
-            for tr,g in enumerate(sampled_groups[i,:]):
                 if g != 2:
                     last_seen[g,tr] = i1
 
