@@ -399,7 +399,7 @@ numerical instability.
     # ==================================================================================
     # Sample Spacing-Updated Spin-Groups
     # ==================================================================================
-    def WigSample(s, trials:int=1,
+    def WigSample(s, num_trials:int=1,
                   rng:np.random.Generator=None, seed:int=None):
         """
         `WigSample` randomly samples spingroup assignments based its Bayesian probability. This is
@@ -414,22 +414,25 @@ numerical instability.
         # Error checking:
         if s.G != 2:
             raise NotImplementedError("Currently sampling only works with 2 spingroups.")
+        
+        # Setting random number generator:
+        if rng is None:
+            rng = np.random.default_rng(seed)
 
         L = s.L
-        ssg  = np.zeros((L,trials), dtype='u1') # The sampled spingroups
+        sampled_groups = np.zeros((L,num_trials), dtype='u1') # The sampled spingroups
 
-        Last = np.zeros((2,trials), dtype='u4') # Latest indices for each spingroup, for each trial
-        rand_nums = np.random.rand(L, trials)   # Random numbers used to sample the spingroups
+        last_seen = np.zeros((2,num_trials), dtype='u4') # Latest indices for each spingroup, for each trial
 
         # print(np.array(s.LSP[:,:,0] > 0, dtype=int))
-        for i in range(L+2):
-            for j in range(L+2):
-                print(int(s.CP[i,j,0] == s.CP[j,i,0]), end=' ')
-            print()
+        # for i in range(L+2):
+        #     for j in range(L+2):
+        #         print(int(s.CP[i,j,0] == s.CP[j,i,0]), end=' ')
+        #     print()
 
 
         iMax = int(3)
-        sp = np.zeros((trials,3), dtype='f8')
+        sp = np.zeros((num_trials,3), dtype='f8')
         for i in range(L):
             i1 = i + 1
 
@@ -439,37 +442,56 @@ numerical instability.
             Idx = range(i1+1,iMax+1)
             l = iMax - i1
 
-            ls1 = np.zeros((1,trials,2),dtype='f8')
-            ls2 = np.zeros((l,trials,2),dtype='f8')
-            for t in range(2):
-                ls1[0,:,t] = s.LSP[Last[t,:],i1,t].T
-                for tr in range(trials):
-                    ls2[:,tr,t] = s.LSP[Last[1-t,tr],Idx,1-t]
-            cp = np.concatenate((s.CP[i1,Idx,1].reshape(-1,1,1), s.CP[Idx,i1,1].reshape(-1,1,1)), axis=2)
-            sp[:,:2] = (s.Prior[i1,:2].reshape(1,1,2)*ls1*np.sum(ls2*cp, axis=0))[0,:,:]
+            ls1 = np.zeros((1,num_trials,2),dtype='f8')
+            ls2 = np.zeros((l,num_trials,2),dtype='f8')
+            for g in range(2):
+                ls1[0,:,g] = s.LSP[last_seen[g,:],i1,g].T
+                for tr in range(num_trials):
+                    ls2[:,tr,g] = s.LSP[last_seen[1-g,tr],Idx,1-g]
+                
+                # cp = np.concatenate((s.CP[i1,Idx,1][:,NA,NA], s.CP[Idx,i1,1][:,NA,NA]), axis=2)
+                # sp[:,0] = (s.Prior[i1,0]*ls1[:,:,0]*np.sum(ls2[:,:,0]*s.CP[i1,Idx,1][:,NA], axis=0))[0,:]
+            cp = np.concatenate((s.CP[i1,Idx,1][:,NA,NA], s.CP[Idx,i1,1][:,NA,NA]), axis=2)
+            sp[:,:2] = (s.Prior[i1,:2][NA,NA,:]*ls1*np.sum(ls2*cp, axis=0))[0,:,:]
+
+            # sp[:,2]  = np.array([s.Prior[i1,2] * np.sum(ls2[:,tr,0][:,NA] \
+            #                                             * ls2[:,tr,1][NA,:] \
+            #                                             * s.CP[Idx,Idx,1], axis=(0,1)) \
+            #                                                 for tr in range(num_trials)])
             
-            sp[:,2]  = np.array([s.Prior[i1,2] * np.sum(ls2[:,tr,0].reshape(-1,1) \
-                                                      * ls2[:,tr,1].reshape(1,-1) \
-                                                      * s.CP[Idx,Idx,1], axis=(0,1)) \
-                                                        for tr in range(trials)])
+            # False group SPs:
+            for tr in range(num_trials):
+                sp[tr,2] = 0
+                mult_chain = s.PW[i1]
+                for j in range(l):
+                    k = j + i1+1
+                    mult_chain *= s.PW[k] * s.Prior[k-1,2]
+                    Idx2 = range(k+1,iMax+1)
+                    sp[tr,2] += mult_chain * s.Prior[k,0] * ls2[j,tr,0] * np.sum(ls2[j+1:,tr,1] * s.CP[k,Idx2,1])
+                    sp[tr,2] += mult_chain * s.Prior[k,1] * ls2[j,tr,1] * np.sum(ls2[j+1:,tr,0] * s.CP[Idx2,k,1])
 
-            sp_sum = np.sum(sp, axis=1)
-            p2       = sp[:,2] / sp_sum      # false probability
-            p1       = sp[:,1] / sp_sum + p2 # false or second spingroup probability
+            # print(np.mean(sp[:,0]), end=' ')
+            # print(np.mean(sp[:,1]), end=' ')
+            # print(np.mean(sp[:,2]), end=' ')
+            # if i % 10 == 0:
+            #     print()
 
-            print(np.mean(p1), end=' ')
-            print(np.mean(p2), end=' ')
-            if i % 10 == 0:
-                print()
-
-            # Sampling New Spin-groups:
-            ssg[i,:] =  np.int_(rand_nums[i,:] <= p2) + np.int_(rand_nums[i,:] <= p1)
+            for tr in range(num_trials):
+                # Sampling new spin-groups:
+                sample_probs = sp[tr,:]
+                sample_probs /= np.sum(sample_probs)
+                g = rng.choice(3, p=sample_probs)
+                sampled_groups[i,tr] = g
+                # Rewriting the last used resonance of spingroup sg:
+                if g != 2:
+                    last_seen[g,tr] = i1
 
             # Rewriting the last used resonance of spingroup sg:
-            for tr,sg in enumerate(ssg[i,:]):
-                if sg != 2:     Last[sg,tr] = i1
+            for tr,g in enumerate(sampled_groups[i,:]):
+                if g != 2:
+                    last_seen[g,tr] = i1
 
-        return ssg
+        return sampled_groups
 
         # # Setting random number generator:
         # if rng is None:

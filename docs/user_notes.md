@@ -24,3 +24,4 @@ TAZ uses the following standard units throughout the code.
 Known Bugs and Issues
 =====================
 * Some of the functionalities with false resonances are not working in this version of TAZ.
+* Need to Fix WigSample False group SP.
