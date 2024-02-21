@@ -127,9 +127,9 @@ class PoissonGen(SpacingDistribution):
     def _f2(self, x):
         return np.exp(-x)
     def _r1(self, x):
-        return x/x # lazy way of making ones with same shape
+        return x*0+1 # lazy way of making ones with same shape
     def _r2(self, x):
-        return x/x # lazy way of making ones with same shape
+        return x*0+1 # lazy way of making ones with same shape
     def _iF0(self, q):
         return -np.log(q)
     def _iF1(self, q):
@@ -200,7 +200,7 @@ class BrodyGen(SpacingDistribution):
         w1i = 1.0 / w1
         a = gamma(w1i+1)**w1
         return (-np.log(q) / a) ** w1i
-    def iF1(self, q):
+    def _iF1(self, q):
         w1 = self.w + 1
         w1i = 1.0 / w1
         a = gamma(w1i+1)**w1
@@ -216,26 +216,29 @@ class MissingGen(SpacingDistribution):
     Generates a missing resonances level-spacing distribution.
     """
     def _f0(self, x):
+        x = np.array(x, ndmin=1)
         N_max = ceil(log(self.err, self.pM))
         coef = (self.pM**np.arange(N_max+1))[NA,:]
         func_n = np.zeros((len(x),N_max+1))
-        mult_fact = self.lvl_dens * (1-self.pM) / (1 - self.pM**(N_max+1))
+        mult_fact = (1-self.pM) / (1 - self.pM**(N_max+1))
         for n in range(N_max+1):
             func_n[:,n] = HighOrderSpacingGen(n=n)._f0(x)
         return mult_fact * np.sum(coef * func_n, axis=1)
     def _f1(self, x):
+        x = np.array(x, ndmin=1)
         N_max = ceil(log(self.err, self.pM))
         coef = (self.pM**np.arange(N_max+1))[NA,:]
         func_n = np.zeros((len(x),N_max+1))
-        mult_fact = self.lvl_dens * (1-self.pM) / (1 - self.pM**(N_max+1))
+        mult_fact = (1-self.pM)**2 / (1 - self.pM**(N_max+1))
         for n in range(N_max+1):
             func_n[:,n] = HighOrderSpacingGen(n=n)._f1(x)
         return mult_fact * np.sum(coef * func_n, axis=1)
     def _f2(self, x):
+        x = np.array(x, ndmin=1)
         N_max = ceil(log(self.err, self.pM))
         coef = (self.pM**np.arange(N_max+1))[NA,:]
         func_n = np.zeros((len(x),N_max+1))
-        mult_fact = self.lvl_dens * (1-self.pM) / (1 - self.pM**(N_max+1))
+        mult_fact = (1-self.pM)**3 / (1 - self.pM**(N_max+1))
         for n in range(N_max+1):
             func_n[:,n] = HighOrderSpacingGen(n=n)._f2(x)
         return mult_fact * np.sum(coef * func_n, axis=1)

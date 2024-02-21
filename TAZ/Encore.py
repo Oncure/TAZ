@@ -2,6 +2,7 @@ import math
 import numpy as np
 from numpy import newaxis as NA
 # import autograd.numpy as np
+from copy import copy
 
 __doc__ = """
 This file is responsible for the 1 and 2 spingroup classification algorithm. For more than 2
@@ -545,83 +546,81 @@ numerical instability.
 # Maximum-Likelihood Assignments
 # ==================================================================================
 
-from copy import copy
-def wigMaxLikelihood(prior, level_spacing_probs, iMax, lvl_dens_false:float=0.0, threshold:float=1e-8):
+def wigMaxLikelihood(prior, level_spacing_probs, iMax, threshold:float=1e-8):
     """
     ...
     """
-    # raise NotImplementedError()
+
+    # 1) initialize (calculate first resonance cases)
+    # ------ loop over res
+    # 2) Select starting assignment and select next spingroup
+    # 3) Calculate likelihood
+    # 4) Assign to correct dict index if greater than the current assignment (careful with false)
+    # 5) Multiply false prior into likelihoods without spingroups for the last resonance
+    # 6) After the resonance case is finished, renormalize likelihoods
+    # 7) Remove cases below likelihood threshold
+    # 8) Remove cases that exceed iMax
+
     L = level_spacing_probs.shape[0]
     G = level_spacing_probs.shape[2]
 
-    # Initializing lists:
-    spingroups   = [] # list of lists
-    likelihoods  = [] # list of floats
-    last_indices = [] # list of G-tuple lists
+    # Initialization:
+    cases = {} # list of spingroup assignments and likelihood, indexed by a G-tuple of last indices
     for g in range(G):
-        spingroups.append([g])
-        likelihoods.append(prior[0,g]*level_spacing_probs[0,1,g])
+        spingroups = [g]
+        likelihood = prior[0,g]*level_spacing_probs[0,1,g]
         T = [0]*G
         T[g] = 1
-        last_indices.append(T)
-    spingroups.append([G])
-    likelihoods.append(prior[0,G])
-    last_indices.append([0]*G)
-    max_lik = np.max(likelihoods)
-    for g,likelihood in enumerate(likelihoods):
-        likelihood /= max_lik
+        cases[T] = (spingroups, likelihood)
 
-    # Loop:
+    # Loop for each additional resonance:
     for i in range(1,L):
         i1 = i + 1
-        spingroups_new = []
-        likelihoods_new = []
-        last_indices_new = []
-        for ladder in range(len(likelihoods)):
-            sgs0  = spingroups[ladder]
-            lik0  = likelihoods[ladder]
-            lidx0 = last_indices[ladder]
+        for last_indices, (spingroups, likelihood) in cases.items():
+            # True Groups
             for g in range(G):
-                lik = lik0 * prior[i,g] * level_spacing_probs[lidx0[g],i1,g]
-                if lik < threshold:
-                    continue
-                lidx = copy(lidx0)
-                lidx[g] = i1
-                spingroups_new.append(sgs0.append(g))
-                likelihoods_new.append(lik)
-                last_indices_new.append(lidx)
-            # False group case:
-            lik = lik0 * prior[i,G] * lvl_dens_false
-            if lik < threshold:
-                break
-            spingroups_new.append(sgs0.append(G))
-            likelihoods_new.append(lik)
-            last_indices_new.append(lidx0)
+                new_last_indices = copy(last_indices)
+                new_last_indices[g] = i1
+                new_spingroups = spingroups + [g]
+                new_likelihood = likelihood * prior[i,g] * level_spacing_probs[last_indices[g],i1,g]
+                if new_last_indices in cases:
+                    lik_max = cases[new_last_indices][1]
+                    if new_likelihood > lik_max:
+                        cases[new_last_indices] = (new_spingroups, new_likelihood)
+                else:
+                    cases[new_last_indices] = (new_spingroups, new_likelihood)
+            # False Group:
+            new_spingroups = spingroups + [G]
+            new_likelihood = likelihood * prior[i,G]
+            cases[last_indices] = (new_spingroups, new_likelihood)
 
-        # Renormalize likelihoods:
-        max_lik = np.max(likelihoods_new)
-        for g,likelihood in enumerate(likelihoods_new):
-            likelihood /= max_lik
+        # Find maximum likelihood:
+        max_likelihood = 0.0
+        for last_indices, (spingroups, likelihood) in cases.items():
+            if likelihood > max_likelihood:
+                max_likelihood = likelihood
         
-        # Prunning:
-        spingroups = []
-        likelihoods = []
-        last_indices = []
-        for lidx in last_indices_new:
-            likelihood_max = 0.0
-            lidx_max = copy(lidx)
-            for sgs, lik, lidx_match in zip(spingroups_new, likelihoods_new, last_indices_new):
-                if lidx_max == lidx_match:
-                    if lik > likelihood_max:
-                        likelihood_max = copy(lik)
-                        spingroups_max = copy(sgs)
-                    del sgs, lik, lidx_match
-            spingroups.append(spingroups_max)
-            likelihoods.append(likelihood_max)
-            last_indices.append(lidx_max)
+        # Renormalize likelihoods and remove below threshold:
+        for last_indices, (spingroups, likelihood) in cases.items():
+            likelihood /= max_likelihood
+            if likelihood < threshold:
+                del cases[last_indices]
+            else:
+                # Remove cases that exceed iMax:
+                for g in range(G):
+                    li = last_indices[g]
+                    if li < iMax[i1+1,1,g]:
+                        del cases[last_indices]
+                        break
+    
+    # When finished, find the best case and return:
+    max_likelihood = 0.0
+    for last_indices, (spingroups, likelihood) in cases.items():
+        if likelihood > max_likelihood:
+            max_likelihood = likelihood
+            max_spingroups = spingroups
 
-    # Final boundary case:
-    raise NotImplementedError('...')
+    return max_spingroups
 
 # ==================================================================================
 # Brute Force Algorithms

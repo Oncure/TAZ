@@ -394,3 +394,12 @@ class RunMaster:
         """
 
         raise NotImplementedError('ProbOfSample has not been implemented yet.')
+    
+    @classmethod
+    def wigMaxLikelihood(cls, prior, level_spacing_dists:Tuple[SpacingDistribution], threshold:float=1e-8):
+        """
+        ...
+        """
+        
+        raise NotImplementedError('...')
+        Encore.wigMaxLikelihood(prior, level_spacing_probs, iMax, threshold=threshold)
