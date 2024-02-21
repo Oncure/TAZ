@@ -110,6 +110,9 @@ class SpacingDistribution:
     def xMax_f1(self, err):
         return self.iF1(err)
     
+    def __call__(self, x):
+        return self.pdf(x)
+    
 # =================================================================================================
 #    Poisson Distribution:
 # =================================================================================================
@@ -183,7 +186,8 @@ class BrodyGen(SpacingDistribution):
         w1 = self.w + 1.0
         w1i = 1.0 / w1
         a = gamma(w1i+1)**w1
-        return (w1i*a**(-w1i)) * gammaincc(w1i, a*x**w1)
+        return gammaincc(w1i, a*x**w1)
+        # return (w1i*a**(-w1i)) * gammaincc(w1i, a*x**w1)
     def _r1(self, x):
         w1 = self.w + 1.0
         a = gamma(1/w1+1)**w1
@@ -193,7 +197,8 @@ class BrodyGen(SpacingDistribution):
         w1i = 1.0 / w1
         a = gamma(w1i+1)**w1
         axw1 = a*x**w1
-        F2 = (w1i * a**(-w1i)) * gammaincc(w1i, axw1)
+        F2 = gammaincc(w1i, axw1)
+        # F2 = (w1i * a**(-w1i)) * gammaincc(w1i, axw1)
         return np.exp(-axw1) / F2
     def _iF0(self, q):
         w1 = self.w + 1.0
@@ -204,8 +209,9 @@ class BrodyGen(SpacingDistribution):
         w1 = self.w + 1
         w1i = 1.0 / w1
         a = gamma(w1i+1)**w1
-        inside = (w1*(a**w1i)) * q
-        return (gammainccinv(w1i, inside) / a) ** w1i
+        return (gammainccinv(w1i, q) / a) ** w1i
+        # inside = (w1*(a**w1i)) * q
+        # return (gammainccinv(w1i, inside) / a) ** w1i
     
 # =================================================================================================
 #    Missing Distribution:

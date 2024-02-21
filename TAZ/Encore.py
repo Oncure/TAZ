@@ -546,7 +546,7 @@ numerical instability.
 # Maximum-Likelihood Assignments
 # ==================================================================================
 
-def wigMaxLikelihood(prior, level_spacing_probs, iMax, threshold:float=1e-8):
+def WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold:float=1e-8):
     """
     ...
     """
@@ -626,7 +626,7 @@ def wigMaxLikelihood(prior, level_spacing_probs, iMax, threshold:float=1e-8):
 # Brute Force Algorithms
 # ==================================================================================
 
-def wigBayesBruteForce(E, distributions, false_dens:float, prior=None):
+def WigBayesBruteForce(E, distributions, false_dens:float, prior=None):
     """
     ...
     """
