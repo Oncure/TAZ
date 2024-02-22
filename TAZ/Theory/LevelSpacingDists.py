@@ -221,33 +221,67 @@ class MissingGen(SpacingDistribution):
     """
     Generates a missing resonances level-spacing distribution.
     """
+    @property
+    def true_lvl_dens(self):
+        return self.lvl_dens / (1-self.pM)
     def _f0(self, x):
-        x = np.array(x, ndmin=1)
         N_max = ceil(log(self.err, self.pM))
-        coef = (self.pM**np.arange(N_max+1))[NA,:]
-        func_n = np.zeros((len(x),N_max+1))
         mult_fact = (1-self.pM) / (1 - self.pM**(N_max+1))
+        y = x*0
+        coef = mult_fact
         for n in range(N_max+1):
-            func_n[:,n] = HighOrderSpacingGen(n=n)._f0(x)
-        return mult_fact * np.sum(coef * func_n, axis=1)
+            func_n = HighOrderSpacingGen(lvl_dens=1/(1-self.pM), n=n).f0(x)
+            y += coef * func_n
+            coef *= self.pM
+        return y
     def _f1(self, x):
-        x = np.array(x, ndmin=1)
         N_max = ceil(log(self.err, self.pM))
-        coef = (self.pM**np.arange(N_max+1))[NA,:]
-        func_n = np.zeros((len(x),N_max+1))
         mult_fact = (1-self.pM)**2 / (1 - self.pM**(N_max+1))
+        y = x*0
+        coef = mult_fact
         for n in range(N_max+1):
-            func_n[:,n] = HighOrderSpacingGen(n=n)._f1(x)
-        return mult_fact * np.sum(coef * func_n, axis=1)
+            func_n = HighOrderSpacingGen(lvl_dens=1/(1-self.pM), n=n).f1(x)
+            y += coef * func_n
+            coef *= self.pM
+        return y
     def _f2(self, x):
-        x = np.array(x, ndmin=1)
         N_max = ceil(log(self.err, self.pM))
-        coef = (self.pM**np.arange(N_max+1))[NA,:]
-        func_n = np.zeros((len(x),N_max+1))
         mult_fact = (1-self.pM)**3 / (1 - self.pM**(N_max+1))
+        y = x*0
+        coef = mult_fact
         for n in range(N_max+1):
-            func_n[:,n] = HighOrderSpacingGen(n=n)._f2(x)
-        return mult_fact * np.sum(coef * func_n, axis=1)
+            func_n = HighOrderSpacingGen(lvl_dens=1/(1-self.pM), n=n).f2(x)
+            y += coef * func_n
+            coef *= self.pM
+        return y
+    # def _f0(self, x):
+    #     x = np.array(x, ndmin=1)
+    #     N_max = ceil(log(self.err, self.pM))
+    #     coef = (self.pM**np.arange(N_max+1))[NA,:]
+    #     func_n = np.zeros((len(x),N_max+1))
+    #     mult_fact = (1-self.pM) / (1 - self.pM**(N_max+1))
+    #     np.sum(coef * func_n, axis=1)
+    #     for n in range(N_max+1):
+    #         func_n[:,n] = HighOrderSpacingGen(n=n)._f0(x)
+    #     return mult_fact * np.sum(coef * func_n, axis=1)
+    # def _f1(self, x):
+    #     x = np.array(x, ndmin=1)
+    #     N_max = ceil(log(self.err, self.pM))
+    #     coef = (self.pM**np.arange(N_max+1))[NA,:]
+    #     func_n = np.zeros((len(x),N_max+1))
+    #     mult_fact = (1-self.pM)**2 / (1 - self.pM**(N_max+1))
+    #     for n in range(N_max+1):
+    #         func_n[:,n] = HighOrderSpacingGen(n=n)._f1(x)
+    #     return mult_fact * np.sum(coef * func_n, axis=1)
+    # def _f2(self, x):
+    #     x = np.array(x, ndmin=1)
+    #     N_max = ceil(log(self.err, self.pM))
+    #     coef = (self.pM**np.arange(N_max+1))[NA,:]
+    #     func_n = np.zeros((len(x),N_max+1))
+    #     mult_fact = (1-self.pM)**3 / (1 - self.pM**(N_max+1))
+    #     for n in range(N_max+1):
+    #         func_n[:,n] = HighOrderSpacingGen(n=n)._f2(x)
+    #     return mult_fact * np.sum(coef * func_n, axis=1)
     
 # =================================================================================================
 #    Higher-Order Spacing Distributions:
@@ -347,7 +381,7 @@ class HighOrderSpacingGen(SpacingDistribution):
         if n <= 15: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
-            return gammaincc((a+2)/2, (rB * x)**2)
+            return (n+1)*gammaincc((a+2)/2, (rB * x)**2) - x*gammaincc((a+1)/2, (rB * x)**2)
         else: # Higher n --> Gaussian Approximation
             sig = np.sqrt(_high_order_variance(n))
             f0 = norm.pdf(x, n+1, sig)
