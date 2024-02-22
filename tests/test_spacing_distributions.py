@@ -161,6 +161,7 @@ class TestSpacingDistributions(unittest.TestCase):
         MLS = 42.0
         pM = 0.2
         err = 1e-6
+        places = 4
 
         X = np.array([0, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0])
 
@@ -168,31 +169,31 @@ class TestSpacingDistributions(unittest.TestCase):
         dist = MissingGen(lvl_dens=1/MLS, pM=pM, err=err)
 
         I = quad(dist.f0, 0, np.inf)[0]
-        self.assertAlmostEqual(I, 1.0, 4, f'"{DISTNAME}.f0" does not integrate to 1, but instead {I}.')
+        self.assertAlmostEqual(I, 1.0, places, f'"{DISTNAME}.f0" does not integrate to 1, but instead {I}.')
 
         I = quad(dist.f1, 0, np.inf)[0]
-        self.assertAlmostEqual(I, 1.0, 4, f'"{DISTNAME}.f1" does not integrate to 1, but instead {I}.')
+        self.assertAlmostEqual(I, 1.0, places, f'"{DISTNAME}.f1" does not integrate to 1, but instead {I}.')
 
         xf = lambda x: x * dist.f0(x)
         E = quad(xf, 0, np.inf)[0]
-        self.assertAlmostEqual(E, MLS, 4, f'"{DISTNAME}.f0" should have a mean level-spacing of {MLS}, but it is instead {E}.')
+        self.assertAlmostEqual(E, MLS, places, f'"{DISTNAME}.f0" should have a mean level-spacing of {MLS}, but it is instead {E}.')
 
         for x in X:
             F1 = dist.f1(x) * MLS
             F1_  = quad(dist.f0, x, np.inf)[0]
-            self.assertAlmostEqual(F1, F1_, 4, f'"{DISTNAME}.f1({x})" should be the integral of f0 from {x} to infinity.')
+            self.assertAlmostEqual(F1, F1_, places, f'"{DISTNAME}.f1({x})" should be the integral of f0 from {x} to infinity.')
 
             F2 = dist.f2(x) * MLS
             F2_  = quad(dist.f1, x, np.inf)[0]
-            self.assertAlmostEqual(F2, F2_, 4, f'"{DISTNAME}.f2({x})" should be the integral of f1 from {x} to infinity.')
+            self.assertAlmostEqual(F2, F2_, places, f'"{DISTNAME}.f2({x})" should be the integral of f1 from {x} to infinity.')
 
         X_ = dist.iF0(MLS*dist.f1(X))
         for x, x_ in zip(X, X_):
-            self.assertAlmostEqual(x, x_, 4, f'{DISTNAME}.iF0 is not the inverse CDF of f0 when evaluated at x = {x}.')
+            self.assertAlmostEqual(x, x_, places, f'{DISTNAME}.iF0 is not the inverse CDF of f0 when evaluated at x = {x}.')
 
         X_ = dist.iF1(MLS*dist.f2(X))
         for x, x_ in zip(X, X_):
-            self.assertAlmostEqual(x, x_, 4, f'{DISTNAME}.iF1 is not the inverse CDF of f1 when evaluated at x = {x}.')
+            self.assertAlmostEqual(x, x_, places, f'{DISTNAME}.iF1 is not the inverse CDF of f1 when evaluated at x = {x}.')
 
         R1 = dist.r1(X)
         R2 = dist.r2(X)
@@ -200,12 +201,57 @@ class TestSpacingDistributions(unittest.TestCase):
         F1 = dist.f1(X)
         F2 = dist.f2(X)
         for i, x, in enumerate(X):
-            self.assertAlmostEqual(R1[i], F0[i]/F1[i], self.places, f'{DISTNAME}.r1 is not f0/f1 when evaluated at x = {x}.')
-            self.assertAlmostEqual(R2[i], F1[i]/F2[i], self.places, f'{DISTNAME}.r2 is not f1/f2 when evaluated at x = {x}.')
+            self.assertAlmostEqual(R1[i], F0[i]/F1[i], places, f'{DISTNAME}.r1 is not f0/f1 when evaluated at x = {x}.')
+            self.assertAlmostEqual(R2[i], F1[i]/F2[i], places, f'{DISTNAME}.r2 is not f1/f2 when evaluated at x = {x}.')
     
-    # def test_high_order(self):
-    #     '...'
-    #     raise NotImplementedError('...')
+    def test_high_order(self):
+        'Tests the High-Order level-spacing distribution generator.'
+        
+        MLS = 42.0
+        n = 8
+        places = 4
+        upper_limit = MLS*(n+6) # this should be high enough
+
+        X = np.array([0, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0])
+
+        DISTNAME = f'HighOrderSpacingGen(lvl_dens={1/MLS}, n={n})'
+        dist = HighOrderSpacingGen(lvl_dens=1/MLS, n=n)
+
+        I = quad(dist.f0, 0, upper_limit)[0]
+        self.assertAlmostEqual(I, 1.0, places, f'"{DISTNAME}.f0" does not integrate to 1, but instead {I}.')
+
+        I = quad(dist.f1, 0, upper_limit)[0]
+        self.assertAlmostEqual(I, 1.0, places, f'"{DISTNAME}.f1" does not integrate to 1, but instead {I}.')
+
+        xf = lambda x: x * dist.f0(x)
+        E = quad(xf, 0, upper_limit)[0]
+        self.assertAlmostEqual(E, (n+1)*MLS, places, f'"{DISTNAME}.f0" should have a mean level-spacing of {MLS}, but it is instead {E}.')
+
+        for x in X:
+            F1 = dist.f1(x) * MLS * (n+1)
+            F1_  = quad(dist.f0, x, upper_limit)[0]
+            self.assertAlmostEqual(F1, F1_, places, f'"{DISTNAME}.f1({x})" should be the integral of f0 from {x} to infinity.')
+
+            F2 = dist.f2(x) * MLS
+            F2_  = quad(dist.f1, x, upper_limit)[0]
+            self.assertAlmostEqual(F2, F2_, places, f'"{DISTNAME}.f2({x})" should be the integral of f1 from {x} to infinity.')
+
+        X_ = dist.iF0(MLS*dist.f1(X))
+        for x, x_ in zip(X, X_):
+            self.assertAlmostEqual(x, x_, places, f'{DISTNAME}.iF0 is not the inverse CDF of f0 when evaluated at x = {x}.')
+
+        X_ = dist.iF1(MLS*dist.f2(X))
+        for x, x_ in zip(X, X_):
+            self.assertAlmostEqual(x, x_, places, f'{DISTNAME}.iF1 is not the inverse CDF of f1 when evaluated at x = {x}.')
+
+        R1 = dist.r1(X)
+        R2 = dist.r2(X)
+        F0 = dist.f0(X)
+        F1 = dist.f1(X)
+        F2 = dist.f2(X)
+        for i, x, in enumerate(X):
+            self.assertAlmostEqual(R1[i], F0[i]/F1[i], places, f'{DISTNAME}.r1 is not f0/f1 when evaluated at x = {x}.')
+            self.assertAlmostEqual(R2[i], F1[i]/F2[i], places, f'{DISTNAME}.r2 is not f1/f2 when evaluated at x = {x}.')
         
 if __name__ == '__main__':
     unittest.main()
