@@ -226,17 +226,17 @@ class MissingGen(SpacingDistribution):
     """
     Generates a missing resonances level-spacing distribution.
     """
-    def __init__(self, lvl_dens:float, pM:float, err:float=1e-5):
-        self.lvl_dens = float(lvl_dens)
+    def __init__(self, lvl_dens:float=None, pM:float=None, err:float=1e-5):
         if not (0 < pM <= 1):
             raise ValueError('The missing resonance fraction, "pM", must be in the range, 0 < pM <= 1.')
         elif not (0 < err < 1):
             raise ValueError('The error threshold, "err", must be in the range, 0 < err < 1.')
-        self.pM  = float(pM)
+        self.pM = float(pM)
         self.err = float(err)
+        self.lvl_dens = float(lvl_dens)
     @property
-    def true_lvl_dens(self):
-        return self.lvl_dens / (1-self.pM)
+    def lvl_dens_miss(self):
+        return self.lvl_dens * (1-self.pM)
     def _f0(self, x):
         N_max = ceil(log(self.err, self.pM))
         mult_fact = (1-self.pM) / (1 - self.pM**(N_max+1))
@@ -249,7 +249,7 @@ class MissingGen(SpacingDistribution):
         return y
     def _f1(self, x):
         N_max = ceil(log(self.err, self.pM))
-        mult_fact = (1-self.pM)**2 / (1 - self.pM**(N_max+1))
+        mult_fact = (1-self.pM) / (1 - self.pM**(N_max+1))
         y = x*0
         coef = mult_fact
         for n in range(N_max+1):
@@ -338,14 +338,11 @@ class HighOrderSpacingGen(SpacingDistribution):
 
     Source: https://journals.aps.org/pre/pdf/10.1103/PhysRevE.60.5371
     """
-    def __init__(self, lvl_dens:float, n:int):
-        self.lvl_dens = float(lvl_dens)
+    def __init__(self, lvl_dens:float=1, n:int=1):
         if (n % 1 > 0) or (n < 0):
             raise ValueError(f'The skipping index, "n", must be a positive integer number.')
         self.n = int(n)
-    @property
-    def dist_lvl_spacing(self):
-        return self.lvl_dens / (self.n + 1)
+        self.lvl_dens = float(lvl_dens)
     def _f0(self, x):
         n = self.n
         if n <= 15: # Lower n --> Exact Calculation
@@ -363,22 +360,22 @@ class HighOrderSpacingGen(SpacingDistribution):
         if n <= 15: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
-            return gammaincc((a+1)/2, (rB * x)**2) #/ (n+1)
+            return gammaincc((a+1)/2, (rB * x)**2) / (n+1)
         else: # Higher n --> Gaussian Approximation
             sig = np.sqrt(_high_order_variance(n))
-            return (1/2) * erfc((x+n+1)/(sig*np.sqrt(2))) #/ (n+1)
+            return (1/2) * erfc((x+n+1)/(sig*np.sqrt(2))) / (n+1)
         
     def _f2(self, x):
         n = self.n
         if n <= 15: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
-            return (n+1)*gammaincc((a+2)/2, (rB * x)**2) - x*gammaincc((a+1)/2, (rB * x)**2)
+            return ((n+1)*gammaincc((a+2)/2, (rB * x)**2) - x*gammaincc((a+1)/2, (rB * x)**2)) / (n+1)**2
         else: # Higher n --> Gaussian Approximation
             sig = np.sqrt(_high_order_variance(n))
             f0 = norm.pdf(x, n+1, sig)
             f1 = (1/2) * erfc((x+n+1)/(sig*np.sqrt(2)))
-            return sig**2*f0 + (x+1)*f1 - 1
+            return (sig**2*f0 + (x+1)*f1 - 1) / (n+1)**2
 
 # =================================================================================================
 #    Higher-Order Spacing Distributions:
