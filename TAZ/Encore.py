@@ -526,28 +526,14 @@ numerical instability.
         significand = 10 ** (log_likelihood % 1.0)
         return out_str.format(significand, exponent)
     
-    @staticmethod
-    def ExpectedLogLikelihood(EB:tuple, lvl_densities:np.ndarray, log_likelihood_prior_exp:float=None) -> float:
-        """
-        ...
-        """
-
-        raise NotImplementedError('Expected log likelihood estimation has not been implemented yet.')
-
-        dE = EB[1] - EB[0]
-
-        # Prior log likelihood:
-        if log_likelihood_prior_exp is not None:
-            log_likelihood_exp += log_likelihood_prior_exp
-
-        return log_likelihood_exp
-    
 # ==================================================================================
 # Maximum-Likelihood Assignments
 # ==================================================================================
 
 def WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold:float=1e-8):
     """
+    Returns the maximum likelihood spingroup assignments using branching and pruning methods.
+
     ...
     """
 
@@ -621,13 +607,3 @@ def WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold:float=1e-8):
             max_spingroups = spingroups
 
     return max_spingroups
-
-# ==================================================================================
-# Brute Force Algorithms
-# ==================================================================================
-
-def WigBayesBruteForce(E, distributions, false_dens:float, prior=None):
-    """
-    ...
-    """
-    raise NotImplementedError()

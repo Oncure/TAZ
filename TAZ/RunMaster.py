@@ -18,7 +18,8 @@ class RunMaster:
     A wrapper over Encore responsible for partitioning spingroups, merging distributions, and
     combining spingroup probabilities. For 1 or 2 spingroups, partitioning and merging
     distributions is not necessary and RunMaster will pass to Encore. Once a RunMaster object has
-    been initialized, the specific algorithm can be chosen (i.e. WigBayes, WigSample, etc.).
+    been initialized, the specific algorithm can be chosen (i.e. WigBayes, WigSample,
+    LogLikelihood, etc.).
 
     ...
     """
@@ -102,8 +103,8 @@ class RunMaster:
             level_spacing_probs = np.zeros((self.L+2, self.L+2, self.G), 'f8')
             for g in range(self.G):
                 if self.verbose:    print(f'Finding level-spacing probabilities for group {g}.')
-                iMax[:,:,g] = self._calculate_iMax(self.level_spacing_dists[g], err)
-                level_spacing_probs[:,:,g] = self._calculate_probs(self.level_spacing_dists[g], iMax[:,:,g])
+                iMax[:,:,g] = self._calculate_iMax(self.E, self.EB, self.level_spacing_dists[g], err)
+                level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.EB, self.level_spacing_dists[g], iMax[:,:,g])
             if self.verbose:    print(f'Creating ENCORE pipeline.')
             encore_pipe = Encore(self.Prior, level_spacing_probs, iMax)
             self.encore_pipes = encore_pipe
@@ -146,8 +147,8 @@ class RunMaster:
             if self.verbose:    print(f'Partitioning groups {groups} for partition {g}.')
             distribution = merge(*self.level_spacing_dists[groups])
             if self.verbose:    print(f'Finding level-spacing probabilities for groups {groups}.')
-            iMax[:,:,g] = self._calculate_iMax(distribution, err)
-            level_spacing_probs[:,:,g] = self._calculate_probs(distribution, iMax[:,:,g], self.Prior[:,groups])
+            iMax[:,:,g] = self._calculate_iMax(self.E, self.EB, distribution, err)
+            level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.EB, distribution, iMax[:,:,g], self.Prior[:,groups])
             if hasattr(groups, '__iter__'):
                 prior_merged[:,g] = np.sum(self.Prior[:,groups], axis=1)
             else:
@@ -158,12 +159,18 @@ class RunMaster:
         if self.verbose:    print(f'Finished ENCORE initialization for partition, {partition}.')
         return encore_pipe
         
-    def _calculate_iMax(s, distribution:SpacingDistribution, err:float):
+    @staticmethod
+    def _calculate_iMax(E, EB:tuple,
+                        distribution:SpacingDistribution, err:float):
         """
         Calculates the index limits for calculating level-spacings. 
 
         Parameters:
         ----------
+        E            :: ndarray[float]
+            The ordered resonance energies.
+        EB           :: (float, float)
+            A tuple providing the lower and upper energies for the grid.
         distribution :: SpacingDistribution
             The SpacingDistribution object for the spingroup or merged group.
         err          :: float
@@ -179,7 +186,7 @@ class RunMaster:
             provided.
         """
 
-        L = s.E.size
+        L = E.size
         iMax = np.full((L+2,2), -1, dtype='i4')
         xMax_f0 = distribution.xMax_f0(err)
         if xMax_f0 <= 0.0:          raise RuntimeError('xMax_f0 was found to be negative.')
@@ -192,7 +199,7 @@ class RunMaster:
 
         # Lower boundary cases:
         for j in range(L):
-            if s.E[j] - s.EB[0] >= xMax_f1:
+            if E[j] - EB[0] >= xMax_f1:
                 iMax[0,0]    = j
                 iMax[:j+1,1] = 0
                 break
@@ -200,7 +207,7 @@ class RunMaster:
         # Intermediate cases:
         for i in range(L-1):
             for j in range(iMax[i,0]+1,L):
-                if s.E[j] - s.E[i] >= xMax_f0:
+                if E[j] - E[i] >= xMax_f0:
                     iMax[i+1,0] = j
                     iMax[iMax[i-1,0]:j+1,1] = i+1
                     break
@@ -211,20 +218,27 @@ class RunMaster:
 
         # Upper boundary cases:
         for j in range(L-1,-1,-1):
-            if s.EB[1] - s.E[j] >= xMax_f1:
+            if EB[1] - E[j] >= xMax_f1:
                 iMax[-1,1] = j
                 iMax[j:,0] = L+1
                 break
 
         return iMax
     
-    def _calculate_probs(s, distribution:SpacingDistribution, iMax, prior=None):
+    @staticmethod
+    def _calculate_probs(E, EB:tuple,
+                         distribution:SpacingDistribution, iMax,
+                         prior=None):
         """
         Calculates the level-spacing probabilities using the provided distribution and stored
         resonance energies. 
 
         Parameters:
         ----------
+        E            :: ndarray[float]
+            The ordered resonance energies.
+        EB           :: (float, float)
+            A tuple providing the lower and upper energies for the grid.
         distribution :: SpacingDistribution
             The SpacingDistribution object for the spingroup or merged group.
         iMax         :: int32[L+2,2]
@@ -244,9 +258,10 @@ class RunMaster:
             between.
         """
 
-        level_spacing_probs = np.zeros((s.L+2,s.L+2), dtype='f8')
-        for i in range(s.L-1):
-            X = s.E[i+1:iMax[i+1,0]-1] - s.E[i]
+        L = E.size
+        level_spacing_probs = np.zeros((L+2,L+2), dtype='f8')
+        for i in range(L-1):
+            X = E[i+1:iMax[i+1,0]-1] - E[i]
             if prior is None:
                 lvl_spacing_prob = distribution.f0(X)
             else:
@@ -256,11 +271,11 @@ class RunMaster:
             level_spacing_probs[i+1,i+2:iMax[i+1,0]] = lvl_spacing_prob
         # Boundary distribution:
         if prior is None:
-            level_spacing_probs[0,1:-1]  = distribution.f1(s.E - s.EB[0])
-            level_spacing_probs[1:-1,-1] = distribution.f1(s.EB[1] - s.E)
+            level_spacing_probs[0,1:-1]  = distribution.f1(E - EB[0])
+            level_spacing_probs[1:-1,-1] = distribution.f1(EB[1] - E)
         else:
-            level_spacing_probs[0,1:-1]  = distribution.f1(s.E - s.EB[0], prior)
-            level_spacing_probs[1:-1,-1] = distribution.f1(s.EB[1] - s.E, prior)
+            level_spacing_probs[0,1:-1]  = distribution.f1(E - EB[0], prior)
+            level_spacing_probs[1:-1,-1] = distribution.f1(EB[1] - E, prior)
 
         # Error checking:
         if (level_spacing_probs == np.nan).any():   raise RuntimeError('Level-spacing probabilities have "NaN" values.')
@@ -387,19 +402,43 @@ class RunMaster:
         
     def ProbOfSample(self, spingroup_assignments):
         """
-        Returns the probability of sampling the provided spingroup ladder, given the resonance
-        parameters.
+        Returns the likelihood of observing the provided spingroup assignment given the resonance
+        ladder.
 
         ...
         """
 
-        raise NotImplementedError('ProbOfSample has not been implemented yet.')
+        # NOTE: This needs checking!!!
+        if self.G <= 2:
+            encore = self.encore_pipes
+            probability = encore.ProbOfSample(spingroup_assignments)
+        else:
+            raise NotImplementedError('ProbOfSample has not been implemented for 3 or more spingroups.')
+        return probability
     
     @classmethod
-    def WigMaxLikelihood(cls, prior, level_spacing_dists:Tuple[SpacingDistribution], threshold:float=1e-8):
+    def WigMaxLikelihood(cls, E, EB:tuple,
+                         level_spacing_dists:Tuple[SpacingDistribution], err:float=1e-8,
+                         prior=None):
         """
+        Returns the maximum likelihood spingroup assignments using branching and pruning methods.
+
         ...
         """
         
-        raise NotImplementedError('...')
-        Encore.WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold=threshold)
+        L = len(E)
+        G = len(level_spacing_dists)
+
+        if prior is None:
+            prior = np.zeros((L,G))
+            for g, distribution in enumerate(level_spacing_dists):
+                prior[:,g] = distribution.lvl_dens
+            prior /= np.sum(prior, axis=1)
+
+        iMax = np.zeros((L+2, 2, G), 'i4')
+        level_spacing_probs = np.zeros((L+2, L+2, G), 'f8')
+        for g, distribution in enumerate(level_spacing_dists):
+            iMax[:,:,g]  = cls._calculate_iMax(E, EB, distribution, err)
+            level_spacing_probs[:,:,g] = cls._calculate_probs(E, EB, distribution)
+        max_likelihood_spingroups = Encore.WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold=err)
+        return max_likelihood_spingroups

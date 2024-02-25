@@ -399,7 +399,8 @@ class Reaction:
             for g in range(self.num_groups):
                 # if type(self.MissFrac[g]) != float:
                 #     raise NotImplementedError('Missing Level-spacing generator only works with constant float MissFrac at this time.')
-                distribution = Theory.LevelSpacingDists.MissingGen(lvl_dens=self.lvl_dens[g], pM=self.MissFrac[g], err=err)
+                lvl_dens_obs = self.lvl_dens[g]*(1-self.MissFrac[g])
+                distribution = Theory.LevelSpacingDists.MissingGen(lvl_dens=lvl_dens_obs, pM=self.MissFrac[g], err=err)
                 distributions.append(distribution)
         elif dist_type == 'Poisson':
             for g in range(self.num_groups):

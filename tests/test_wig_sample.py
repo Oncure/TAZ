@@ -1,18 +1,22 @@
 import sys
 sys.path.append('../TAZ')
 import TAZ
-from .utils import chi2_test
+from utils import chi2_test
 
 import numpy as np
 
 import unittest
 
-class TestBayesSampler(unittest.TestCase):
+class TestBayesSample(unittest.TestCase):
     """
     The purpose of this test is to verify that the WigSample algorithm is working correctly. This
     will be verified with distribution analysis, including chi-squared goodness of fit on the
     level-spacing distribution.
     """
+
+    ensemble = 'NNE' # Nearest Neighbor Ensemble
+    num_trials = 100 # number of sample trials
+    num_groups = 2   # number of spingroups
 
     @classmethod
     def setUpClass(cls):
@@ -25,8 +29,8 @@ class TestBayesSampler(unittest.TestCase):
         Projectile = TAZ.Neutron
 
         # Mean Parameters:
-        cls.EB = (1e-5,5000)
-        cls.false_dens = 1/8.0
+        cls.EB = (1e-5,2000)
+        cls.false_dens = 1/30
         cls.lvl_dens  = [1/4.3166, 1/4.3166]
         cls.gn2m  = [44.11355, 33.38697]
         cls.gg2m   = [55.00000, 55.00000]
@@ -39,22 +43,47 @@ class TestBayesSampler(unittest.TestCase):
         cls.reaction = TAZ.Reaction(targ=Target, proj=Projectile, lvl_dens=cls.lvl_dens, gn2m=cls.gn2m, nDOF=cls.dfn, gg2m=cls.gg2m, gDOF=cls.dfg, spingroups=SGs, EB=cls.EB, false_dens=cls.false_dens)
         cls.res_ladder = cls.reaction.sample(cls.ensemble)[0]
 
-    def test_distributions(self):
-        """
-        ...
-        """
-        NUM_BINS = 40
-        E  = self.res_ladder.E
-        self.reaction.distributions(dist_type='Wigner')
-        raise NotImplementedError('...')
-    
+        cls.prior, log_likelihood_prior = TAZ.PTBayes(cls.res_ladder, cls.reaction)
+        cls.distributions = cls.reaction.distributions(dist_type='Wigner')
+        cls.E = cls.res_ladder.E
+        runMaster = TAZ.RunMaster(cls.E, cls.EB,
+                                  cls.distributions, cls.false_dens,
+                                  cls.prior, log_likelihood_prior)
+        cls.samples = runMaster.WigSample(cls.num_trials)
+
     def test_level_densities(self):
         """
-        ...
+        Tests that spingroups are sampled with unbiased frequency.
         """
-        E  = self.res_ladder.E
-        self.reaction.distributions(dist_type='Wigner')
-        raise NotImplementedError('...')
+        # self.skipTest('This test may not actually be statistically correct.')
+        lvl_dens_all = np.concatenate((self.lvl_dens, [self.false_dens]))
+        counts_exp = (lvl_dens_all / np.sum(lvl_dens_all))
+        for g in range(self.num_groups+1):
+            counts_obs_trials = np.count_nonzero(self.samples == g, axis=0) / self.samples.shape[0]
+            counts_obs_mean = np.mean(counts_obs_trials)
+            counts_obs_std = np.std(counts_obs_trials) / np.sqrt(self.num_trials)
+            err = abs(counts_exp[g] - counts_obs_mean) / counts_obs_std
+            print(counts_obs_mean, counts_obs_std)
+            print(counts_exp[g])
+            self.assertLess(err, 3, f"""
+The {g}-spingroup assignment samples do not have the expected frequency according to statistics.
+Discrepancy = {err:.5f} standard deviations.
+""")
+
+    def test_distributions(self):
+        """
+        Tests that the sampled assignments produce level-spacings that match the expected
+        level-spacing distributions.
+        """
+        num_bins = 40
+        spacings = [np.empty((0,)), np.empty((0,))]
+        for trial in range(self.num_trials):
+            sample = self.samples[:,trial]
+            for g in range(self.num_groups):
+                Eg = self.E[sample == g]
+                spacings[g] = np.concatenate((spacings[g], np.diff(Eg)))
+        for g in range(self.num_groups):
+            chi2_test(self.distributions[g], spacings[g], num_bins, self, threshold=50, quantity_name='level spacing', p_or_chi2='chi2')
     
 if __name__ == '__main__':
     unittest.main()

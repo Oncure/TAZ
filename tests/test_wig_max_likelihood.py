@@ -11,6 +11,9 @@ class TestBayesSampler(unittest.TestCase):
     The purpose of this test is to verify that the WigMaxLikelihood algorithm is working correctly.
     """
 
+    ensemble = 'NNE' # Nearest Neighbor Ensemble
+    err = 1e-8
+
     @classmethod
     def setUpClass(cls):
         """
@@ -23,7 +26,7 @@ class TestBayesSampler(unittest.TestCase):
 
         # Mean Parameters:
         cls.EB = (1e-5,5000)
-        cls.false_dens = 1/8.0
+        cls.false_dens = 1/15.0
         cls.lvl_dens  = [1/4.3166, 1/4.3166]
         cls.gn2m  = [44.11355, 33.38697]
         cls.gg2m   = [55.00000, 55.00000]
@@ -38,11 +41,15 @@ class TestBayesSampler(unittest.TestCase):
 
     def test_poisson(self):
         """
-        ...
+        Test that WigMaxLikelihood returns the spingroups with the maximum prior probabilities
+        when provided Poisson level-spacing distributions.
         """
         E  = self.res_ladder.E
-        self.reaction.distributions(dist_type='Poisson')
-        raise NotImplementedError('...')
+        prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
+        distributions = self.reaction.distributions(dist_type='Poisson')
+        runmaster = TAZ.RunMaster(E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
+        runmaster.WigMaxLikelihood(E, self.EB)
+        # self.skipTest('Not implemented')
     
 if __name__ == '__main__':
     unittest.main()
