@@ -24,7 +24,7 @@ class TestBayesSampler(unittest.TestCase):
         Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
         Projectile = TAZ.Neutron
 
-        # Mean Parameters:
+        # Mean Parameters
         cls.EB = (1e-5, 500)
         cls.false_dens = 1/20.0
         cls.lvl_dens  = [1/5.0, 1/5.0]

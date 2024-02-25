@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 from math import pi, sqrt, log, ceil
 from sys import float_info
 import numpy as np
@@ -12,13 +12,13 @@ from scipy.stats import norm
 #    Spacing Distribution Class:
 # =================================================================================================
 
-class SpacingDistribution:
+class SpacingDistributionBase:
     """
-    ...
+    A base class for level-spacing probability distributions.
     """
 
     def __init__(self, lvl_dens:float=1.0, **kwargs):
-        'Sets SpacingDistribution attributes.'
+        'Sets SpacingDistributionBase attributes.'
         self.lvl_dens = float(lvl_dens)
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -141,7 +141,7 @@ class SpacingDistribution:
 #    Poisson Distribution:
 # =================================================================================================
     
-class PoissonGen(SpacingDistribution):
+class PoissonGen(SpacingDistributionBase):
     """
     Generates a Poisson level-spacing distribution.
 
@@ -166,7 +166,7 @@ class PoissonGen(SpacingDistribution):
 #    Wigner Distribution:
 # =================================================================================================
     
-class WignerGen(SpacingDistribution):
+class WignerGen(SpacingDistributionBase):
     """
     Generates a Wigner level-spacing distribution.
     """
@@ -195,7 +195,7 @@ class WignerGen(SpacingDistribution):
 #    Brody Distribution:
 # =================================================================================================
     
-class BrodyGen(SpacingDistribution):
+class BrodyGen(SpacingDistributionBase):
     """
     Generates a Brody level-spacing distribution.
     """
@@ -242,7 +242,7 @@ class BrodyGen(SpacingDistribution):
 #    Missing Distribution:
 # =================================================================================================
     
-class MissingGen(SpacingDistribution):
+class MissingGen(SpacingDistributionBase):
     """
     Generates a missing resonances level-spacing distribution.
     """
@@ -294,14 +294,14 @@ def _gamma_ratio(x):
     A function to calculate the ratio, `Gamma(x/2) / Gamma((x-1)/2)`. This function is used instead
     of calculating each gamma separately for numerical stability.
 
-    Parameters:
+    Parameters
     ----------
-    x :: int
+    x : int
         The function parameter of `Gamma(x/2) / Gamma((x-1)/2)`.
 
-    Returns:
+    Returns
     -------
-    ratio :: float
+    ratio : float
         The calculated ratio `Gamma(x/2) / Gamma((x-1)/2)`.
 
     See Also
@@ -328,14 +328,14 @@ def _high_order_variance(n:int):
     This is used for the Gaussian Approximation when the analytical solution becomes too costly
     to compute.
 
-    Parameters:
+    Parameters
     ----------
-    n :: int
+    n : int
         The number of levels between the two selected levels.
 
-    Returns:
+    Returns
     -------
-    variance :: float
+    variance : float
         The variance of the high-order level-spacing distribution.
 
     See Also
@@ -347,7 +347,7 @@ def _high_order_variance(n:int):
     variance = (a+1)/(2*B) - (n+1)**2
     return variance
 
-class HighOrderSpacingGen(SpacingDistribution):
+class HighOrderSpacingGen(SpacingDistributionBase):
     """
     Generates the `n+1`-th nearest neighbor level-spacing distribution as determined by the
     Gaussian Orthogonal Ensemble (GOE). The distribution is calculated at each value in the numpy
@@ -414,66 +414,98 @@ class HighOrderSpacingGen(SpacingDistribution):
 
 class MergedDistributionBase:
     """
-    ...
+    A base class for merged level-spacing probability distributions.
     """
-    def __init__(self, lvl_dens:float):
-        self.lvl_dens = lvl_dens
-    def f0(self, x, priorL, priorR):
+
+    def __init__(self, lvl_densities:List[float]):
+        self.lvl_densities = np.array(lvl_densities, dtype=float)
+        self.lvl_dens = np.sum(self.lvl_densities)
+    def _f0(self, x, priorL, priorR):
         raise ValueError('"f0" has not been defined.')
-    def f1(self, x, prior):
+    def _f1(self, x, prior):
         raise ValueError('"f1" has not been defined.')
-    def f2(self, x):
+    def _f2(self, x):
         raise ValueError('"f2" has not been defined.')
-    def xMax_f0(self, err):
+    def _xMax_f0(self, err):
         raise ValueError('"xMax_f0" has not been defined.')
-    def xMax_f1(self, err):
+    def _xMax_f1(self, err):
         raise ValueError('"xMax_f1" has not been defined.')
+    
+    def f0(self, x, priorL=None, priorR=None):
+        if priorL is None:
+            priorL = np.tile(self.lvl_densities, (x.size, 1))
+        if priorR is None:
+            priorR = np.tile(self.lvl_densities, (x.size, 1))
+        return self._f0(x, priorL, priorR)
+    def f1(self, x, prior=None):
+        if prior is None:
+            prior = np.tile(self.lvl_densities, (x.size, 1))
+        return self._f1(x, prior)
+    def f2(self, x):
+        return self._f2(x)
+    def xMax_f0(self, err):
+        return self._xMax_f0(err)
+    def xMax_f1(self, err):
+        return self._xMax_f1(err)
+    
+    # Distribution ratios:
     def r1(self, x):
         return self.f0(x) / self.f1(x)
     def r2(self, x):
         return self.f1(x) / self.f2(x)
-    def iF0(self, *args, **kwargs):
-        return NotImplementedError('Inverse functions have not been implemented for merged distributions.')
-    def iF1(self, *args, **kwargs):
-        return NotImplementedError('Inverse functions have not been implemented for merged distributions.')
-    def sample_f0(self, *args, **kwargs):
-        return NotImplementedError('Sampling has not been implemented for merged distributions.')
-    def sample_f1(self, *args, **kwargs):
-        return NotImplementedError('Sampling has not been implemented for merged distributions.')
-    def pdf(self, x, priorL, priorR):
-        return self.f0(x, priorL, priorR)
-    def cdf(self, x, priorL, priorR):
-        return NotImplementedError('"cdf" has not been implemented for merged distributions.')
-    def sf(self, x, priorL, priorR):
-        return NotImplementedError('"sf" has not been implemented for merged distributions.')
-    def ppf(self, x, priorL, priorR):
-        return NotImplementedError('"ppf" has not been implemented for merged distributions.')
-    def isf(self, x, priorL, priorR):
-        return NotImplementedError('"isf" has not been implemented for merged distributions.')
+    
+    # Survival Inverse Functions:
+    def iF0(self, q):
+        raise NotImplementedError('"iF0" has not been implemented for merged distributions.')
+    def iF1(self, q):
+        raise NotImplementedError('"iF1" has not been implemented for merged distributions.')
+    
+    # Samplers:
+    def sample_f0(self, size:tuple=None, rng=None, seed:int=None):
+        'Sampling of "f0" distribution.'
+        if rng is None:
+            rng = np.random.RandomState(seed)
+        return self.iF0(rng.random(size))
+    def sample_f1(self, size:tuple=None, rng=None, seed:int=None):
+        'Sampling of "f1" distribution.'
+        if rng is None:
+            rng = np.random.RandomState(seed)
+        return self.iF1(rng.random(size))
+    
+    def pdf(self, x):
+        return self.f0(x)
+    def cdf(self, x):
+        return 1.0 - self.sf(x)
+    def sf(self, x):
+        return self.f1(x) / self.lvl_dens
+    def ppf(self, q):
+        return self.iF0(1-q)
+    def isf(self, q):
+        return self.iF0(q)
 
-def merge(*distributions:Tuple[SpacingDistribution]):
+def merge(*distributions:Tuple[SpacingDistributionBase]):
     """
-    ...
+    Merges level-spacing distributions.
     """
     
     G = len(distributions)
     if G == 1:
         distribution = distributions[0]
-        lvl_dens_comb = distribution.lvl_dens
+        lvl_densities = np.array([distribution.lvl_dens])
         class MergedSpacingDistributionGen(MergedDistributionBase):
-            def f0(self, x, priorL, priorR):
+            def _f0(self, x, priorL, priorR):
                 return distribution.f0(x)
-            def f1(self, x, prior):
+            def _f1(self, x, prior):
                 return distribution.f1(x)
-            def f2(self, x):
+            def _f2(self, x):
                 return distribution.f2(x)
-            def xMax_f0(self, err):
+            def _xMax_f0(self, err):
                 return distribution.iF0(err)
-            def xMax_f1(self, err):
+            def _xMax_f1(self, err):
                 return distribution.iF1(err)
         Z0 = Z1 = Z2 = None
     else:
-        lvl_dens_comb = np.sum([distribution.lvl_dens for distribution in distributions])
+        lvl_densities = np.array([distribution.lvl_dens for distribution in distributions])
         def c_func(x):
             x = np.array(x)
             c = np.ones(x.shape)
@@ -497,14 +529,9 @@ def merge(*distributions:Tuple[SpacingDistribution]):
             Z1[i] = quad(func, a=0.0, b=np.inf)[0]
         Z2 = quad(c_func, a=0.0, b=np.inf)[0]
 
-        # Level-densities:
-        lvl_denses = np.zeros((G,))
-        for i,distribution in enumerate(distributions):
-            lvl_denses[i] = distribution.lvl_dens
-
         # Merged Distribution:
         class MergedSpacingDistributionGen(MergedDistributionBase):
-            def f0(self, x, priorL, priorR):
+            def _f0(self, x, priorL, priorR):
                 x = np.array(x)
                 L = len(x)
                 priorL = np.array(priorL)
@@ -521,7 +548,7 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                     * np.sum(priorR * v, axis=1) \
                     + np.sum(priorL * priorR * d, axis=1))
                 return F
-            def f1(self, x, prior):
+            def _f1(self, x, prior):
                 x = np.array(x)
                 L = len(x)
                 norm = np.sum(prior * Z1)
@@ -531,18 +558,18 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                     v[:,i] = distribution.r2(x)
                 F = c_func(x) / norm * np.sum(prior*v, axis=1)
                 return F
-            def f2(self, x):
+            def _f2(self, x):
                 F = c_func(x) / Z2
                 return F
             
-            def xMax_f0(self, err):
+            def _xMax_f0(self, err):
                 def func(u):
                     if u == 0.0:
                         return -err
                     x = -np.log(u)
                     fx_max = 0.0
                     for g,distribution in enumerate(distributions):
-                        fx = distribution.r2(x) / np.min(lvl_denses*Z0[:,g])
+                        fx = distribution.r2(x) / np.min(lvl_densities*Z0[:,g])
                         if fx > fx_max:
                             fx_max = fx
                     fx *= c_func(x)
@@ -550,16 +577,16 @@ def merge(*distributions:Tuple[SpacingDistribution]):
                 u = brentq(func, a=0.0, b=1.0, xtol=float_info.epsilon, rtol=1e-15)
                 x = -np.log(u)
                 return x
-            def xMax_f1(self, err):
+            def _xMax_f1(self, err):
                 def func(u):
                     if u == 0.0:
                         return -err
                     x = -np.log(u)
-                    fx = c_func(x) / np.min(lvl_denses*Z1)
+                    fx = c_func(x) / np.min(lvl_densities*Z1)
                     return fx - err
                 u = brentq(func, a=0.0, b=1.0, xtol=float_info.epsilon, rtol=1e-15)
                 x = -np.log(u)
                 return x
 
-    merged_spacing_distribution = MergedSpacingDistributionGen(lvl_dens=lvl_dens_comb)
+    merged_spacing_distribution = MergedSpacingDistributionGen(lvl_densities)
     return merged_spacing_distribution

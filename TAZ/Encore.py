@@ -28,30 +28,30 @@ class Encore:
     Let "L" be the number of resonances in the ladder and "G" be the number of spingroups
     (excuding the false group).
 
-    Initialization Variables:
+    Initialization Variables
     ------------------------
-    prior               :: float [L+2, G+1]
+    prior               : float [L+2, G+1]
         Prior probabilities on each resonance (with boundaries) and spingroup (with false group).
 
-    level_spacing_probs :: float [L+2, L+2, G]
+    level_spacing_probs : float [L+2, L+2, G]
         All of the level spacings from position index 0 to index 1 with spingroup, index 2.
 
-    iMax                :: int [L+2, 2, G]
+    iMax                : int [L+2, 2, G]
         Maximum/minimum index for approximation threshold for each resonance (index 0) in each
         direction (index 1) for each spingroup (index 2).
     
-    Internally Used Variables:
+    Internally Used Variables
     -------------------------
-    CP    :: float [L+2, L+2, 2]
+    CP : float [L+2, L+2, 2]
         'Cumulative Probabilities' which are the building blocks for Bayesian probability
         calculations and probabilistic sampling.
 
-    PW    :: float [L+2]
+    PW : float [L+2]
         'Placement Weights' which ensure CP does not grow or decay exponententially beyond the
         limits of floating-point numbers. PW is effectively a list of probability normalization
         factors for each resonance.
 
-    TP    :: float
+    TP : float
         'Total Probability' which is the probability density for the current arrangements of
         resonance energies (with PW removed for floating point limitation reasons).
     """
@@ -530,7 +530,7 @@ numerical instability.
     # Maximum-Likelihood Assignments
     # ==================================================================================
     @staticmethod
-    def WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold:float=1e-8):
+    def WigMaxLikelihood(prior, level_spacing_probs, iMax):
         """
         Returns the maximum likelihood spingroup assignments using branching and pruning methods.
 

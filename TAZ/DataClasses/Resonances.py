@@ -17,21 +17,21 @@ class Resonances:
     A data storage object for the resonance parameters, such as resonance energies, and partial
     widths. Spingroup assignments can optionally be stored as well.
 
-    Attributes:
+    Attributes
     ----------
-    E             :: float, array-like
+    E             : float, array-like
         Resonance energies.
-    Gn            :: float, array-like
+    Gn            : float, array-like
         Resonance neutron widths. Default is None.
-    Gg            :: float, array-like
+    Gg            : float, array-like
         Resonance gamma (capture) widths. Default is None.
-    GfA           :: float, array-like
+    GfA           : float, array-like
         Resonance fission A widths. Default is None.
-    GfB           :: float, array-like
+    GfB           : float, array-like
         Resonance fission B widths. Default is None.
-    SG            :: int or Spingroup, array-like
+    SG            : int or Spingroup, array-like
         Resonance spingroup assignments. Default is None.
-    ladder_bounds ::  float [2]
+    ladder_bounds :  float [2]
         Resonance ladder bounds. Default is None.
     """
 
@@ -39,21 +39,21 @@ class Resonances:
         """
         Creates a Resonances object.
 
-        Parameters:
+        Parameters
         ----------
-        E             :: float, array-like
+        E             : float, array-like
             Resonance energies.
-        Gn            :: float, array-like
+        Gn            : float, array-like
             Resonance neutron widths. Default is None.
-        Gg            :: float, array-like
+        Gg            : float, array-like
             Resonance gamma (capture) widths. Default is None.
-        GfA           :: float, array-like
+        GfA           : float, array-like
             Resonance fission A widths. Default is None.
-        GfB           :: float, array-like
+        GfB           : float, array-like
             Resonance fission B widths. Default is None.
-        SG            :: int or Spingroup, array-like
+        SG            : int or Spingroup, array-like
             Resonance spingroup assignments. Default is None.
-        ladder_bounds :: tuple[float]
+        ladder_bounds : tuple[float]
             Resonance ladder bounds. Default is None.
         """
 

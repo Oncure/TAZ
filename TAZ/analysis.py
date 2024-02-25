@@ -14,14 +14,14 @@ def _fractionEstimation(N:int, n:int):
     The estimated fraction and standard deviation are derived from the expectation value and
     variance of the binomial probability distribution.
 
-    Parameters:
+    Parameters
     ----------
     N : int
         The total number of trials.
     n : int
         The number of successful results from the `N` trials.
 
-    Returns:
+    Returns
     -------
     frac_est : float
         The estimated fraction of successful counts.
@@ -141,14 +141,14 @@ def correlate_probabilities(pred_probs:ndarray, answer:ndarray):
     of correct assignments. This function can be used for statistical tests to ensure that WigBayes
     is working correctly.
 
-    Parameters:
+    Parameters
     ----------
     pred_probs : array[float]
         Predicted spingroup probabilties for each resonance.
     answer     : array[int]
         The number of correct solutions.
 
-    Returns:
+    Returns
     -------
     prob_expected : ndarray[float]
         Chosen probabilities from binning predicted probabilities.
@@ -194,7 +194,7 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
     Groups resonances into bins based on their predicted probabilities and plots the frequency
     of correct assignments versus the binned probabilities.
 
-    Parameters:
+    Parameters
     ----------
     pred_probs : array[float]
         Predicted spingroup probabilties for each resonance.
@@ -264,24 +264,24 @@ def ecdf(X, lb:float=None, ub:float=None,
     """
     Plots the empirical cumulative distribution function (ECDF) of a float array, `X`.
 
-    Parameters:
+    Parameters
     ----------
-    X         :: float, array-like
+    X         : float, array-like
         Values to plot the emiprical CDF for.
-    lb        :: float
+    lb        : float
         Optional lower bound.
-    ub        :: float
+    ub        : float
         Optional upper bound.
-    color     :: str
+    color     : str
         The line color.
-    linestyle :: str
+    linestyle : str
         The line style.
-    density   :: bool
+    density   : bool
         Determines whether cumulative densities are plotted (highest value is 1.0), or cumulative
         counts are plotted (highest value is the total number of values). Default is True.
-    label     :: str
+    label     : str
         The legend label for the line.
-    ax        :: plt.axes
+    ax        : plt.axes
         Optional ax option. If not provided, `plt.gca()` is used.
     """
 

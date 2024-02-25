@@ -117,13 +117,13 @@ class Spingroup:
     A class containing the orbital angular momentum, "L", and the total spin, "J", for the
     reaction. The quantum number, "S", can also be given optionally.
 
-    Attributes:
+    Attributes
     ----------
-    L :: int
+    L : int
         Orbital angular momentum.
-    J :: HalfInt
+    J : HalfInt
         Total angular momentum.
-    S :: HalfInt
+    S : HalfInt
         Channel spin. Default = None.
     """
 
@@ -131,13 +131,13 @@ class Spingroup:
         """
         Creates a Spingroup object based on the quantum numbers for the reaction.
 
-        Parameters:
+        Parameters
         ----------
-        l :: int
+        l : int
             Orbital angular momentum.
-        j :: HalfInt
+        j : HalfInt
             Total angular momentum.
-        s :: HalfInt
+        s : HalfInt
             Channel spin. Default = None.
         """
 
@@ -177,18 +177,18 @@ class Spingroup:
         """
         Generates spingroups from the provided "Ls", "Js" and "Ss" quantities.
 
-        Parameters:
+        Parameters
         ----------
-        Ls :: list [int]
+        Ls : list [int]
             The ordered list of orbital angular momentums numbers.
-        Js :: list [HalfInt]
+        Js : list [HalfInt]
             The ordered list of total angular momentum numbers.
-        Ss :: list [HalfInt]
+        Ss : list [HalfInt]
             The ordered list of channel spin numbers.
 
-        Returns:
+        Returns
         -------
-        spingroups :: Spingroups
+        spingroups : Spingroups
             The generated spingroups.
         """
         if Ss is None:
@@ -209,16 +209,16 @@ class Spingroup:
 
         Parameter:
         ---------
-        spingroups :: list [Spingroup]
+        spingroups : list [Spingroup]
             The list of spingroup objects.
 
-        Returns:
+        Returns
         -------
-        Ls :: list [int]
+        Ls : list [int]
             The ordered list of orbital angular momentums numbers.
-        Js :: list [HalfInt]
+        Js : list [HalfInt]
             The ordered list of total angular momentum numbers.
-        Ss :: list [HalfInt]
+        Ss : list [HalfInt]
             The ordered list of channel spin numbers.
         """
         Ls = [];  Js = [];  Ss = []
@@ -233,18 +233,18 @@ class Spingroup:
         """
         Finds all of the valid spingroups with "l" less than or equal to "l_max".
 
-        Parameters:
+        Parameters
         ----------
-        spin_target :: HalfInt
+        spin_target : HalfInt
             The quantum spin number for the target nuclei.
-        spin_proj   :: HalfInt
+        spin_proj   : HalfInt
             The quantum spin number for the projectile nuclei.
-        l_max       :: int
+        l_max       : int
             The maximum orbital angular momentum number generated.
 
-        Returns:
+        Returns
         -------
-        spingroups  :: Spingroups
+        spingroups  : Spingroups
             The generated spingroups.
         """
         l_max = int(l_max)
@@ -261,16 +261,16 @@ class Spingroup:
         Returns an integer index ID if provided a spingroup. If an integer id is provided, the id
         is passed.
 
-        Parameters:
+        Parameters
         ----------
-        spingroup  :: Spingroup or int or 'false' or 'False'
+        spingroup  : Spingroup or int or 'false' or 'False'
             The Spingroup object or integer ID.
-        spingroups :: List [Spingroup]
+        spingroups : List [Spingroup]
             A list of all considered spingroups.
         
-        Returns:
+        Returns
         -------
-        g          :: int
+        g          : int
             Integer ID for the spingroup, based on the list, spingroups.
         """
 

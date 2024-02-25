@@ -17,18 +17,18 @@ def spingroupParameter(mean_parameters, num_groups:int, dtype:type=float):
     """
     Correctly formats the spingroup-based parameters.
 
-    Parameters:
+    Parameters
     ----------
-    mean_parameters :: array-like
+    mean_parameters : array-like
         The parameters that are being formatted.
-    num_spingroups  :: int
+    num_spingroups  : int
         The number of recorded spingroups.
-    dtype           :: type
+    dtype           : type
         The type for formatting the spingroup-based parameters. Default = float.
 
-    Returns:
+    Returns
     -------
-    mean_parameters :: array-like
+    mean_parameters : array-like
         The reformatted spingroup-based parameters.
     """
 
@@ -65,37 +65,37 @@ class Reaction:
         """
         Initializes reaction parameters with keyword arguments.
 
-        Attributes:
+        Attributes
         ----------
-        targ        :: Particle
+        targ        : Particle
             Target particle object.
-        proj        :: Particle
+        proj        : Particle
             Projectile particle object. Default = Neutron.
-        ac          :: float
+        ac          : float
             Reaction channel radius in 1e-12 centimeters.    
-        EB          :: float [2]
+        EB          : float [2]
             Energy range for evaluation.
-        false_dens  :: float
+        false_dens  : float
             False resonance level density.
-        spingroups  :: List [Spingroup]
+        spingroups  : List [Spingroup]
             Spingroups for the reaction.
-        lvl_dens    :: float [G]
+        lvl_dens    : float [G]
             Resonance level densities for each spingroup.
-        MLS         :: float [G]
+        MLS         : float [G]
             Resonance mean level spacings for each spingroup.
-        brody_param :: float [G]
+        brody_param : float [G]
             Brody resonance parameter.
-        gn2m        :: float [G]
+        gn2m        : float [G]
             Resonance mean reduced neutron widths for each spingroup.
-        nDOF        :: float [G]
+        nDOF        : float [G]
             Resonance neutron width degrees of freedom for each spingroup.
-        Gn_trunc    :: float [G]
+        Gn_trunc    : float [G]
             Lowest recordable neutron width.
-        gg2m        :: float [G]
+        gg2m        : float [G]
             Resonance mean reduced gamma (capture) width for each spingroup.
-        gDOF        :: float [G]
+        gDOF        : float [G]
             Resonance gamma (capture) width degrees of freedom for each spingroup.
-        MissFrac    :: float [G]
+        MissFrac    : float [G]
             Fraction of Resonances that have been missed.
         """
 
@@ -264,24 +264,24 @@ class Reaction:
         """
         Samples resonance parameters based on the given information.
         
-        Parameters:
+        Parameters
         ----------
-        ensemble :: 'NNE', 'GOE', 'GUE', 'GSE', or 'Poisson'
+        ensemble : 'NNE', 'GOE', 'GUE', 'GSE', or 'Poisson'
             The ensemble to use for resonance energy sampling. Default is 'NNE'.
-        rng      :: default_rng
+        rng      : default_rng
             A provided `default_rng`. Default is `None`.
-        seed     :: int
+        seed     : int
             If no `rng` is provided, then a random number seed can be specified.
 
-        Returns:
+        Returns
         -------
-        resonances_caught  :: Resonances
+        resonances_caught  : Resonances
             The recorded resonances.
-        spingroups_caught  :: int, array-like
+        spingroups_caught  : int, array-like
             An ID for the recorded resonances' spingroups.
-        resonances_missing :: Resonances
+        resonances_missing : Resonances
             The missed resonances.
-        spingroups_missed  :: int, array-like
+        spingroups_missed  : int, array-like
             An ID for the missed resonances' spingroups.
         """
 
@@ -373,16 +373,16 @@ class Reaction:
         Returns the `Distributions` object for the level-spacing, based on the mean parameters
         and provided distribution type, `dist_type`.
 
-        Parameters:
+        Parameters
         ----------
-        dist_type :: 'Wigner', 'Brody', or 'Missing'
+        dist_type : 'Wigner', 'Brody', or 'Missing'
             the level-spacings distribution type. Default is 'Wigner'.
-        err       :: float
+        err       : float
             A probability threshold in which any more missing resonances would be unlikely.
 
-        Returns:
+        Returns
         -------
-        distributions :: Distributions
+        distributions : Distributions
             The `Distributions` object for level-spacings, based on the mean parameters.
         """
 
@@ -415,19 +415,19 @@ class Reaction:
         The expected distribution fit for the specified quantity, `quantity`, for the specified
         spingroup, `spingroup`.
 
-        Parameters:
+        Parameters
         ----------
-        quantity  :: 'energies', 'level spacing', 'neutron width', 'gamma width', or 'capture width'
+        quantity  : 'energies', 'level spacing', 'neutron width', 'gamma width', or 'capture width'
             The quantity for which the expected distribution is given.
-        spingroup :: int or Spingroup
+        spingroup : int or Spingroup
             The spingroup for the expected distribution.
-        cdf       :: bool
+        cdf       : bool
             If true, the expected cumulative density function is provided; else, the probability
             density function is provided. Default = False.
 
-        Returns:
+        Returns
         -------
-        fit       :: function
+        fit       : function
             The probability distribution of the specified quantity.
         """
 

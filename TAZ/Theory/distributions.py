@@ -49,13 +49,6 @@ class __WignerDistribution(rv_continuous):
             return erfc(sqrt(coef)*x) + coef/4*x*(2*coef*x**2+3)*np.exp(-coef*x**2)
         else:
             raise ValueError(f'beta = {beta} does not exist. Choose beta = 1, 2, or 4.')
-    # def _ppf(self, q, beta:int):
-    #     beta = beta[0]
-    #     if beta == 1:
-    #         coef = pi/4
-    #         return np.sqrt(-np.log(1-q)/coef)
-    #     else:
-    #         raise NotImplementedError('The percent point function is only implemented for beta = 1 at this time.')
 wigner_dist = __WignerDistribution(name='Wigner distribution', a=0.0, b=np.inf, shapes='beta')
 
 # =================================================================================================
@@ -150,16 +143,16 @@ def deltaMehta3(E, EB:tuple):
 
     Source: https://arxiv.org/pdf/2011.04633.pdf (Eq. 21 & 22)
 
-    Parameters:
+    Parameters
     ----------
-    E  :: float, array-like
+    E  : float, array-like
         The recorded resonance energies.
-    EB :: float [2]
+    EB : float [2]
         The lower and upper energies for the resonance ladder.
 
-    Returns:
+    Returns
     -------
-    delta3 :: float
+    delta3 : float
         The Dyson-Mehta ∆3 metric.
     """
 
@@ -179,16 +172,16 @@ def deltaMehtaPredict(L:int, ensemble:str='GOE'):
 
     Source: https://www.osti.gov/servlets/purl/1478482 (Eq. 31 & 32 & 33)
 
-    Parameters:
+    Parameters
     ----------
-    L        :: int
+    L        : int
         The expected number of resonances.
-    ensemble :: 'GOE', 'Poisson', or 'picket'
+    ensemble : 'GOE', 'Poisson', or 'picket'
         The ensemble to assumed under the calculation of the Dyson-Mehta ∆3 metric.
 
-    Returns:
+    Returns
     -------
-    delta_3 :: float
+    delta_3 : float
         The prediction on the Dyson-Mehta ∆3 metric.
     """
 

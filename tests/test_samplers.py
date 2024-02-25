@@ -32,7 +32,7 @@ class TestResonanceGeneration(unittest.TestCase):
         Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
         Projectile = TAZ.Neutron
 
-        # Mean Parameters:
+        # Mean Parameters
         cls.EB   = (1e-5,5000)
         cls.mls  = [4.3166]
         cls.gn2m = [441.1355]
@@ -101,7 +101,7 @@ class TestGOESampler(unittest.TestCase):
         Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
         Projectile = TAZ.Neutron
 
-        # Mean Parameters:
+        # Mean Parameters
         cls.EB   = (1e-5,5000)
         cls.mls  = [4.3166]
         cls.gn2m = [441.1355]
@@ -194,7 +194,7 @@ class TestGUESampler(unittest.TestCase):
         Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
         Projectile = TAZ.Neutron
 
-        # Mean Parameters:
+        # Mean Parameters
         cls.EB   = (1e-5,5000)
         cls.mls  = [4.3166]
         cls.gn2m = [441.1355]
@@ -260,7 +260,7 @@ class TestGSESampler(unittest.TestCase):
         Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
         Projectile = TAZ.Neutron
 
-        # Mean Parameters:
+        # Mean Parameters
         cls.EB   = (1e-5,5000)
         cls.mls  = [4.3166]
         cls.gn2m = [441.1355]
@@ -325,7 +325,7 @@ class TestBrodySampler(unittest.TestCase):
         Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
         Projectile = TAZ.Neutron
 
-        # Mean Parameters:
+        # Mean Parameters
         cls.EB   = (1e-5,5000)
         cls.mls  = [4.3166]
         cls.w    = [0.8]
@@ -374,7 +374,7 @@ class TestMissingSampler(unittest.TestCase):
         Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
         Projectile = TAZ.Neutron
 
-        # Mean Parameters:
+        # Mean Parameters
         cls.EB   = (1e-5,5000)
         cls.mls  = [4.3166]
         cls.pM   = [0.2]
@@ -442,10 +442,9 @@ class TestMerger(unittest.TestCase):
         freq_obs, _ = np.histogram(level_spacings, bins)
 
         X = np.linspace(0.0, xMax, 10_000)
-        prior = np.array(lvl_dens).reshape(1,-1) * np.ones((len(X),1)) / np.sum(lvl_dens)
         level_spacing_dists = reaction.distributions('Wigner')
         merged_dist = TAZ.Theory.merge(*level_spacing_dists)
-        Y = merged_dist.f0(X, prior, prior)
+        Y = merged_dist.pdf(X)
         I = cumtrapz(Y, X, initial=0.0)
         Ibins = np.interp(bins, X, I)
         freq_exp = np.diff(Ibins)

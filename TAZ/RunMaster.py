@@ -2,7 +2,7 @@ from typing import Tuple, List
 import numpy as np
 
 from TAZ.Encore import Encore
-from TAZ.Theory.LevelSpacingDists import SpacingDistribution, merge
+from TAZ.Theory.LevelSpacingDists import SpacingDistributionBase, merge
 
 __doc__ = """
 This module serves as a preprocessor and postprocessor for the 2-spingroup assignment algorithm,
@@ -10,7 +10,7 @@ This module serves as a preprocessor and postprocessor for the 2-spingroup assig
 spingroups. This module finds the probabilities for various merge cases and combines the expected
 probabilities. Unlike the 2-spingroup case that gives the best answer given its information
 (i.e. mean level spacings, reduced widths, false resonance probabilities, etc.), the
-multiple-spingroup case is an approximation.
+multiple-spingroup case is an approximation as some information has been lost.
 """
 
 class RunMaster:
@@ -21,7 +21,20 @@ class RunMaster:
     been initialized, the specific algorithm can be chosen (i.e. WigBayes, WigSample,
     LogLikelihood, etc.).
 
-    ...
+    Methods
+    -------
+    WigBayes
+        Calculates the probability of each spingroup assignment for each resonance.
+    WigSample
+        Samples an ensemble of spingroup assignments.
+    LogLikelihood
+        The logarithm of the likelihood of sampling the resonance distribution assuming the
+        provided mean parameters.
+    ProbOfSample
+        Returns the likelihood of observing the provided spingroup assignment given the resonance
+        ladder.
+    WigMaxLikelihood
+        Returns the maximum likelihood spingroup assignments using branching and pruning methods.
     """
 
     # =============================================================================================
@@ -29,7 +42,7 @@ class RunMaster:
     # =============================================================================================
 
     def __init__(self, E, EB:tuple,
-                 level_spacing_dists:Tuple[SpacingDistribution], false_dens:float=0.0,
+                 level_spacing_dists:Tuple[SpacingDistributionBase], false_dens:float=0.0,
                  Prior=None, log_likelihood_prior:float=None,
                  err:float=1e-9,
                  verbose:bool=False):
@@ -37,24 +50,24 @@ class RunMaster:
         """
         Initializes a RunMaster object.
 
-        Parameters:
+        Parameters
         ----------
-        E                    :: float, array-like
+        E                    : float, array-like
             Resonance energies for the ladder.
-        EB                   :: float [2]
+        EB                   : float [2]
             The ladder energy boundaries.
-        level_spacing_dists  :: ndarray[SpacingDistribution]
+        level_spacing_dists  : ndarray[SpacingDistribution]
             The level-spacing distributions object.
-        false_dens           :: float
+        false_dens           : float
             The false level-density. Default = 0.0.
-        Prior                :: float, array-like
+        Prior                : float, array-like
             The prior probabilitiy distribution for each spingroup. Default = None.
-        log_likelihood_prior :: float
+        log_likelihood_prior : float
             The log-likelihood provided from the prior. Default = None.
-        err                  :: float
+        err                  : float
             A level-spacing probability threshold at which resonances are considered to be too far
             apart to be nearest neighbors.
-        verbose              :: bool
+        verbose              : bool
             The verbosity controller.
         """
 
@@ -91,9 +104,9 @@ class RunMaster:
         necessary). Once the Encore dependences are prepared (like level-spacing probabilities),
         Encore is initialized for each required runcase.
 
-        Parameters:
+        Parameters
         ----------
-        err :: float
+        err : float
             A level-spacing probability threshold at which resonances are considered to be too far
             apart to be nearest neighbors.
         """
@@ -125,17 +138,17 @@ class RunMaster:
         In the case a merge is required, _partition_encore takes a spingroup partition, calculates
         the encore inputs such as level-spacing probabilities, and returns an Encore object.
 
-        Parameters:
+        Parameters
         ----------
-        partition :: Tuple[List[int]]
+        partition : Tuple[List[int]]
             A partition of the provided spingroup identifiers.
-        err       :: float
+        err       : float
             A level-spacing probability threshold at which resonances are considered to be too far
             apart to be nearest neighbors.
 
-        Returns:
+        Returns
         -------
-        encore_pipe :: Encore
+        encore_pipe : Encore
             An Encore object for the given spingroup partition.
         """
 
@@ -161,25 +174,25 @@ class RunMaster:
         
     @staticmethod
     def _calculate_iMax(E, EB:tuple,
-                        distribution:SpacingDistribution, err:float):
+                        distribution:SpacingDistributionBase, err:float):
         """
         Calculates the index limits for calculating level-spacings. 
 
-        Parameters:
+        Parameters
         ----------
-        E            :: ndarray[float]
+        E            : ndarray[float]
             The ordered resonance energies.
-        EB           :: (float, float)
+        EB           : (float, float)
             A tuple providing the lower and upper energies for the grid.
-        distribution :: SpacingDistribution
+        distribution : SpacingDistribution
             The SpacingDistribution object for the spingroup or merged group.
-        err          :: float
+        err          : float
             A level-spacing probability threshold at which resonances are considered to be too far
             apart to be nearest neighbors.
 
-        Returns:
+        Returns
         -------
-        iMax :: int32[L+2,2]
+        iMax : int32[L+2,2]
             An array of the lower and upper limits for the resonance index of the nearest-
             neighboring resonance to the resonance index given by the row index. If the second
             index is 0, the lower limit is provided. If the second index is 1, the upper limit is
@@ -227,32 +240,32 @@ class RunMaster:
     
     @staticmethod
     def _calculate_probs(E, EB:tuple,
-                         distribution:SpacingDistribution, iMax,
+                         distribution:SpacingDistributionBase, iMax,
                          prior=None):
         """
         Calculates the level-spacing probabilities using the provided distribution and stored
         resonance energies. 
 
-        Parameters:
+        Parameters
         ----------
-        E            :: ndarray[float]
+        E            : ndarray[float]
             The ordered resonance energies.
-        EB           :: (float, float)
+        EB           : (float, float)
             A tuple providing the lower and upper energies for the grid.
-        distribution :: SpacingDistribution
+        distribution : SpacingDistribution
             The SpacingDistribution object for the spingroup or merged group.
-        iMax         :: int32[L+2,2]
+        iMax         : int32[L+2,2]
             An array of the lower and upper limits for the resonance index of the nearest-
             neighboring resonance to the resonance index given by the row index. If the column
             index is 0, the lower limit is provided. If the column index is 1, the upper limit is
             provided.
-        prior        :: float[L+2,S]
+        prior        : float[L+2,S]
             The prior spingroup probabilities for each resonance, given by the row index, for each
             spingroup in the merged group, given by the column index. Default is None.
 
-        Returns:
+        Returns
         -------
-        level_spacing_probs :: float64[L+2,L+2]
+        level_spacing_probs : float64[L+2,L+2]
             The level-spacing probabilities for the group where the first and second index
             represent the resonance identifiers at which the level-spacing probabilites are
             between.
@@ -337,9 +350,9 @@ class RunMaster:
         Returns spingroup probabilities for each resonance based on level-spacing distributions,
         and any provided prior.
 
-        Returns:
+        Returns
         -------
-        sg_probs :: int [L,G]
+        sg_probs : int [L,G]
             The spingroup probabilities for each resonance.
         """
 
@@ -358,18 +371,18 @@ class RunMaster:
         """
         Returns random spingroup assignment samples based on its Bayesian probability.
 
-        Parameters:
+        Parameters
         ----------
-        num_trials :: int
+        num_trials : int
             Determines the number of sampled ensembles to return. Default is 1.
-        rng        :: np.random.Generator
+        rng        : np.random.Generator
             The random number generator for random sampling. Default is None.
-        seed       :: int
+        seed       : int
             The random number seed for random sampling. Default is None.
 
-        Returns:
+        Returns
         -------
-        samples :: int [L,trials]
+        samples : int [L,trials]
             The sampled IDs for each resonance and trial.
         """
         
@@ -385,7 +398,11 @@ class RunMaster:
         Returns the log-likelihoods for the resonance parameters, regardless of spingroup
         assignment.
 
-        ...
+        Returns
+        -------
+        log_likelihood : float
+            The logarithm of the likelihood of sampling the resonance ladder provided the mean
+            parameters.
         """
 
         if self.G <= 2:
@@ -405,25 +422,47 @@ class RunMaster:
         Returns the likelihood of observing the provided spingroup assignment given the resonance
         ladder.
 
-        ...
+        Parameters
+        ----------
+        spingroup_assignments : array-like of int
+            A list of spingroup assignment IDs for each resonance.
+
+        Returns
+        -------
+        likelihood : float
+            The likelihood.
         """
 
         # NOTE: This needs checking!!!
         if self.G <= 2:
             encore = self.encore_pipes
-            probability = encore.ProbOfSample(spingroup_assignments)
+            likelihood = encore.ProbOfSample(spingroup_assignments)
         else:
             raise NotImplementedError('ProbOfSample has not been implemented for 3 or more spingroups.')
-        return probability
+        return likelihood
     
     @classmethod
     def WigMaxLikelihood(cls, E, EB:tuple,
-                         level_spacing_dists:Tuple[SpacingDistribution], err:float=1e-8,
+                         level_spacing_dists:Tuple[SpacingDistributionBase], err:float=1e-8,
                          prior=None):
         """
         Returns the maximum likelihood spingroup assignments using branching and pruning methods.
 
-        ...
+        Unlike the other methods, this method can handle any number of spingroups without merging
+        level-spacing distributions.
+
+        Parameters
+        ----------
+        E : array-like of float
+            The ordered resonance energies.
+        EB : (float, float)
+            The lower and upper energy limits of the resonance ladder.
+        level_spacing_dists : Tuple[SpacingDistributionBase]
+            The level-spacing distributions for each spingroup (not including false group).
+        err : float
+            The maximum error allowed, beyond which level-spacings are not calculated.
+        prior : array-like of float, optional
+            The prior spingroup probabilities for each resonance.
         """
         
         L = len(E)
@@ -440,5 +479,5 @@ class RunMaster:
         for g, distribution in enumerate(level_spacing_dists):
             iMax[:,:,g]  = cls._calculate_iMax(E, EB, distribution, err)
             level_spacing_probs[:,:,g] = cls._calculate_probs(E, EB, distribution, iMax[:,:,g])
-        max_likelihood_spingroups = Encore.WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold=err)
+        max_likelihood_spingroups = Encore.WigMaxLikelihood(prior, level_spacing_probs, iMax)
         return max_likelihood_spingroups

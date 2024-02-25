@@ -12,7 +12,7 @@
 
 ### Test Samplers
 - Test that the sampling algorithms follow expected distributions.
-- Test merged distribution as well. (NOT IMPLEMENTED YET)
+- Test merged distribution as well.
 
 ### Test WigBayes
 - Test that a 2 spingroup case with a small second level-density converges to the 1 spingroup case. (NOT IMPLEMENTED YET)

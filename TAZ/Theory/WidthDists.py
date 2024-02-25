@@ -16,18 +16,18 @@ def fraction_missing_gn2(trunc:float, gn2m:float=1.0, dof:int=1):
     """
     Gives the fraction of missing resonances due to the truncation in reduced neutron width.
 
-    Parameters:
+    Parameters
     ----------
-    trunc :: float
+    trunc : float
         The lower limit on the reduced neutron width.
-    gn2m  :: float
+    gn2m  : float
         The mean reduced neutron width. Default = 1.0.
-    dof   :: int
+    dof   : int
         The number of degrees of freedom for the chi-squared distribution.
 
-    Returns:
+    Returns
     -------
-    fraction_missing :: float
+    fraction_missing : float
         The fraction of missing resonances within the spingroup.
     """
     fraction_missing = gammainc(dof/2, dof*trunc/(2*gn2m))
@@ -39,24 +39,24 @@ def fraction_missing_Gn(trunc:float,
     """
     Gives the fraction of missing resonances due to the truncation in partial neutron width.
 
-    Parameters:
+    Parameters
     ----------
-    trunc     :: float
+    trunc     : float
         The lower limit on the reduced neutron width.
-    l         :: int
+    l         : int
         The orbital-angular momentum for the channel.
-    mass_targ :: float
+    mass_targ : float
         Mass of the target nucleus.
-    ac        :: float
+    ac        : float
         Channel radius.
-    gn2m      :: float
+    gn2m      : float
         The mean reduced neutron width. Default = 1.0.
-    dof       :: int
+    dof       : int
         The number of degrees of freedom for the chi-squared distribution.
 
-    Returns:
+    Returns
     -------
-    fraction_missing :: function: float -> float
+    fraction_missing : function: float -> float
         The fraction of missing resonances within the spingroup as a function of energy.
     """
 
@@ -74,24 +74,24 @@ def ReduceFactor(E, l:int, mass_targ:float, ac:float,
     """
     Multiplication factor to convert from neutron width to reduced neutron width.
 
-    Parameters:
+    Parameters
     ----------
-    E               :: float, array-like
+    E               : float, array-like
         Resonance energies.
-    l               :: int, array-like
+    l               : int, array-like
         Orbital angular momentum number.
-    mass_proj       :: float
+    mass_proj       : float
         Mass of the projectile. Default = 1.008665 amu (neutron mass).
-    mass_targ_after :: float
+    mass_targ_after : float
         Mass of the target after the reaction. Default = mass_targ.
-    mass_proj_after :: float
+    mass_proj_after : float
         Mass of the target before the reaction. Default = mass_proj.
-    E_thres         :: float
+    E_thres         : float
         Threshold energy for the reaction. Default is calculated from Q-value.
 
-    Returns:
+    Returns
     -------
-    reduce_factor :: float, array-like
+    reduce_factor : float, array-like
         A multiplication factor that converts neutron widths into reduced neutron widths.
     """
 

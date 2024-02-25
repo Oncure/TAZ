@@ -24,21 +24,21 @@ class Particle:
         """
         Initialize a Particle object.
 
-        Attributes:
+        Attributes
         ----------
-        Z      :: int
+        Z      : int
             Atomic number
-        A      :: int
+        A      : int
             Atomic mass number
-        I      :: HalfInt
+        I      : HalfInt
             Particle spin
-        mass   :: float
+        mass   : float
             Nuclei mass in atomic mass units (amu)
-        AWRI   :: float
+        AWRI   : float
             Nuclei mass divided by neutron mass
-        radius :: float
+        radius : float
             Nuclear mean square radius in 1e-12 centimeters
-        name   :: str
+        name   : str
             Name of the particle
         """
         # Atomic Number:

@@ -17,30 +17,30 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
 
     Let `L` be the number of resonances and `G` be the number of (true) spingroups.
 
-    Parameters:
+    Parameters
     ----------
-    res              :: Resonances
+    res              : Resonances
         The resonance data object.
-    reaction         :: Reaction
+    reaction         : Reaction
         A Reaction object that holds the mean parameters for the reaction.
-    false_width_dist :: function
+    false_width_dist : function
         The PDF for the neutron widths of false resonances. If none are given, false widths are
         sampled from the joint neutron width PDF of all spingroups. Default is None.
-    prior            :: float [L,G+1]
+    prior            : float [L,G+1]
         Optional prior spingroup probabilities. Such probabilities may include information on
         statistical fits. However, the probabilities must be independent of the information
         provided by the width distributions. Default is None.
-    gamma_width_on   :: bool
+    gamma_width_on   : bool
         Determines whether the gamma-width probabilities are calculated based on the theoretical
         distribution. Many RRR evaluations assume the gamma widths are more or less constant. This
         theory is controversial, which is why the gamma width distribution is not considered by
         default. Default is False.
 
-    Returns:
+    Returns
     -------
-    posterior        :: float [L,G+1]
+    posterior        : float [L,G+1]
         The posterior spingroup probabilities.
-    log_likelihood   :: float
+    log_likelihood   : float
         Calculated log-likelihood.
     """
 

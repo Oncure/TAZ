@@ -21,38 +21,31 @@ def SampleNeutronWidth(E, gn2m:float, dof:int, l:int, ac:float,
     """
     Samples neutron widths according to the chi-squared distribution.
 
-    Parameters:
+    Parameters
     ----------
-    E         :: float [n]
+    E         : float [n]
         Resonance energies, where `n` is the number of resonances.
-
-    gn2m      :: float
+    gn2m      : float
         Mean reduced neutron width.
 
-    dof       :: int
+    dof       : int
         Chi-squared degrees of freedom.
-
-    l         :: int
+    l         : int
         Quantum angular momentum number for the spingroup.
-
-    ac        :: float
+    ac        : float
         Nuclear radius of the target isotope.
-
-    mass_targ :: float
+    mass_targ : float
         Mass of the target particle.
-
-    mass_proj :: float
+    mass_proj : float
         Mass of the projectile particle.
-
-    rng       :: default_rng
+    rng       : default_rng
         A provided `default_rng`. Default is `None`.
-    
-    seed      :: int
+    seed      : int
         If no `rng` is provided, then a random number seed can be specified.
 
-    Returns:
+    Returns
     -------
-    Gn        :: float [n]
+    Gn        : float [n]
         Randomly sampled neutron widths, where `n` is the number of resonances.
     """
 
@@ -68,26 +61,22 @@ def SampleGammaWidth(L:int, gg2m:float, dof:int,
     """
     Samples gamma (capture) widths according to the chi-squared distribution.
 
-    Parameters:
+    Parameters
     ----------
-    L    :: int
+    L    : int
         Number of gamma (capture) widths to sample.
-
-    gg2m :: float
+    gg2m : float
         Mean reduced gamma (capture) width.
-
-    dof  :: int
+    dof  : int
         Chi-squared degrees of freedom.
-
-    rng  :: default_rng
+    rng  : default_rng
         A provided `default_rng`. Default is `None`.
-    
-    seed :: int
+    seed : int
         If no `rng` is provided, then a random number seed can be specified.
 
-    Returns:
+    Returns
     -------
-    Gg   :: float [n]
+    Gg   : float [n]
         Randomly sampled gamma (capture) widths, where `n` is the number of resonances.
     """
     
@@ -113,23 +102,20 @@ def sampleGEEigs(n:int, beta:int=1,
 
     Source: https://people.math.wisc.edu/~valko/courses/833/2009f/lec_8_9.pdf
 
-    Parameters:
+    Parameters
     ----------
-    n    :: int
+    n    : int
         The rank of the random matrix. This is also the number of eigenvalues to sample.
-    
-    beta :: 1, 2, or 4
+    beta : 1, 2, or 4
         The ensemble to consider, corresponding to GOE, GUE, and GSE respectively.
-
-    rng  :: default_rng
+    rng  : default_rng
         A provided `default_rng`. Default is `None`.
-    
-    seed :: int
+    seed : int
         If no `rng` is provided, then a random number seed can be specified.
 
-    Returns:
+    Returns
     -------
-    eigs :: float [n]
+    eigs : float [n]
         The eigenvalues of the random matrix.
     """
 
@@ -157,26 +143,22 @@ def sampleGEEnergies(EB:tuple, lvl_dens:float=1.0, beta:int=1,
     Samples GOE (β = 1), GUE (β = 2), or GSE (β = 4) resonance energies within a given energy
     range, `EB` and with a specified mean level-density, `lvl_dens`.
 
-    Parameters:
+    Parameters
     ----------
-    EB       :: float [2]
+    EB       : float [2]
         The energy range for sampling.
-
-    lvl_dens :: float
+    lvl_dens : float
         The mean level-density.
-    
-    beta     :: 1, 2, or 4
+    beta     : 1, 2, or 4
         The ensemble parameter, where β = 1 is GOE, β = 2 is GUE, and β = 4 is GSE.
-
-    rng      :: default_rng
-        A provided `default_rng`. Default is `None`.
-    
-    seed     :: int
+    rng      : default_rng
+        A provided `default_rng`. Default is `None`. 
+    seed     : int
         If no `rng` is provided, then a random number seed can be specified.
 
-    Returns:
+    Returns
     -------
-    E    :: float [n]
+    E    : float [n]
         The sampled resonance energies, where `n` is the number of resonances.
     """
 
@@ -203,26 +185,22 @@ def sampleNNEEnergies(EB:tuple, lvl_dens:float, w:float=1.0, rng=None, seed:int=
     """
     Sampler for the resonance energies according to the Nearest Neighbor Ensemble.
 
-    Parameters:
+    Parameters
     ----------
-    EB       :: float [2]
+    EB       : float [2]
         The energy range for sampling.
-
-    lvl_dens :: float
+    lvl_dens : float
         The mean level-density.
-
-    w        :: float
+    w        : float
         The brody parameter. Default is 1.0, giving a Wigner distribution.
-
-    rng      :: default_rng
+    rng      : default_rng
         A provided `default_rng`. Default is `None`.
-    
-    seed     :: int
+    seed     : int
         If no `rng` is provided, then a random number seed can be specified.
 
-    Returns:
+    Returns
     -------
-    E        :: float [n]
+    E        : float [n]
         Sampled resonance energies, where `n` is the number of resonances.
     """
 
@@ -248,38 +226,31 @@ def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
     """
     Sampler for the resonance energies according to the selected ensemble.
 
-    Parameters:
+    Parameters
     ----------
-    EB       :: float [2]
+    EB       : float [2]
         The energy range for sampling.
-
-    lvl_dens :: float
+    lvl_dens : float
         The mean level-density.
-
-    w        :: float
+    w        : float
         The brody parameter. Default is 1.0, giving a Wigner distribution.
-
-    ensemble :: NNE, GOE, GUE, GSE, or Poisson
+    ensemble : NNE, GOE, GUE, GSE, or Poisson
         The level-spacing distribution to sample from:
         NNE     : Nearest Neighbor Ensemble
         GOE     : Gaussian Orthogonal Ensemble
         GUE     : Gaussian Unitary Ensemble
         GSE     : Gaussian Symplectic Ensemble
         Poisson : Poisson Ensemble
-
-    rng      :: default_rng
+    rng      : default_rng
         A provided `default_rng`. Default is `None`.
-    
-    seed     :: int
+    seed     : int
         If no `rng` is provided, then a random number seed can be specified.
 
-    Returns:
+    Returns
     -------
-    E        :: float [n]
+    E        : float [n]
         Sampled resonance energies, where `n` is the number of resonances.
     """
-
-    MULTIPLIER = 5 # a multiplication factor for conservative estimate of the number of resonances
     
     if rng is None:
         rng = np.random.default_rng(seed)

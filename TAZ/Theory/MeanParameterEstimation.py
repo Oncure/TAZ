@@ -40,20 +40,20 @@ def MeanSpacingBethe(J:HalfInt, A:int, E:float, E0:float=0.0):
     """
     Finds the mean level-spacing using the Bethe formula.
 
-    Parameters:
+    Parameters
     ----------
-    J  :: HalfInt
+    J  : HalfInt
         Total angular momentum.
-    A  :: int
+    A  : int
         Atomic mass number.
-    E  :: float
+    E  : float
         The energy to find the mean level-spacing.
-    E0 :: float
+    E0 : float
         Threshold energy for the reaction channel.
 
-    Returns:
+    Returns
     -------
-    mean_lvl_spacing :: float
+    mean_lvl_spacing : float
         The mean level-spacing.
     """
 
@@ -68,16 +68,16 @@ def MeanSpacingAveraging(E):
     Finds the mean level-spacing by taking the average of the level-spacings. Also returns the
     standard deviation of the mean level-spacing.
 
-    Parameters:
+    Parameters
     ----------
-    E :: ndarray[float]
+    E : ndarray[float]
         Resonance energies.
 
-    Returns:
+    Returns
     -------
-    mean_lvl_spacing     :: float
+    mean_lvl_spacing     : float
         The mean level-spacing of the given energies.
-    mean_lvl_spacing_std :: float
+    mean_lvl_spacing_std : float
         The standard deviation of the mean level-spacing for the given energies.
     """
 
@@ -94,16 +94,16 @@ def MeanSpacingRegression(E, EB:tuple):
     Finds the mean level-spacing of the given energies by taking the slope of the empirical CDF
     of the energy level distribution.
 
-    Parameters:
+    Parameters
     ----------
-    E  :: ndarray[float]
+    E  : ndarray[float]
         Resonance energies.
-    EB :: tuple[float]
+    EB : tuple[float]
         Resonance ladder boundaries.
     
-    Returns:
+    Returns
     -------
-    mean_lvl_spacing     :: float
+    mean_lvl_spacing     : float
         The mean level-spacing of the given energies.
     """
     
@@ -131,16 +131,16 @@ def MeanWidthAveraging(widths):
     Finds the mean partial widths by taking the average of the widths. Also returns the standard
     deviation of the mean partial widths.
 
-    Parameters:
+    Parameters
     ----------
-    widths :: ndarray[float]
+    widths : ndarray[float]
         Resonance partial widths.
 
-    Returns:
+    Returns
     -------
-    mean_width     :: float
+    mean_width     : float
         The mean width of the given the partial widths.
-    mean_width_std :: float
+    mean_width_std : float
         The standard deviation of the mean width given the partial widths.
     """
 
@@ -153,24 +153,24 @@ def MeanWidthCDFRegression(widths, dof:int=1, thres:float=0.0):
     Finds the mean partial widths by performing a regression on the Porter-Thomas CDF distribution.
     A truncation on the widths can be provided.
 
-    Parameters:
+    Parameters
     ----------
-    widths :: ndarray[float]
+    widths : ndarray[float]
         Resonance partial widths.
-    dof    :: int
+    dof    : int
         Porter-Thomas degrees of freedom. Default = 1.
-    thres  :: float
+    thres  : float
         Truncates all widths below this value. Default = 0.0.
 
-    Returns:
+    Returns
     -------
-    mean_width       :: float
+    mean_width       : float
         The mean width of the given the partial widths.
-    mean_width_std   :: float
+    mean_width_std   : float
         The standard deviation of the mean width given the partial widths.
-    frac_missing     :: float
+    frac_missing     : float
         The fraction of missing resonances, estimated using Porter-Thomas distribution.
-    frac_missing_std :: float
+    frac_missing_std : float
         The standard deviation on the number of missing resonances, estimated using Porter-Thomas
         distribution.
     """

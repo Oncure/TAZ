@@ -22,26 +22,26 @@ def Rho(mass_targ:float, ac:float, E,
 
     Based on equation II A.9 in the SAMMY manual.
 
-    Parameters:
+    Parameters
     ----------
-    mass_targ       :: float
+    mass_targ       : float
         Mass of the target isotope.
-    ac              :: float
+    ac              : float
         Channel radius .
-    E               :: float, array-like
+    E               : float, array-like
         Energy points for which Rho is evaluated.
-    mass_proj       :: float
+    mass_proj       : float
         Mass of the projectile. Default = 1.008665 amu (neutron mass).
-    mass_targ_after :: float
+    mass_targ_after : float
         Mass of the target after the reaction. Default = mass_targ.
-    mass_proj_after :: float
+    mass_proj_after : float
         Mass of the target before the reaction. Default = mass_proj.
-    E_thres         :: float
+    E_thres         : float
         Threshold energy for the reaction. Default is calculated from Q-value.
         
-    Returns:
+    Returns
     --------
-    rho :: float, array-like
+    rho : float, array-like
         Momentum factor, ρ.
     """
 
@@ -71,16 +71,16 @@ def PenetrationFactor(rho, l:int):
 
     Based on table II A.1 in the SAMMY manual.
 
-    Parameters:
+    Parameters
     ----------
-    rho :: float, array-like
+    rho : float, array-like
         Momentum factor.
-    l   :: int, array-like
+    l   : int, array-like
         Orbital angular momentum quantum number.
 
-    Returns:
+    Returns
     --------
-    pen_factor :: float, array-like
+    pen_factor : float, array-like
         Penetration factor.
     """
 
