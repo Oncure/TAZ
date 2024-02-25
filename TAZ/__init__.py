@@ -7,7 +7,7 @@ from . import Theory
 from .DataClasses import *
 
 from .PTBayes import *
-from .Levels import *
+from .RunMaster import *
 from .Encore import *
 
 from .FileReader import *

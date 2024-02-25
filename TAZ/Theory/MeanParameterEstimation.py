@@ -1,7 +1,8 @@
 import numpy as np
 from scipy.optimize import curve_fit
 
-from TAZ.Theory.WidthDists import FractionMissing, PorterThomasCDF
+from TAZ.Theory.WidthDists import fraction_missing_gn2
+from TAZ.Theory.distributions import porter_thomas_dist
 from TAZ.DataClasses import HalfInt
 
 __doc__ = """
@@ -178,10 +179,11 @@ def MeanWidthCDFRegression(widths, dof:int=1, thres:float=0.0):
     num_thres_widths = len(widths)
     X = np.linspace(0, 20*np.max(widths), 10_000)
     Y = np.searchsorted(widths, X) / num_thres_widths
-    func = lambda G, g2m: PorterThomasCDF(G, g2m, thres, dof)
+    porter_thomas_dist()
+    func = lambda G, g2m: porter_thomas_dist(df=dof, trunc=thres).pdf(G, mean=g2m)
     mean_width, mean_width_cov = curve_fit(func, X, Y, bounds=(0, np.max(widths)))
     mean_width_std = np.sqrt(mean_width_cov)
-    frac_below_thres = FractionMissing(thres, mean_width, dof)
+    frac_below_thres = fraction_missing_gn2(thres, mean_width, dof)
     num_pred_widths = num_thres_widths / (1-frac_below_thres)
     frac_missing = num_found_widths / num_pred_widths
     frac_missing_std = None # FIXME: find the standard deviation on the fraction of missing resonances

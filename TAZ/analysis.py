@@ -8,7 +8,7 @@ This module is used to analyze the data created by TAZ with scores, confusion ma
 distributions, etc.
 """
 
-def __fractionEstimation(N:int, n:int):
+def _fractionEstimation(N:int, n:int):
     """
     A function used to estimate the fraction of successful counts when restricted between 0 and 1.
     The estimated fraction and standard deviation are derived from the expectation value and
@@ -18,7 +18,6 @@ def __fractionEstimation(N:int, n:int):
     ----------
     N : int
         The total number of trials.
-
     n : int
         The number of successful results from the `N` trials.
 
@@ -26,7 +25,6 @@ def __fractionEstimation(N:int, n:int):
     -------
     frac_est : float
         The estimated fraction of successful counts.
-
     frac_std : float
         The standard deviation on the estimated fraction.
     """
@@ -137,10 +135,82 @@ def ConfusionMatrix(pred_probs:ndarray, answer:ndarray, sg_names:list=None):
 
     return confusion_matrix
 
-def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
-                 sg_names:list=None, fig_name:str='', fig_num:int=None):
+def correlate_probabilities(pred_probs:ndarray, answer:ndarray):
     """
-    ...
+    Groups resonances into bins based on their predicted probabilities and calculates the frequency
+    of correct assignments. This function can be used for statistical tests to ensure that WigBayes
+    is working correctly.
+
+    Parameters:
+    ----------
+    pred_probs : array[float]
+        Predicted spingroup probabilties for each resonance.
+    answer     : array[int]
+        The number of correct solutions.
+
+    Returns:
+    -------
+    prob_expected : ndarray[float]
+        Chosen probabilities from binning predicted probabilities.
+    freq_cor_est  : ndarray[float]
+        The mean frequency of correct assignments for each bin.
+    freq_cor_std  : ndarray[float]
+        The standard deviation of the frequency of correct assignments for each bin.
+
+    See Also:
+    --------
+    ProbCorrPlot
+    """
+
+    num_groups = pred_probs.shape[1]
+
+    nBin = round(np.sqrt(len(answer)))
+    edges = np.linspace(0.0, 1.0, nBin+1)
+    X = (edges[:-1] + edges[1:])/2 # the center of each bin
+    prob_expecteds = []
+    prob_ans_cor_ests = []
+    prob_ans_cor_stds = []
+    for g in range(num_groups):
+        prob_guess_type = pred_probs[:,g]
+        prob_guess_cor  = prob_guess_type[answer == g]
+        count_all = np.histogram(prob_guess_type, bins=edges)[0]
+        count_cor = np.histogram(prob_guess_cor , bins=edges)[0]
+
+        # Only plot the cases where counts exist:
+        prob_expected = X[count_all != 0]
+        count_all_non_zero = count_all[count_all != 0]
+        count_cor_non_zero = count_cor[count_all != 0]
+
+        # Estimating probability and confidence:
+        prob_ans_cor_est, prob_ans_cor_std = _fractionEstimation(count_all_non_zero, count_cor_non_zero)
+        prob_expecteds.append(prob_expected)
+        prob_ans_cor_ests.append(prob_ans_cor_est)
+        prob_ans_cor_stds.append(prob_ans_cor_std)
+    return prob_expecteds, prob_ans_cor_ests, prob_ans_cor_stds
+
+def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
+                 sg_names:list=None, image_name:str=None, fig_num:int=None):
+    """
+    Groups resonances into bins based on their predicted probabilities and plots the frequency
+    of correct assignments versus the binned probabilities.
+
+    Parameters:
+    ----------
+    pred_probs : array[float]
+        Predicted spingroup probabilties for each resonance.
+    answer     : array[int]
+        The number of correct solutions.
+    sg_names   : list, optional
+        A list of names for each spingroup. Default is "A", "B", "C", etc.
+    image_name : str, optional
+        The name of the image to save with a format specifier, "sgn" for the spingroup name. If
+        fig_name is not provided, plt.show is used instead of saving the image.
+    fig_num    : int, optional
+        The figure number.
+
+    See Also:
+    --------
+    correlate_probabilities
     """
 
     num_groups = pred_probs.shape[1]
@@ -150,25 +220,25 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
     nBin = round(np.sqrt(len(answer)))
     edges = np.linspace(0.0, 1.0, nBin+1)
     X = (edges[:-1] + edges[1:])/2 # the center of each bin
-    for t in range(num_groups):
-        prob_guess_type = pred_probs[:,t]
-        prob_guess_cor  = prob_guess_type[answer == t]
+    for g in range(num_groups):
+        prob_guess_type = pred_probs[:,g]
+        prob_guess_cor  = prob_guess_type[answer == g]
         count_all = np.histogram(prob_guess_type, bins=edges)[0]
         count_cor = np.histogram(prob_guess_cor , bins=edges)[0]
 
         # Only plot the cases where counts exist:
-        X2         = X[count_all != 0]
-        count_all2 = count_all[count_all != 0]
-        count_cor2 = count_cor[count_all != 0]
+        prob_expected = X[count_all != 0]
+        count_all_non_zero = count_all[count_all != 0]
+        count_cor_non_zero = count_cor[count_all != 0]
 
         # Estimating probability and confidence:
-        prob_ans_cor_est, prob_ans_cor_std = __fractionEstimation(count_all2, count_cor2)
+        prob_ans_cor_est, prob_ans_cor_std = _fractionEstimation(count_all_non_zero, count_cor_non_zero)
 
         # Plotting:
-        plt.figure(fig_num+t)
+        plt.figure(fig_num+g)
         plt.clf()
-        plt.errorbar(X2,prob_ans_cor_est, prob_ans_cor_std, capsize=3, ls='none', c='k')
-        plt.scatter(X2,prob_ans_cor_est, marker='.', s=14, c='k')
+        plt.errorbar(prob_expected, prob_ans_cor_est, prob_ans_cor_std, capsize=3, ls='none', c='k')
+        plt.scatter(prob_expected, prob_ans_cor_est, marker='.', s=14, c='k')
         plt.plot([0,1], [0,1], ':b', lw=2, label='Ideal Correlation')
 
         # Probability density on the guessed probability:
@@ -177,13 +247,13 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
         
         plt.xlim(0,1)
         plt.ylim(0,1)
-        plt.title(f'Probability Accuracy for Spin Group {sg_names[t]}', fontsize=18)
+        plt.title(f'Probability Accuracy for Spin Group {sg_names[g]}', fontsize=18)
         plt.xlabel('Predicted Probability', fontsize=15)
         plt.ylabel('Fraction of Correct Assignments', fontsize=15)
         plt.legend(fontsize=10)
 
-        if fig_name:
-            fig_name = str(fig_name).format(sgn=sg_names[t])
+        if fig_name is not None:
+            fig_name = str(fig_name).format(sgn=sg_names[g])
             plt.savefig(f'{fig_name}.png')
         else:
             plt.show()
@@ -198,26 +268,19 @@ def ecdf(X, lb:float=None, ub:float=None,
     ----------
     X         :: float, array-like
         Values to plot the emiprical CDF for.
-    
     lb        :: float
         Optional lower bound.
-
     ub        :: float
         Optional upper bound.
-
     color     :: str
         The line color.
-
     linestyle :: str
         The line style.
-
     density   :: bool
         Determines whether cumulative densities are plotted (highest value is 1.0), or cumulative
         counts are plotted (highest value is the total number of values). Default is True.
-
     label     :: str
         The legend label for the line.
-    
     ax        :: plt.axes
         Optional ax option. If not provided, `plt.gca()` is used.
     """

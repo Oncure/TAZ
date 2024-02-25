@@ -12,24 +12,6 @@ HBAR       = 6.582_119_514e-16 # eV*s
 LIGHTSPEED = 299_792_458 # m/s
 AMU_EV    = 931.494_095_4e6 # eV/(c^2*amu)
 
-def NuclearRadius(A:int) -> float:
-    """
-    Finds the nuclear radius from the atomic mass.
-
-    Based on equation D.14 in ENDF manual.
-
-    Parameters:
-    ----------
-    A  :: int
-        Atomic mass of the isotope.
-
-    Returns:
-    --------
-    ac :: float
-        Nuclear radius of the isotope.
-    """
-    return 1.23 * A**(1/3) + 0.8 # fm = 10^-15 m
-
 def Rho(mass_targ:float, ac:float, E,
         mass_proj:float=MASS_NEUTRON,
         mass_targ_after:float=None,
@@ -75,7 +57,7 @@ def Rho(mass_targ:float, ac:float, E,
     if any(E < E_thres):
         raise ValueError(f'The given energies are below the threshold energy of {E_thres} eV.')
 
-    CONSTANT = np.sqrt(AMU_EV * LIGHTSPEED**2) / HBAR * 1e-15 # = 0.0001546691274 -- ((amu)^{1/2} * fm) / h_bar --> eV^{-1/2}
+    CONSTANT = np.sqrt(AMU_EV * LIGHTSPEED**2) / HBAR * 1e-14 # = 0.0001546691274 -- (√amu * √b) / h_bar --> √eV
 
     mass_ratio_before = mass_targ / (mass_proj + mass_targ)
     mass_ratio_after  = 2 * mass_proj_after * mass_targ_after / (mass_proj_after + mass_targ_after)

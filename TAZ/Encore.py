@@ -1,9 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import math
 import numpy as np
+from numpy import newaxis as NA
 # import autograd.numpy as np
+from copy import copy
 
 __doc__ = """
 This file is responsible for the 1 and 2 spingroup classification algorithm. For more than 2
@@ -77,7 +76,7 @@ This exceeds the set limit of {p_thres:.3f}%. This error could be attributed to 
 numerical instability.
 """
 
-    TP_error_threshold = 1.0 # % (percent)
+    TP_ERROR_THRESHOLD = 1.0 # % (percent)
 
     # ==================================================================================
     # Constructor
@@ -353,8 +352,8 @@ numerical instability.
 
         # If the two sides are past a threshold percent difference, raise a warning:
         percent_error = 100.0 * abs(TP1 - TP2) / s.TP
-        if percent_error > s.TP_error_threshold:
-            print(RuntimeWarning(s.TP_PERCENT_ERROR.format(p_error=percent_error, p_thres=s.TP_error_threshold)))
+        if percent_error > s.TP_ERROR_THRESHOLD:
+            print(RuntimeWarning(s.TP_PERCENT_ERROR.format(p_error=percent_error, p_thres=s.TP_ERROR_THRESHOLD)))
 
     # ==================================================================================
     # Level Spacing Bayes Theorem
@@ -392,16 +391,17 @@ numerical instability.
                     # else:   sp[iL:iRMax-1,0] += np.array([s.CP[i,iL,0] * np.sum(ls[i-iL-1:] * s.CP[i,i+1:iRMax+1,1]) for i in range(iL+1, iRMax)])
 
         # Factors shared throughout the sum including the normalization factor, "TP":
-        sp *= s.Prior[1:-1,:s.G] * s.PW[1:-1].reshape(-1,1) / s.TP
+        sp *= s.Prior[1:-1,:s.G] * s.PW[1:-1][:,NA] / s.TP
 
         # False probabilities appended by taking one minus the other probabilities:
-        posterior = np.append(sp, (1.0 - np.sum(sp, axis=1)).reshape(-1,1), 1)
+        posterior = np.append(sp, (1.0 - np.sum(sp, axis=1))[:,NA], 1)
         return posterior
 
     # ==================================================================================
     # Sample Spacing-Updated Spin-Groups
     # ==================================================================================
-    def WigSample(s, trials:int=1):
+    def WigSample(s, num_trials:int=1,
+                  rng:np.random.Generator=None, seed:int=None):
         """
         `WigSample` randomly samples spingroup assignments based its Bayesian probability. This is
         performed by sampling spingroup assignments for each resonance one at a time from low-to-
@@ -415,50 +415,55 @@ numerical instability.
         # Error checking:
         if s.G != 2:
             raise NotImplementedError("Currently sampling only works with 2 spingroups.")
+        
+        # Setting random number generator:
+        if rng is None:
+            rng = np.random.default_rng(seed)
 
         L = s.L
-        ssg  = np.zeros((L,trials), dtype='u1') # The sampled spingroups
+        sampled_groups = np.zeros((L,num_trials), dtype='u1') # the sampled spingroups
+        last_seen = np.zeros((2,num_trials), dtype='u4') # last seen indices for each spingroup, for each trial
 
-        Last = np.zeros((2,trials), dtype='u4') # Latest indices for each spingroup, for each trial
-        rand_nums = np.random.rand(L, trials)   # Random numbers used to sample the spingroups
-
-        iMax = int(3)
-        sp = np.zeros((trials,3), dtype='f8')
+        sp = np.zeros((num_trials,3), dtype='f8') # unnormalized spingroup probabilities
         for i in range(L):
             i1 = i + 1
 
-            # FIXME: THE APROXIMATION THRESHOLD NEEDS UPDATING!!!
-            while any(s.LSP[i1,iMax,:]) and (iMax <= L):
-                iMax += 1
-            Idx = range(i1+1,iMax+1)
-            l = iMax - i1
-
-            ls1 = np.zeros((1,trials,2),dtype='f8')
-            ls2 = np.zeros((l,trials,2),dtype='f8')
-            for t in range(2):
-                ls1[0,:,t] = s.LSP[Last[t,:],i1,t].T
-                for tr in range(trials):
-                    ls2[:,tr,t] = s.LSP[Last[1-t,tr],Idx,1-t]
-            cp = np.concatenate((s.CP[i1,Idx,1].reshape(-1,1,1), s.CP[Idx,i1,1].reshape(-1,1,1)), axis=2)
-            sp[:,:2] = (s.Prior[i1,:2].reshape(1,1,2)*ls1*np.sum(ls2*cp, axis=0))[0,:,:]
+            for tr in range(num_trials):
+                iMaxA = s.iMax[last_seen[0,tr],0,0]
+                iMaxB = s.iMax[last_seen[1,tr],0,1]
+                IdxA = slice(i1+1, iMaxA+1)
+                IdxB = slice(i1+1, iMaxB+1)
+                sp[tr,0] = s.Prior[i1,0]*s.LSP[last_seen[0,tr],i1,0] * np.sum(s.LSP[last_seen[1,tr],IdxB,1]*s.CP[i1,IdxB,1])
+                sp[tr,1] = s.Prior[i1,1]*s.LSP[last_seen[1,tr],i1,1] * np.sum(s.LSP[last_seen[0,tr],IdxA,0]*s.CP[IdxA,i1,1])
             
-            sp[:,2]  = np.array([s.Prior[i1,2] * np.sum(ls2[:,tr,0].reshape(-1,1) \
-                                                      * ls2[:,tr,1].reshape(1,-1) \
-                                                      * s.CP[Idx,Idx,1], axis=(0,1)) \
-                                                        for tr in range(trials)])
+                # False group SPs:
+                sp[tr,2] = 0
+                mult_chain = 1.0
+                for k in range(i1+1,iMaxA+1): # loop for A spingroup leading
+                    mult_chain *= s.PW[k] * s.Prior[k-1,2]
+                    if mult_chain == 0.0:
+                        break   # potential computation time improvement
+                    IdxB = slice(k+1, iMaxB+1)
+                    sp[tr,2] += mult_chain * s.Prior[k,0] * s.LSP[last_seen[0,tr],k,0] * np.sum(s.LSP[last_seen[1,tr],IdxB,1] * s.CP[k,IdxB,1])
+                mult_chain = 1.0
+                for k in range(i1+1,iMaxB+1): # loop for B spingroup leading
+                    mult_chain *= s.PW[k] * s.Prior[k-1,2]
+                    if mult_chain == 0.0:
+                        break   # potential computation time improvement
+                    IdxA = slice(k+1, iMaxA+1)
+                    sp[tr,2] += mult_chain * s.Prior[k,1] * s.LSP[last_seen[1,tr],k,1] * np.sum(s.LSP[last_seen[0,tr],IdxA,0] * s.CP[IdxA,k,1])
 
-            sp_sum = np.sum(sp, axis=1)
-            p2       = sp[:,2] / sp_sum      # false probability
-            p1       = sp[:,1] / sp_sum + p2 # false or second spingroup probability
+            for tr in range(num_trials):
+                # Sampling new spin-groups:
+                sample_probs = sp[tr,:]
+                sample_probs /= np.sum(sample_probs)
+                g = rng.choice(3, p=sample_probs)
+                sampled_groups[i,tr] = g
+                # Rewriting the last used resonance of spingroup sg:
+                if g != 2:
+                    last_seen[g,tr] = i1
 
-            # Sampling New Spin-groups:
-            ssg[i,:] =  np.int_(rand_nums[i,:] <= p2) + np.int_(rand_nums[i,:] <= p1)
-
-            # Rewriting the last used resonance of spingroup sg:
-            for tr,sg in enumerate(ssg[i,:]):
-                if sg != 2:     Last[sg,tr] = i1
-
-        return ssg
+        return sampled_groups
     
     # ==================================================================================
     # Sample Probability
@@ -521,41 +526,84 @@ numerical instability.
         significand = 10 ** (log_likelihood % 1.0)
         return out_str.format(significand, exponent)
     
-    @staticmethod
-    def ExpectedLogLikelihood(EB:tuple, lvl_densities:np.ndarray, log_likelihood_prior_exp:float=None) -> float:
-        """
-        ...
-        """
-
-        raise NotImplementedError('Expected log likelihood estimation has not been implemented yet.')
-
-        dE = EB[1] - EB[0]
-
-        # Prior log likelihood:
-        if log_likelihood_prior_exp is not None:
-            log_likelihood_exp += log_likelihood_prior_exp
-
-        return log_likelihood_exp
-    
 # ==================================================================================
 # Maximum-Likelihood Assignments
 # ==================================================================================
 
-def wigMaxLikelihood2(prior, level_spacing_probs, iMax, threshold:float=math.inf):
+def WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold:float=1e-8):
     """
+    Returns the maximum likelihood spingroup assignments using branching and pruning methods.
+
     ...
     """
-    spingroups   = []
-    likelihoods  = []
-    last_indices = []
-    raise NotImplementedError()
 
-# ==================================================================================
-# Brute Force Algorithms
-# ==================================================================================
+    # 1) initialize (calculate first resonance cases)
+    # ------ loop over res
+    # 2) Select starting assignment and select next spingroup
+    # 3) Calculate likelihood
+    # 4) Assign to correct dict index if greater than the current assignment (careful with false)
+    # 5) Multiply false prior into likelihoods without spingroups for the last resonance
+    # 6) After the resonance case is finished, renormalize likelihoods
+    # 7) Remove cases below likelihood threshold
+    # 8) Remove cases that exceed iMax
 
-def wigBayesBruteForce(E, distributions, false_dens:float, prior=None):
-    """
-    ...
-    """
-    raise NotImplementedError()
+    L = level_spacing_probs.shape[0]
+    G = level_spacing_probs.shape[2]
+
+    # Initialization:
+    cases = {} # list of spingroup assignments and likelihood, indexed by a G-tuple of last indices
+    for g in range(G):
+        spingroups = [g]
+        likelihood = prior[0,g]*level_spacing_probs[0,1,g]
+        T = [0]*G
+        T[g] = 1
+        cases[T] = (spingroups, likelihood)
+
+    # Loop for each additional resonance:
+    for i in range(1,L):
+        i1 = i + 1
+        for last_indices, (spingroups, likelihood) in cases.items():
+            # True Groups
+            for g in range(G):
+                new_last_indices = copy(last_indices)
+                new_last_indices[g] = i1
+                new_spingroups = spingroups + [g]
+                new_likelihood = likelihood * prior[i,g] * level_spacing_probs[last_indices[g],i1,g]
+                if new_last_indices in cases:
+                    lik_max = cases[new_last_indices][1]
+                    if new_likelihood > lik_max:
+                        cases[new_last_indices] = (new_spingroups, new_likelihood)
+                else:
+                    cases[new_last_indices] = (new_spingroups, new_likelihood)
+            # False Group:
+            new_spingroups = spingroups + [G]
+            new_likelihood = likelihood * prior[i,G]
+            cases[last_indices] = (new_spingroups, new_likelihood)
+
+        # Find maximum likelihood:
+        max_likelihood = 0.0
+        for last_indices, (spingroups, likelihood) in cases.items():
+            if likelihood > max_likelihood:
+                max_likelihood = likelihood
+        
+        # Renormalize likelihoods and remove below threshold:
+        for last_indices, (spingroups, likelihood) in cases.items():
+            likelihood /= max_likelihood
+            if likelihood < threshold:
+                del cases[last_indices]
+            else:
+                # Remove cases that exceed iMax:
+                for g in range(G):
+                    li = last_indices[g]
+                    if li < iMax[i1+1,1,g]:
+                        del cases[last_indices]
+                        break
+    
+    # When finished, find the best case and return:
+    max_likelihood = 0.0
+    for last_indices, (spingroups, likelihood) in cases.items():
+        if likelihood > max_likelihood:
+            max_likelihood = likelihood
+            max_spingroups = spingroups
+
+    return max_spingroups

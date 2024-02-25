@@ -3,7 +3,7 @@ import numpy as np
 from scipy.linalg import eigvalsh_tridiagonal
 
 from TAZ.Theory.WidthDists import ReduceFactor
-from TAZ.Theory.LevelSpacingDists import Distribution
+from TAZ.Theory.LevelSpacingDists import WignerGen, BrodyGen
 from TAZ.Theory.distributions import porter_thomas_dist, semicircle_dist
 
 __doc__ = """
@@ -62,9 +62,6 @@ def SampleNeutronWidth(E, gn2m:float, dof:int, l:int, ac:float,
     gn2 = porter_thomas_dist(mean=gn2m, df=dof, trunc=0.0).rvs((len(E),), rng)
     Gn = gn2 / ReduceFactor(np.array(E), l, ac=ac, mass_targ=mass_targ, mass_proj=mass_proj)
     return Gn
-    # gn2 = (gn2m/dof) * rng.chisquare(dof, (len(E),)) # reduced neutron widths
-    # Gn = gn2 / ReduceFactor(np.array(E), l, ac=ac, mass_targ=mass_targ, mass_proj=mass_proj)
-    # return Gn
 
 def SampleGammaWidth(L:int, gg2m:float, dof:int,
                      rng=None, seed:int=None):
@@ -97,8 +94,9 @@ def SampleGammaWidth(L:int, gg2m:float, dof:int,
     if rng is None:
         rng = np.random.default_rng(seed)
 
-    return porter_thomas_dist(mean=gg2m, df=dof, trunc=0.0).rvs((L,), rng)
-    # return (gg2m/dof) * rng.chisquare(dof, (L,))
+    gg2 = porter_thomas_dist(mean=gg2m, df=dof, trunc=0.0).rvs((L,), rng)
+    Gg = 2 * gg2
+    return Gg
 
 # =================================================================================================
 #    Energy Level Sampling:
@@ -185,20 +183,64 @@ def sampleGEEnergies(EB:tuple, lvl_dens:float=1.0, beta:int=1,
     if rng is None:
         rng = np.random.default_rng(seed)
 
-    margin = 0.1 # a margin of safety where we consider the GOE samples to properly follow the semicircle law. This removes the uncooperative tails
+    margin = 0.1 # a margin of safety where we consider the GOE samples to properly follow the semicircle law. This removes the uncooperative tails.
     N_res_est = (EB[1]-EB[0]) * lvl_dens # estimate number of resonances
     N_Tot = round((1 + 2*margin) * N_res_est) # buffer number of resonances
 
     eigs = sampleGEEigs(N_Tot, beta=beta, rng=rng)
     eigs /= 2*sqrt(N_Tot)
     eigs = eigs[eigs > -1.0+margin]
-    eigs = eigs[eigs <  1.0-margin]
+    # eigs = eigs[eigs <  1.0-margin]
 
     # Using semicircle law CDF to make the resonances uniformly spaced:
     # Source: https://github.com/LLNL/fudge/blob/master/brownies/BNL/restools/level_generator.py
     E = EB[0] + (N_Tot / lvl_dens) * (semicircle_dist.cdf(eigs) - semicircle_dist.cdf(-1.0+margin))
     E = E[E < EB[1]]
     E = np.sort(E)
+    return E
+
+def sampleNNEEnergies(EB:tuple, lvl_dens:float, w:float=1.0, rng=None, seed:int=None):
+    """
+    Sampler for the resonance energies according to the Nearest Neighbor Ensemble.
+
+    Parameters:
+    ----------
+    EB       :: float [2]
+        The energy range for sampling.
+
+    lvl_dens :: float
+        The mean level-density.
+
+    w        :: float
+        The brody parameter. Default is 1.0, giving a Wigner distribution.
+
+    rng      :: default_rng
+        A provided `default_rng`. Default is `None`.
+    
+    seed     :: int
+        If no `rng` is provided, then a random number seed can be specified.
+
+    Returns:
+    -------
+    E        :: float [n]
+        Sampled resonance energies, where `n` is the number of resonances.
+    """
+
+    MULTIPLIER = 5 # a multiplication factor for conservative estimate of the number of resonances
+
+    if rng is None:
+        rng = np.random.default_rng(seed)
+
+    L_Guess = round( lvl_dens * (EB[1] - EB[0]) * MULTIPLIER )
+    LS = np.zeros(L_Guess+1, dtype='f8')
+    if w == 1.0:
+        distribution = WignerGen(lvl_dens=lvl_dens)
+    else:
+        distribution = BrodyGen(lvl_dens=lvl_dens, w=w)
+    LS[0]  = EB[0] + distribution.sample_f1(rng=rng)
+    LS[1:] = distribution.sample_f0(size=(L_Guess,), rng=rng)
+    E = np.cumsum(LS)
+    E = E[E < EB[1]]
     return E
 
 def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
@@ -214,7 +256,7 @@ def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
     lvl_dens :: float
         The mean level-density.
 
-    w        :: float or None
+    w        :: float
         The brody parameter. Default is 1.0, giving a Wigner distribution.
 
     ensemble :: NNE, GOE, GUE, GSE, or Poisson
@@ -248,27 +290,17 @@ def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
 
     # Sampling based on ensemble:
     if   ensemble == 'NNE': # Nearest Neighbor Ensemble
-        L_Guess = round( lvl_dens * (EB[1] - EB[0]) * MULTIPLIER )
-        LS = np.zeros(L_Guess+1, dtype='f8')
-        if w == 1.0:
-            distribution = Distribution.wigner(lvl_dens)
-        else:
-            distribution = Distribution.brody(lvl_dens, w)
-        LS[0]  = EB[0] + distribution.sample_f1(rng=rng)
-        LS[1:] = distribution.sample_f0(size=(L_Guess,), rng=rng)
-        E = np.cumsum(LS)
-        E = E[E < EB[1]]
+        E = sampleNNEEnergies(EB, lvl_dens, w=w, rng=rng)
     elif ensemble == 'GOE': # Gaussian Orthogonal Ensemble
-        E = sampleGEEnergies(EB, lvl_dens, beta=1)
+        E = sampleGEEnergies(EB, lvl_dens, beta=1, rng=rng)
     elif ensemble == 'GUE': # Gaussian Unitary Ensemble
-        E = sampleGEEnergies(EB, lvl_dens, beta=2)
+        E = sampleGEEnergies(EB, lvl_dens, beta=2, rng=rng)
     elif ensemble == 'GSE': # Gaussian Symplectic Ensemble
-        E = sampleGEEnergies(EB, lvl_dens, beta=4)
+        E = sampleGEEnergies(EB, lvl_dens, beta=4, rng=rng)
     elif ensemble == 'Poisson': # Poisson Ensemble
         num_samples = rng.poisson(lvl_dens * (EB[1]-EB[0]))
         E = rng.uniform(*EB, size=num_samples)
     else:
         raise NotImplementedError(f'The {ensemble} ensemble has not been implemented yet.')
-
     E.sort()
     return E

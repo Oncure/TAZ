@@ -1,7 +1,7 @@
 from math import pi, sqrt
 import numpy as np
 from scipy.stats import rv_continuous, chi2
-from scipy.special import erf, erfc, expm1, gamma
+from scipy.special import erf, erfc, expm1
 
 # =================================================================================================
 #   Wigner Distribution
