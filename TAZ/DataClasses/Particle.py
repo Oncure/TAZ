@@ -37,7 +37,7 @@ class Particle:
         AWRI   :: float
             Nuclei mass divided by neutron mass
         radius :: float
-            Nuclear mean square radius in femtometers (fm)
+            Nuclear mean square radius in 1e-12 centimeters
         name   :: str
             Name of the particle
         """
@@ -82,7 +82,7 @@ class Particle:
         return self._mass
     @property
     def radius(self):
-        'Nuclear mean square radius in femtometers (fm)'
+        'Nuclear mean square radius in 1e-12 cm'
         return self._radius
     @property
     def name(self):

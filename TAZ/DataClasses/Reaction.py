@@ -72,7 +72,7 @@ class Reaction:
         proj        :: Particle
             Projectile particle object. Default = Neutron.
         ac          :: float
-            Reaction channel radius in femtometers.    
+            Reaction channel radius in 1e-12 centimeters.    
         EB          :: float [2]
             Energy range for evaluation.
         false_dens  :: float
@@ -222,7 +222,7 @@ class Reaction:
         txt = ''
         txt += f'Target Particle      = {self.targ.name}\n'
         txt += f'Projectile Particle  = {self.proj.name}\n'
-        txt += f'Channel Radius       = {self.ac:.7f} (fm)\n'
+        txt += f'Channel Radius       = {self.ac:.7f} (√b)\n'
         txt += f'Energy Bounds        = {self.EB[0]:.3e} < E < {self.EB[1]:.3e} (eV)\n'
         txt += f'False Level Density  = {self.false_dens:.7f} (1/eV)\n'
 

@@ -58,7 +58,7 @@ def chi2_uniform_test(data, num_bins:int):
 
 def sample_distribution_error_plots(pdf, data, bins, image_name, quantity_name):
     """
-    ...
+    Creates a plot of the histogram and distribution for analysis after an error is thrown.
     """
 
     X = np.linspace(min(data), max(data), 1000)

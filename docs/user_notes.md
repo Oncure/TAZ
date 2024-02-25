@@ -23,16 +23,4 @@ TAZ uses the following standard units throughout the code.
 
 Known Bugs and Issues
 =====================
-<<<<<<< HEAD
-* Need to check if PTBayes.py is normalizing its PT probabilities correctly.
-
-Things to Change
-================
-* Match units and assumptions with ATARI.
-* Implement better Distributions class and merging protocol.
-* Rename `Levels.py` to something more appropriate.
-* Overhaul `RunMaster`.
-* Implement Verification notebooks as unit tests.
-=======
 - No known bugs or issues at this time.
->>>>>>> new_runmaster

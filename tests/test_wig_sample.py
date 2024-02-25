@@ -63,8 +63,6 @@ class TestBayesSample(unittest.TestCase):
             counts_obs_mean = np.mean(counts_obs_trials)
             counts_obs_std = np.std(counts_obs_trials) / np.sqrt(self.num_trials)
             err = abs(counts_exp[g] - counts_obs_mean) / counts_obs_std
-            print(counts_obs_mean, counts_obs_std)
-            print(counts_exp[g])
             self.assertLess(err, 3, f"""
 The {g}-spingroup assignment samples do not have the expected frequency according to statistics.
 Discrepancy = {err:.5f} standard deviations.

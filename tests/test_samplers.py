@@ -7,6 +7,8 @@ from TAZ.Theory.WidthDists import ReduceFactor
 from utils import chi2_test, chi2_uniform_test
 
 import numpy as np
+from scipy.integrate import cumtrapz
+from scipy.stats import chisquare
 
 import unittest
 
@@ -411,24 +413,50 @@ class TestMerger(unittest.TestCase):
     ensemble = 'NNE' # Nearest Neighbor Ensemble
     err = 1e-4
 
-    @classmethod
-    def setUpClass(cls):
-        """
-        Generates the resonances.
-        """
-
-        # Particle Types:
-        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
-        Projectile = TAZ.Neutron
-
-        # ...
-
     def test_merger(self):
         """
         Tests that merged distributions follow the expected distribution given by the samplers.
         """
 
-        self.skipTest('Not implemented')
+        num_bins = 40
+        xMax = 3.0
+
+        bins = np.linspace(0, xMax, num_bins+1)
+
+        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
+        Projectile = TAZ.Neutron
+
+        EB = (1e-5,2e5)
+        lvl_dens  = [1.3, 0.5]
+        gn2m  = [44.11355, 33.38697]
+        gg2m   = [55.00000, 55.00000]
+        dfn   = [1, 1]
+        dfg   = [250, 250]
+        l     = [0, 0]
+        j     = [3.0, 4.0]
+
+        SGs = TAZ.Spingroup.zip(l, j)
+        reaction = TAZ.Reaction(targ=Target, proj=Projectile, lvl_dens=lvl_dens, gn2m=gn2m, nDOF=dfn, gg2m=gg2m, gDOF=dfg, spingroups=SGs, EB=EB)
+        res_ladder = reaction.sample(self.ensemble)[0]
+        level_spacings = np.diff(res_ladder.E)
+        freq_obs, _ = np.histogram(level_spacings, bins)
+
+        X = np.linspace(0.0, xMax, 10_000)
+        prior = np.array(lvl_dens).reshape(1,-1) * np.ones((len(X),1)) / np.sum(lvl_dens)
+        level_spacing_dists = reaction.distributions('Wigner')
+        merged_dist = TAZ.Theory.merge(*level_spacing_dists)
+        Y = merged_dist.f0(X, prior, prior)
+        I = cumtrapz(Y, X, initial=0.0)
+        Ibins = np.interp(bins, X, I)
+        freq_exp = np.diff(Ibins)
+        freq_exp *=  np.sum(freq_obs) / np.sum(freq_exp)
+
+        chi2, p = chisquare(freq_obs, freq_exp)
+        chi2_bar = chi2 / num_bins
+        self.assertGreater(p, 0.0001, f"""
+The merged level-spacing samples do not follow the merged level-spacing distribution according to the null hypothesis.
+Calculated χ² / dof = {chi2_bar:.5f}; p = {p:.5f}
+""")
 
 if __name__ == '__main__':
     unittest.main()

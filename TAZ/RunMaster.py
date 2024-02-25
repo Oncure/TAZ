@@ -439,6 +439,6 @@ class RunMaster:
         level_spacing_probs = np.zeros((L+2, L+2, G), 'f8')
         for g, distribution in enumerate(level_spacing_dists):
             iMax[:,:,g]  = cls._calculate_iMax(E, EB, distribution, err)
-            level_spacing_probs[:,:,g] = cls._calculate_probs(E, EB, distribution)
+            level_spacing_probs[:,:,g] = cls._calculate_probs(E, EB, distribution, iMax[:,:,g])
         max_likelihood_spingroups = Encore.WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold=err)
         return max_likelihood_spingroups

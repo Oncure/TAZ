@@ -252,9 +252,9 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
         plt.ylabel('Fraction of Correct Assignments', fontsize=15)
         plt.legend(fontsize=10)
 
-        if fig_name is not None:
-            fig_name = str(fig_name).format(sgn=sg_names[g])
-            plt.savefig(f'{fig_name}.png')
+        if image_name is not None:
+            image_name = str(image_name).format(sgn=sg_names[g])
+            plt.savefig(f'{image_name}.png')
         else:
             plt.show()
 

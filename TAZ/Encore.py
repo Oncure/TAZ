@@ -1,8 +1,8 @@
+from copy import copy
 import math
 import numpy as np
 from numpy import newaxis as NA
 # import autograd.numpy as np
-from copy import copy
 
 __doc__ = """
 This file is responsible for the 1 and 2 spingroup classification algorithm. For more than 2
@@ -205,42 +205,42 @@ numerical instability.
             jMax[:,0] = s.iMax[i1L,1,:]
             jMax[:,1] = s.iMax[i1R,0,:]
             i2Max = jMax[1::-1,:]
-            for t in range(2):
+            for g in range(2):
                 # =================================================================================
                 # Left-Hand Side Iteration:
 
-                idx = range(i1L-1, jMax[t,0]-1, -1)
-                ls = s.LSP[idx, i1L, t]
-                for i2L in range(i1L-1, i2Max[t,0]-1, -1):
+                idx = range(i1L-1, jMax[g,0]-1, -1)
+                ls = s.LSP[idx, i1L, g]
+                for i2L in range(i1L-1, i2Max[g,0]-1, -1):
 
                     # Finding J1 and J2:
-                    if (jMax[t,0] > i2L) or (i2L == 0):
+                    if (jMax[g,0] > i2L) or (i2L == 0):
                         j1 = idx ;      ls1 = ls
                         j2 = []  ;      ls2 = []
                     else:
                         j1 = range(i1L-1, i2L, -1)         ;    ls1 = ls[:i1L-i2L-1]
-                        j2 = range(i2L-1, jMax[t,0]-1, -1) ;    ls2 = ls[i1L-i2L:]
+                        j2 = range(i2L-1, jMax[g,0]-1, -1) ;    ls2 = ls[i1L-i2L:]
                         
                     # New CP Iteration:
-                    s.__CPIter(j1,j2,ls1,ls2,i1L,i2L,t,1)
+                    s.__CPIter(j1,j2,ls1,ls2,i1L,i2L,g,1)
 
                 # =================================================================================
                 # Right-Hand Side Iteration:
 
-                idx = range(i1R+1, jMax[t,1]+1)
-                ls  = s.LSP[i1R, idx, t]
-                for i2R in range(i1R+1, i2Max[t,1]+1):
+                idx = range(i1R+1, jMax[g,1]+1)
+                ls  = s.LSP[i1R, idx, g]
+                for i2R in range(i1R+1, i2Max[g,1]+1):
 
                     # Finding J1 and J2:
-                    if (jMax[t,1] < i2R) or (i2R == L+1):
+                    if (jMax[g,1] < i2R) or (i2R == L+1):
                         j1 = idx ;      ls1 = ls
                         j2 = []  ;      ls2 = []
                     else:
                         j1 = range(i1R+1, i2R)         ;    ls1 = ls[:i2R-i1R-1]
-                        j2 = range(i2R+1, jMax[t,1]+1) ;    ls2 = ls[i2R-i1R:]
+                        j2 = range(i2R+1, jMax[g,1]+1) ;    ls2 = ls[i2R-i1R:]
 
                     # New CP Iteration:
-                    s.__CPIter(j1,j2,ls1,ls2,i1R,i2R,t,-1)
+                    s.__CPIter(j1,j2,ls1,ls2,i1R,i2R,g,-1)
 
             # =====================================================================================
             # Finding PW:
@@ -266,7 +266,7 @@ numerical instability.
     # ==================================================================================
     # CP Iteration Function
     # ==================================================================================
-    def __CPIter(s, J1, J2, ls1, ls2, i1, i2, t, sgn):
+    def __CPIter(s, J1, J2, ls1, ls2, i1, i2, g, sgn):
         """
         `__CPIter` is a function that calculates the next `CP` element using an iterative process.
         
@@ -278,24 +278,24 @@ numerical instability.
 
         # Preceeding i2:
         if J1:
-            if t:   prod1 = ls1 * s.CP[i2,J1,dir]
+            if g:   prod1 = ls1 * s.CP[i2,J1,dir]
             else:   prod1 = ls1 * s.CP[J1,i2,dir]
             
             j = J1[0]
             mult_chain = s.PW[j]
-            cp_out = mult_chain * prod1[0] * s.Prior[j,t]
+            cp_out = mult_chain * prod1[0] * s.Prior[j,g]
             for j, p1 in zip(J1[1:], prod1[1:]):
                 mult_chain *= s.PW[j] * s.Prior[j+sgn,2]
                 if mult_chain == 0.0:   break   # Potential computation time improvement
-                cp_out += mult_chain * p1 * s.Prior[j,t]
+                cp_out += mult_chain * p1 * s.Prior[j,g]
 
         # Behind i2:
         if J2:
-            if i2+sgn == i1:    mult_chain  = s.PW[i2] * s.Prior[i2,1-t]
+            if i2+sgn == i1:    mult_chain  = s.PW[i2] * s.Prior[i2,1-g]
             elif i1 == i2:      mult_chain  = 1.0
-            else:               mult_chain *= s.PW[i2] * s.Prior[i2,1-t] * s.Prior[i2+sgn,2]
+            else:               mult_chain *= s.PW[i2] * s.Prior[i2,1-g] * s.Prior[i2+sgn,2]
 
-            if t:   cp_out += mult_chain * np.sum(ls2 * s.CP[i2,J2,dir])
+            if g:   cp_out += mult_chain * np.sum(ls2 * s.CP[i2,J2,dir])
             else:   cp_out += mult_chain * np.sum(ls2 * s.CP[J2,i2,dir])
 
         # Error Checks:
@@ -305,7 +305,7 @@ numerical instability.
             raise RuntimeWarning(s.CP_BAD_ERROR.format('NaN'))
         
         # Assigning CP:
-        if t:   s.CP[i2,i1,dir] = cp_out
+        if g:   s.CP[i2,i1,dir] = cp_out
         else:   s.CP[i1,i2,dir] = cp_out
 
     # ==================================================================================
@@ -379,13 +379,13 @@ numerical instability.
             sp[:,0] = s.CP[1:-1,0] * s.CP[1:-1,1]
 
         elif s.G == 2:
-            for t in range(2):
+            for g in range(2):
                 for iL in range(L):
-                    iRMax = s.iMax[iL,0,1-t]
-                    lsp = s.LSP[iL, iL+2:iRMax+1, 1-t]
+                    iRMax = s.iMax[iL,0,1-g]
+                    lsp = s.LSP[iL, iL+2:iRMax+1, 1-g]
                     for i in range(iL+1, iRMax):
                         idxR = range(i+1, iRMax+1)
-                        if t:   sp[i-1,1] += s.CP[iL,i,0] * np.sum(lsp[i-iL-1:] * s.CP[idxR,i,1])
+                        if g:   sp[i-1,1] += s.CP[iL,i,0] * np.sum(lsp[i-iL-1:] * s.CP[idxR,i,1])
                         else:   sp[i-1,0] += s.CP[i,iL,0] * np.sum(lsp[i-iL-1:] * s.CP[i,idxR,1])
                     # if t:   sp[iL:iRMax-1,1] += np.array([s.CP[iL,i,0] * np.sum(ls[i-iL-1:] * s.CP[i+1:iRMax+1,i,1]) for i in range(iL+1, iRMax)])
                     # else:   sp[iL:iRMax-1,0] += np.array([s.CP[i,iL,0] * np.sum(ls[i-iL-1:] * s.CP[i,i+1:iRMax+1,1]) for i in range(iL+1, iRMax)])
@@ -501,7 +501,7 @@ numerical instability.
         width, etc.). This can be used with gradient descent to optimize mean parameters.
         """
 
-        dE = EB[1]-EB[0]
+        dE = EB[1] - EB[0]
         log_likelihood = math.log(self.TP) - np.sum(np.log(self.PW)) - lvl_dens_false * dE
 
         # Prior log likelihood:
@@ -526,84 +526,76 @@ numerical instability.
         significand = 10 ** (log_likelihood % 1.0)
         return out_str.format(significand, exponent)
     
-# ==================================================================================
-# Maximum-Likelihood Assignments
-# ==================================================================================
+    # ==================================================================================
+    # Maximum-Likelihood Assignments
+    # ==================================================================================
+    @staticmethod
+    def WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold:float=1e-8):
+        """
+        Returns the maximum likelihood spingroup assignments using branching and pruning methods.
 
-def WigMaxLikelihood(prior, level_spacing_probs, iMax, threshold:float=1e-8):
-    """
-    Returns the maximum likelihood spingroup assignments using branching and pruning methods.
+        ...
+        """
 
-    ...
-    """
+        L = level_spacing_probs.shape[0] - 2
+        G = level_spacing_probs.shape[2]
 
-    # 1) initialize (calculate first resonance cases)
-    # ------ loop over res
-    # 2) Select starting assignment and select next spingroup
-    # 3) Calculate likelihood
-    # 4) Assign to correct dict index if greater than the current assignment (careful with false)
-    # 5) Multiply false prior into likelihoods without spingroups for the last resonance
-    # 6) After the resonance case is finished, renormalize likelihoods
-    # 7) Remove cases below likelihood threshold
-    # 8) Remove cases that exceed iMax
+        # Logification:
+        with np.errstate(divide='ignore'):
+            log_prior = np.log(prior)
+            log_level_spacing_probs = np.log(level_spacing_probs)
 
-    L = level_spacing_probs.shape[0]
-    G = level_spacing_probs.shape[2]
+        # Initialization:
+        contenders = {} # list of spingroup assignments and likelihood, indexed by a G-tuple of last indices
+        for g in range(G):
+            spingroups = [g]
+            log_likelihood = log_prior[0,g] + log_level_spacing_probs[0,1,g]
+            last_indices = [0]*G
+            last_indices[g] = 1
+            contenders[tuple(last_indices)] = (spingroups, log_likelihood)
+        spingroups = [G]
+        log_likelihood = log_prior[0,G]
+        contenders[tuple([0]*G)] = (spingroups, log_likelihood)
 
-    # Initialization:
-    cases = {} # list of spingroup assignments and likelihood, indexed by a G-tuple of last indices
-    for g in range(G):
-        spingroups = [g]
-        likelihood = prior[0,g]*level_spacing_probs[0,1,g]
-        T = [0]*G
-        T[g] = 1
-        cases[T] = (spingroups, likelihood)
-
-    # Loop for each additional resonance:
-    for i in range(1,L):
-        i1 = i + 1
-        for last_indices, (spingroups, likelihood) in cases.items():
-            # True Groups
-            for g in range(G):
-                new_last_indices = copy(last_indices)
-                new_last_indices[g] = i1
-                new_spingroups = spingroups + [g]
-                new_likelihood = likelihood * prior[i,g] * level_spacing_probs[last_indices[g],i1,g]
-                if new_last_indices in cases:
-                    lik_max = cases[new_last_indices][1]
-                    if new_likelihood > lik_max:
-                        cases[new_last_indices] = (new_spingroups, new_likelihood)
-                else:
-                    cases[new_last_indices] = (new_spingroups, new_likelihood)
-            # False Group:
-            new_spingroups = spingroups + [G]
-            new_likelihood = likelihood * prior[i,G]
-            cases[last_indices] = (new_spingroups, new_likelihood)
-
-        # Find maximum likelihood:
-        max_likelihood = 0.0
-        for last_indices, (spingroups, likelihood) in cases.items():
-            if likelihood > max_likelihood:
-                max_likelihood = likelihood
-        
-        # Renormalize likelihoods and remove below threshold:
-        for last_indices, (spingroups, likelihood) in cases.items():
-            likelihood /= max_likelihood
-            if likelihood < threshold:
-                del cases[last_indices]
-            else:
-                # Remove cases that exceed iMax:
+        # Loop for each additional resonance:
+        for i in range(1,L):
+            i1 = i + 1
+            # Generate new contenders:
+            new_contenders = {}
+            for last_indices, (spingroups, log_likelihood) in contenders.items():
+                # True Groups:
                 for g in range(G):
-                    li = last_indices[g]
-                    if li < iMax[i1+1,1,g]:
-                        del cases[last_indices]
-                        break
-    
-    # When finished, find the best case and return:
-    max_likelihood = 0.0
-    for last_indices, (spingroups, likelihood) in cases.items():
-        if likelihood > max_likelihood:
-            max_likelihood = likelihood
-            max_spingroups = spingroups
+                    new_last_indices = list(last_indices)
+                    new_last_indices[g] = i1
+                    new_last_indices = tuple(new_last_indices)
+                    if np.any(new_last_indices < iMax[i1,1,:]):
+                        continue # branch has forgotten about a spingroup. It is quite unlikely that this branch will be of maximal likelihood.
+                    new_spingroups = spingroups + [g]
+                    new_log_likelihood = log_likelihood + log_prior[i,g] + log_level_spacing_probs[last_indices[g],i1,g]
+                    # Add assignment to the list:
+                    if new_last_indices in new_contenders:
+                        prev_log_likelihood = new_contenders[new_last_indices][1]
+                        if new_log_likelihood > prev_log_likelihood:
+                            new_contenders[new_last_indices] = (new_spingroups, new_log_likelihood)
+                    else:
+                        new_contenders[new_last_indices] = (new_spingroups, new_log_likelihood)
+                # False Group:
+                new_spingroups = spingroups + [G]
+                new_log_likelihood = log_likelihood + log_prior[i,G]
+                new_contenders[last_indices] = (new_spingroups, new_log_likelihood)
+            contenders = copy(new_contenders)
+            del new_contenders
 
-    return max_spingroups
+            # Raise error if there are no more contenders left:
+            if len(contenders) == 0:
+                raise RuntimeError('The number of maximum likelihood contenders has dropped to zero unexpectedly.')
+        
+        # When finished, find the best contenders and return:
+        max_log_likelihood = -np.inf
+        for last_indices, (spingroups, log_likelihood) in contenders.items():
+            for g in range(G):
+                log_likelihood += log_level_spacing_probs[last_indices[g],-1,g]
+            if log_likelihood > max_log_likelihood:
+                max_log_likelihood = log_likelihood
+                max_spingroups = spingroups
+        return max_spingroups

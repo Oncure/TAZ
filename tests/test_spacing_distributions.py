@@ -253,7 +253,6 @@ class TestSpacingDistributions(unittest.TestCase):
             # # FIXME: iF1 is unstable
             # X_ = dist.iF1(Y)
             # Y_ = MLS*(n+1)*dist.f2(X_)
-            # print(X_, Y_, Y)
             # for y, y_ in zip(Y, Y_):
             #     self.assertAlmostEqual(y, y_, places, f'{DISTNAME}.iF1 is not the inverse CDF of f1 when evaluated at {y = } for {n = }.')
 

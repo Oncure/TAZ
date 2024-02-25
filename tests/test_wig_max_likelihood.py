@@ -25,10 +25,10 @@ class TestBayesSampler(unittest.TestCase):
         Projectile = TAZ.Neutron
 
         # Mean Parameters:
-        cls.EB = (1e-5,5000)
-        cls.false_dens = 1/15.0
-        cls.lvl_dens  = [1/4.3166, 1/4.3166]
-        cls.gn2m  = [44.11355, 33.38697]
+        cls.EB = (1e-5, 500)
+        cls.false_dens = 1/20.0
+        cls.lvl_dens  = [1/5.0, 1/5.0]
+        cls.gn2m  = [40, 70]
         cls.gg2m   = [55.00000, 55.00000]
         cls.dfn   = [1, 1]
         cls.dfg   = [250, 250]
@@ -46,10 +46,14 @@ class TestBayesSampler(unittest.TestCase):
         """
         E  = self.res_ladder.E
         prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
+        most_likely_sample_prior = np.argmax(prior, axis=1)
+
         distributions = self.reaction.distributions(dist_type='Poisson')
-        runmaster = TAZ.RunMaster(E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
-        runmaster.WigMaxLikelihood(E, self.EB)
-        # self.skipTest('Not implemented')
+        most_likely_sample_posterior = TAZ.RunMaster.WigMaxLikelihood(E, self.EB, distributions, self.err, prior)
+
+        self.assertTrue(np.all(most_likely_sample_prior == most_likely_sample_posterior), """
+The prior and posterior samples do not match with Poisson spacing distributions.
+""")
     
 if __name__ == '__main__':
     unittest.main()

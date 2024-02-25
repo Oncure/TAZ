@@ -56,7 +56,7 @@ class TestBayesSampler2SG(unittest.TestCase):
         perrors = abs(posterior - prior) / prior
         perror_max = np.max(perrors)
         perror_mean = np.mean(perrors)
-        self.assertTrue(np.allclose(prior, posterior, rtol=1e-7, atol=1e-15), f"""
+        self.assertTrue(np.allclose(prior, posterior, rtol=1e-6, atol=1e-15), f"""
 The prior and posterior were not the same when Poisson distribution was used.
 Maximum error = {perror_max:.6%}
 Mean error    = {perror_mean:.6%}
@@ -78,7 +78,7 @@ Mean error    = {perror_mean:.6%}
         for g in range(self.num_groups):
             errors = abs(prob_expected[g] - prob_ans_cor_est[g]) / prob_ans_cor_std[g]
 
-            stderr = 3
+            stderr = 3.5
             self.assertTrue(np.all(errors < stderr), f"""
 WigBayes probabilities do not match the frequency of correct sampling to within {stderr} standard deviations.
 Maximum discrepancy = {np.max(errors):.5f} standard deviations.

@@ -1,4 +1,4 @@
-from math import pi, sqrt
+from math import sqrt
 import numpy as np
 from scipy.linalg import eigvalsh_tridiagonal
 
