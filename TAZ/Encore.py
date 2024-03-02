@@ -411,57 +411,63 @@ numerical instability.
         
         ...
         """
-
-        # Error checking:
-        if s.G != 2:
-            raise NotImplementedError("Currently sampling only works with 2 spingroups.")
         
         # Setting random number generator:
         if rng is None:
             rng = np.random.default_rng(seed)
-
+        
         L = s.L
-        sampled_groups = np.zeros((L,num_trials), dtype='u1') # the sampled spingroups
-        last_seen = np.zeros((2,num_trials), dtype='u4') # last seen indices for each spingroup, for each trial
-
-        sp = np.zeros((num_trials,3), dtype='f8') # unnormalized spingroup probabilities
-        for i in range(L):
-            i1 = i + 1
-
+        sampled_groups = s.G * np.ones((L,num_trials), dtype='u1') # the sampled spingroups (default as false)
+        
+        if s.G == 1:
             for tr in range(num_trials):
-                iMaxA = s.iMax[last_seen[0,tr],0,0]
-                iMaxB = s.iMax[last_seen[1,tr],0,1]
-                IdxA = slice(i1+1, iMaxA+1)
-                IdxB = slice(i1+1, iMaxB+1)
-                sp[tr,0] = s.Prior[i1,0]*s.LSP[last_seen[0,tr],i1,0] * np.sum(s.LSP[last_seen[1,tr],IdxB,1]*s.CP[i1,IdxB,1])
-                sp[tr,1] = s.Prior[i1,1]*s.LSP[last_seen[1,tr],i1,1] * np.sum(s.LSP[last_seen[0,tr],IdxA,0]*s.CP[IdxA,i1,1])
-            
-                # False group SPs:
-                sp[tr,2] = 0
-                mult_chain = 1.0
-                for k in range(i1+1,iMaxA+1): # loop for A spingroup leading
-                    mult_chain *= s.PW[k] * s.Prior[k-1,2]
-                    if mult_chain == 0.0:
-                        break   # potential computation time improvement
-                    IdxB = slice(k+1, iMaxB+1)
-                    sp[tr,2] += mult_chain * s.Prior[k,0] * s.LSP[last_seen[0,tr],k,0] * np.sum(s.LSP[last_seen[1,tr],IdxB,1] * s.CP[k,IdxB,1])
-                mult_chain = 1.0
-                for k in range(i1+1,iMaxB+1): # loop for B spingroup leading
-                    mult_chain *= s.PW[k] * s.Prior[k-1,2]
-                    if mult_chain == 0.0:
-                        break   # potential computation time improvement
-                    IdxA = slice(k+1, iMaxA+1)
-                    sp[tr,2] += mult_chain * s.Prior[k,1] * s.LSP[last_seen[1,tr],k,1] * np.sum(s.LSP[last_seen[0,tr],IdxA,0] * s.CP[IdxA,k,1])
+                last_seen = 0 # last seen indices for each spingroup, for each trial
+                while True: # iterate procedure until the resonance ladder is filled
+                    iMax = s.iMax[last_seen,0,0]
+                    likelihoods = np.zeros((iMax-last_seen,), dtype='f8')
+                    mult_chain = 1.0
+                    Js = np.arange(last_seen+1, iMax+1, dtype='i4')
+                    for lidx, j in enumerate(Js):
+                        mult_chain *= s.PW[j]
+                        if mult_chain == 0.0:   break # Potential computation time improvement
+                        likelihoods[lidx] = s.LSP[last_seen,j,0] * s.Prior[j,0] * mult_chain * s.CP[j,1]
+                        mult_chain *= s.Prior[j,1]
+                    sample_probs = likelihoods / np.sum(likelihoods)
+                    last_seen = rng.choice(Js, p=sample_probs)
+                    if last_seen == L+1:
+                        break
+                    i_new = last_seen - 1
+                    sampled_groups[i_new,tr] = 0
 
+        elif s.G == 2:
             for tr in range(num_trials):
-                # Sampling new spin-groups:
-                sample_probs = sp[tr,:]
-                sample_probs /= np.sum(sample_probs)
-                g = rng.choice(3, p=sample_probs)
-                sampled_groups[i,tr] = g
-                # Rewriting the last used resonance of spingroup sg:
-                if g != 2:
-                    last_seen[g,tr] = i1
+                last_seen = np.zeros((2,), dtype='u4') # last seen indices for each spingroup, for each trial
+                while True: # iterate procedure until the resonance ladder is filled
+                    last_seen_all = np.max(last_seen)
+                    iMaxA = s.iMax[last_seen[0],0,0]
+                    iMaxB = s.iMax[last_seen[1],0,1]
+                    iMax  = min(iMaxA, iMaxB)
+                    likelihoods = np.zeros((iMax-last_seen_all,2), dtype='f8')
+                    mult_chain = 1.0
+                    Js = np.arange(last_seen_all+1, iMax+1, dtype='i4')
+                    for lidx, j in enumerate(Js):
+                        mult_chain *= s.PW[j]
+                        if mult_chain == 0.0:
+                            break   # Potential computation time improvement
+                        IdxA = slice(j+1, iMaxA+1)
+                        IdxB = slice(j+1, iMaxB+1)
+                        likelihoods[lidx,0] = s.LSP[last_seen[0],j,0] * s.Prior[j,0] * mult_chain * np.sum(s.LSP[last_seen[1],IdxB,1]*s.CP[j,IdxB,1])
+                        likelihoods[lidx,1] = s.LSP[last_seen[1],j,1] * s.Prior[j,1] * mult_chain * np.sum(s.LSP[last_seen[0],IdxA,0]*s.CP[IdxA,j,1])
+                        mult_chain *= s.Prior[j,2]
+                    prob_sgs = np.sum(likelihoods, axis=0) / np.sum(likelihoods)
+                    g = rng.choice(2, p=prob_sgs)
+                    sample_probs = likelihoods[:,g] / np.sum(likelihoods[:,g])
+                    last_seen[g] = rng.choice(Js, p=sample_probs)
+                    last_seen_all = last_seen[g]
+                    i_new = last_seen_all - 1
+                    sampled_groups[i_new,tr] = g
+                    if last_seen_all == L:
+                        break
 
         return sampled_groups
     

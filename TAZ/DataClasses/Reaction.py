@@ -321,7 +321,7 @@ class Reaction:
         # False Resonances:
         if self.false_dens != 0.0:
             # Energy sampling:
-            E_false = Theory.SampleEnergies(self.EB, self.false_dens, w=None, ensemble='Poisson')
+            E_false = Theory.SampleEnergies(self.EB, self.false_dens, ensemble='Poisson')
             
             # False width sampling:
             # False widths are sampled by taking the level-density-weighted average of each spingroup's width distributions.

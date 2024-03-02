@@ -337,9 +337,7 @@ class TestBrodySampler(unittest.TestCase):
                                     spingroups=SGs,
                                     EB=cls.EB,
                                     brody_param=cls.w)
-        # print("A")
         cls.res_ladder = cls.reaction.sample(cls.ensemble)[0]
-        # print("B")
         cls.E = cls.res_ladder.E.to_numpy()
 
     def test_brody(self):

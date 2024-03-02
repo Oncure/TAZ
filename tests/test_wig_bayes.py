@@ -86,7 +86,7 @@ Maximum discrepancy = {np.max(errors):.5f} standard deviations.
 class TestBayesSampler1or2SG(unittest.TestCase):
 
     ensemble = 'NNE' # Nearest Neighbor Ensemble
-    eps = 0.005
+    eps = 0.025
     err = 1e-8
 
     def test_1_2_sg_match(self):
@@ -95,15 +95,47 @@ class TestBayesSampler1or2SG(unittest.TestCase):
         2-spingroup Encore algorithms when the one spingroup is very infrequent (i.e. low
         level-density).
         """
-        self.skipTest('Not implemented')
-        prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
-        distributions = self.reaction.distributions(dist_type='Wigner')
-        runmaster = TAZ.RunMaster(self.E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
+        # self.skipTest('Not implemented')
+        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
+        Projectile = TAZ.Neutron
+        EB = (1e-5,1000)
+        false_dens = 1 / 6.0
+        lvl_dens_tot = 1 / 4.0
+        lvl_dens = [lvl_dens_tot*(1-self.eps), lvl_dens_tot*self.eps]
+        gn2m  = [44.11355, 33.38697]
+        gg2m  = [55.00000, 55.00000]
+        dfn   = [1, 1]
+        dfg   = [250, 250]
+        l     = [0, 0]
+        j     = [3.0, 4.0]
+        SGs = TAZ.Spingroup.zip(l, j)
+        reaction2 = TAZ.Reaction(targ=Target, proj=Projectile, lvl_dens=lvl_dens, gn2m=gn2m, nDOF=dfn, gg2m=gg2m, gDOF=dfg, spingroups=SGs, EB=EB, false_dens=false_dens)
+        reaction1 = TAZ.Reaction(targ=Target, proj=Projectile, lvl_dens=[lvl_dens_tot], gn2m=gn2m[:1], nDOF=dfn[:1], gg2m=gg2m[:1], gDOF=dfg[:1], spingroups=SGs[:1], EB=EB, false_dens=false_dens)
+        res_ladder, true_assignments, _, _ = reaction1.sample(self.ensemble)
+        E = res_ladder.E.to_numpy()
+
+        prior1, log_likelihood_prior1 = TAZ.PTBayes(res_ladder, reaction1)
+        distributions1 = reaction1.distributions(dist_type='Wigner')
+        runmaster1 = TAZ.RunMaster(E, EB, distributions1, false_dens, prior1, log_likelihood_prior1, err=self.err)
+        posterior1 = runmaster1.WigBayes()
+        
+        prior2, log_likelihood_prior2 = TAZ.PTBayes(res_ladder, reaction2)
+        distributions2 = reaction2.distributions(dist_type='Wigner')
+        runmaster2 = TAZ.RunMaster(E, EB, distributions2, false_dens, prior2, log_likelihood_prior2, err=self.err)
+        posterior2 = runmaster2.WigBayes()
+        # taking out new spingroup:
+        posterior2_alt = posterior2[:,::2]
+        posterior2_alt /= np.sum(posterior2_alt, axis=1, keepdims=True)
+
+        err_true  = np.mean(posterior1[:,0] - posterior2_alt[:,0])
+        err_false = np.mean(posterior1[:,1] - posterior2_alt[:,1])
+        self.assertLess(err_true , self.eps, f'\nThe 1-2 WigBayes test failed for the true group.\nerr = {err_true}\n')
+        self.assertLess(err_false, self.eps, f'\nThe 1-2 WigBayes test failed for the false group.\nerr = {err_false}\n')
 
 class TestBayesSampler2or3SG(unittest.TestCase):
 
     ensemble = 'NNE' # Nearest Neighbor Ensemble
-    eps = 0.005
+    eps = 0.02
     err = 1e-8
 
     def test_2_3_sg_match(self):

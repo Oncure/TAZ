@@ -1,5 +1,6 @@
 from typing import Tuple, List
 import numpy as np
+from pandas import Series
 
 from TAZ.Encore import Encore
 from TAZ.Theory import SpacingDistributionBase, merge
@@ -46,7 +47,7 @@ class RunMaster:
 
     def __init__(self, E, EB:tuple,
                  level_spacing_dists:Tuple[SpacingDistributionBase], false_dens:float=0.0,
-                 Prior=None, log_likelihood_prior:float=None,
+                 prior=None, log_likelihood_prior:float=None,
                  err:float=1e-9,
                  verbose:bool=False):
         
@@ -63,7 +64,7 @@ class RunMaster:
             The level-spacing distributions object.
         false_dens           : float
             The false level-density. Default = 0.0.
-        Prior                : float, array-like
+        prior                : float, array-like
             The prior probabilitiy distribution for each spingroup. Default = None.
         log_likelihood_prior : float
             The log-likelihood provided from the prior. Default = None.
@@ -84,6 +85,8 @@ class RunMaster:
         if EB[0] >= EB[1]:
             raise ValueError('EB[0] must be strictly less than EB[1].')
         
+        if isinstance(E, Series):
+            E = E.to_numpy()
         self.E  = np.sort(E)
         self.EB = tuple(EB)
         self.level_spacing_dists = np.array(level_spacing_dists)
@@ -92,10 +95,10 @@ class RunMaster:
         self.L = len(E) # Number of resonances
         self.G = len(self.lvl_dens) - 1 # number of spingroups (not including false group)
 
-        if Prior is None:
-            self.Prior = np.tile(self.lvl_dens/self.lvl_dens_tot, (self.L,1))
+        if prior is None:
+            self.prior = np.tile(self.lvl_dens/self.lvl_dens_tot, (self.L,1))
         else:
-            self.Prior = Prior
+            self.prior = prior
         self.log_likelihood_prior = log_likelihood_prior
         self.verbose = verbose
 
@@ -122,7 +125,7 @@ class RunMaster:
                 iMax[:,:,g] = self._calculate_iMax(self.E, self.EB, self.level_spacing_dists[g], err)
                 level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.EB, self.level_spacing_dists[g], iMax[:,:,g])
             if self.verbose:    print(f'Creating ENCORE pipeline.')
-            encore_pipe = Encore(self.Prior, level_spacing_probs, iMax)
+            encore_pipe = Encore(self.prior, level_spacing_probs, iMax)
             self.encore_pipes = encore_pipe
             if self.verbose:    print(f'Finished ENCORE initialization.')
         else: # merge needed
@@ -164,12 +167,12 @@ class RunMaster:
             distribution = merge(*self.level_spacing_dists[groups])
             if self.verbose:    print(f'Finding level-spacing probabilities for groups {groups}.')
             iMax[:,:,g] = self._calculate_iMax(self.E, self.EB, distribution, err)
-            level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.EB, distribution, iMax[:,:,g], self.Prior[:,groups])
+            level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.EB, distribution, iMax[:,:,g], self.prior[:,groups])
             if hasattr(groups, '__iter__'):
-                prior_merged[:,g] = np.sum(self.Prior[:,groups], axis=1)
+                prior_merged[:,g] = np.sum(self.prior[:,groups], axis=1)
             else:
-                prior_merged[:,g] = self.Prior[:,groups]
-        prior_merged[:,-1] = self.Prior[:,-1]
+                prior_merged[:,g] = self.prior[:,groups]
+        prior_merged[:,-1] = self.prior[:,-1]
         if self.verbose:    print(f'Creating ENCORE pipeline for group {g}.')
         encore_pipe = Encore(prior_merged, level_spacing_probs, iMax)
         if self.verbose:    print(f'Finished ENCORE initialization for partition, {partition}.')
@@ -317,8 +320,8 @@ class RunMaster:
         
         combined_sg_probs[:,:-1] = sg_probs[:,1,:] # lone spingroup
         
-        combined_sg_probs[:,-1] = np.prod(sg_probs[:,2,:], axis=1) * self.Prior[:,-1] ** (1-self.G)
-        combined_sg_probs[self.Prior[:,-1]==0.0, -1] = 0.0
+        combined_sg_probs[:,-1] = np.prod(sg_probs[:,2,:], axis=1) * self.prior[:,-1] ** (1-self.G)
+        combined_sg_probs[self.prior[:,-1]==0.0, -1] = 0.0
         
         combined_sg_probs /= np.sum(combined_sg_probs, axis=1, keepdims=True)
         return combined_sg_probs
@@ -486,6 +489,10 @@ class RunMaster:
         
         L = len(E)
         G = len(level_spacing_dists)
+
+        if isinstance(E, Series):
+            E = E.to_numpy()
+        E = np.sort(E)
 
         if prior is None:
             prior = np.zeros((L,G))

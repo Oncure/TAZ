@@ -6,5 +6,4 @@ and resonance classes.
 
 from .Spingroups import HalfInt, Spingroup
 from .Particle import *
-# from .Resonances import Resonances
 from .Reaction import Reaction
