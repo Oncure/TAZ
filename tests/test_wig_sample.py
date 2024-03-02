@@ -45,7 +45,7 @@ class TestBayesSample(unittest.TestCase):
 
         cls.prior, log_likelihood_prior = TAZ.PTBayes(cls.res_ladder, cls.reaction)
         cls.distributions = cls.reaction.distributions(dist_type='Wigner')
-        cls.E = cls.res_ladder.E
+        cls.E = cls.res_ladder.E.to_numpy()
         runMaster = TAZ.RunMaster(cls.E, cls.EB,
                                   cls.distributions, cls.false_dens,
                                   cls.prior, log_likelihood_prior)

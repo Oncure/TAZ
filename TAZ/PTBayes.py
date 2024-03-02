@@ -1,16 +1,17 @@
+from pandas import DataFrame
 import numpy as np
 from numpy import newaxis as NA
 from scipy.stats import chi2
 
 from TAZ.Theory import ReduceFactor, G_to_g2
-from TAZ import Reaction, Resonances
+from TAZ import Reaction
 
 __doc__ = """
 This module contains Bayes' update for the probabilistic distribution on the neutron widths (and
 gamma widths if specified).
 """
 
-def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None, gamma_width_on:bool=False):
+def PTBayes(resonances:DataFrame, reaction:Reaction, false_width_dist=None, prior=None, gamma_width_on:bool=False):
     """
     Performs a Bayesian update on the spingroup probabilities of resonances, based on Porter-Thomas
     Distribution on the neutron widths (and gamma widths if specified).
@@ -19,8 +20,8 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
 
     Parameters
     ----------
-    res              : Resonances
-        The resonance data object.
+    res              : DataFrame
+        The dataframe including resonance energies, widths, etc.
     reaction         : Reaction
         A Reaction object that holds the mean parameters for the reaction.
     false_width_dist : function
@@ -45,31 +46,35 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
     """
 
     # Error Checking:
-    if type(res) is not Resonances:
-        raise TypeError('The "res" argument must be a "Resonances" object.')
+    if type(resonances) is not DataFrame:
+        raise TypeError('The "resonances" argument must be a DataFrame')
     if type(reaction) is not Reaction:
         raise TypeError('The "mean_param" argument must be a "Reaction" object.')
+    
+    E  = resonances['E'].to_numpy()
+    Gg = resonances['Gg'].to_numpy()
+    Gn = resonances['Gn1'].to_numpy()
     
     # Setting prior:
     if prior == None:
         prob = reaction.lvl_dens_all / np.sum(reaction.lvl_dens_all)
-        prior = np.tile(prob, (res.E.size,1))
+        prior = np.tile(prob, (E.size,1))
     posterior = prior
 
     # Neutron widths:
-    mult_factor = (reaction.nDOF/reaction.gn2m)[NA,:] * ReduceFactor(res.E, reaction.L, ac=reaction.ac,
+    mult_factor = (reaction.nDOF/reaction.gn2m)[NA,:] * ReduceFactor(E, reaction.L, ac=reaction.ac,
                                                                                   mass_targ=reaction.targ.mass, mass_proj=reaction.proj.mass)
-    posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * res.Gn[:,NA], reaction.nDOF)
+    posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * Gn[:,NA], reaction.nDOF)
 
     # Gamma widths: (if gamma_width_on is True)
     if gamma_width_on:
         mult_factor = (reaction.gDOF/reaction.gg2m)[NA,:]
-        gg2 = G_to_g2(res.Gg, penatrability=1.0)
+        gg2 = G_to_g2(Gg, penatrability=1.0)
         posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * gg2[:,NA], reaction.gDOF)
 
     # False distribution:
     if (reaction.false_dens != 0.0) and (false_width_dist is not None):
-        posterior[:,-1] *= false_width_dist(res.E, res.Gn, res.Gg)
+        posterior[:,-1] *= false_width_dist(E, Gn, Gg)
     else:
         posterior[:,-1] *= np.sum(posterior[:,:-1], axis=1) / np.sum(prob[:-1])
 

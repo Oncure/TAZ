@@ -53,7 +53,7 @@ class TestResonanceGeneration(unittest.TestCase):
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
+        E  = self.res_ladder.E.to_numpy()
         lvl_spacing = np.diff(E)
 
         dist = wigner_dist(scale=self.mls[0], beta=1)
@@ -69,7 +69,7 @@ class TestResonanceGeneration(unittest.TestCase):
         """
 
         NUM_BINS = 40
-        Gg = self.res_ladder.Gg
+        Gg = self.res_ladder.Gg.to_numpy()
         gg2 = G_to_g2(Gg, penatrability=1.0)
         dist = porter_thomas_dist(mean=self.gg2m[0], df=self.dfg[0], trunc=0.0)
         chi2_test(dist, gg2, NUM_BINS, self, 0.001, 'gamma widths', 'Porter-Thomas distribution')
@@ -80,8 +80,8 @@ class TestResonanceGeneration(unittest.TestCase):
         """
 
         NUM_BINS = 40
-        E  = self.res_ladder.E
-        Gn = self.res_ladder.Gn
+        E  = self.res_ladder.E.to_numpy()
+        Gn = self.res_ladder.Gn1.to_numpy()
         gn2 = Gn * ReduceFactor(E, self.l[0], self.reaction.targ.mass, self.reaction.ac, self.reaction.proj.mass)
         dist = porter_thomas_dist(mean=self.gn2m[0], df=self.dfn[0], trunc=0.0)
         chi2_test(dist, gn2, NUM_BINS, self, 0.001, 'neutron widths', 'Porter-Thomas distribution')
@@ -115,15 +115,15 @@ class TestGOESampler(unittest.TestCase):
         SGs = TAZ.Spingroup.zip(cls.l, cls.j)
         cls.reaction = TAZ.Reaction(targ=Target, proj=Projectile, MLS=cls.mls, gn2m=cls.gn2m, nDOF=cls.dfn, gg2m=cls.gg2m, gDOF=cls.dfg, spingroups=SGs, EB=cls.EB)
         cls.res_ladder = cls.reaction.sample(cls.ensemble)[0]
+        cls.E = cls.res_ladder.E.to_numpy()
 
     def test_dyson_mehta_3(self):
         """
         Tests if the resonance ladder's Dyson-Mehta ∆3 statistic aligns with the prediction.
         """
 
-        E = self.res_ladder.E
-        D3_calc = deltaMehta3(E, self.EB)
-        D3_pred = deltaMehtaPredict(len(E), 'GOE')
+        D3_calc = deltaMehta3(self.E, self.EB)
+        D3_pred = deltaMehtaPredict(len(self.E), 'GOE')
 
         perc_err = (D3_calc-D3_pred)/D3_pred
         self.assertLess(perc_err, 0.4, f"""
@@ -138,8 +138,7 @@ Predicted ∆3  = {D3_pred:.5f}
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        chi2_bar, p = chi2_uniform_test(E, NUM_BINS)
+        chi2_bar, p = chi2_uniform_test(self.E, NUM_BINS)
         self.assertGreater(p, 0.001, f"""
 The {self.ensemble} energies do not follow a uniform density curve according to the null hypothesis.
 Calculated chi-squared bar = {chi2_bar:.5f}; p = {p:.5f}
@@ -151,8 +150,7 @@ Calculated chi-squared bar = {chi2_bar:.5f}; p = {p:.5f}
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        lvl_spacing = np.diff(E)
+        lvl_spacing = np.diff(self.E)
         dist = wigner_dist(scale=self.mls[0], beta=self.beta)
         chi2_test(dist, lvl_spacing, NUM_BINS, self, 0.001, f'{self.ensemble} level spacings', 'Wigner distribution')
 
@@ -162,8 +160,7 @@ Calculated chi-squared bar = {chi2_bar:.5f}; p = {p:.5f}
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        lvl_spacing = np.diff(E)
+        lvl_spacing = np.diff(self.E)
         ratio = lvl_spacing[1:] / lvl_spacing[:-1]
         dist = lvl_spacing_ratio_dist(beta=self.beta)
         chi2_test(dist, ratio, NUM_BINS, self, 0.001, f'{self.ensemble} level spacings', None)
@@ -173,9 +170,8 @@ Calculated chi-squared bar = {chi2_bar:.5f}; p = {p:.5f}
         Tests if the high-order level-spacing samples match the distribution.
         """
         NUM_BINS = 40
-        E = self.res_ladder.E
         for n in (5, 18):
-            lvl_spacing = E[n+1:] - E[:-(n+1)]
+            lvl_spacing = self.E[n+1:] - self.E[:-(n+1)]
             dist = HighOrderSpacingGen(1/self.mls[0], n)
             chi2_test(dist, lvl_spacing, NUM_BINS, self, 0.001, f'{self.ensemble} level spacings', f'{n+1}th level-spacing distribution')
         
@@ -208,6 +204,7 @@ class TestGUESampler(unittest.TestCase):
         SGs = TAZ.Spingroup.zip(cls.l, cls.j)
         cls.reaction = TAZ.Reaction(targ=Target, proj=Projectile, MLS=cls.mls, gn2m=cls.gn2m, nDOF=cls.dfn, gg2m=cls.gg2m, gDOF=cls.dfg, spingroups=SGs, EB=cls.EB)
         cls.res_ladder = cls.reaction.sample(cls.ensemble)[0]
+        cls.E = cls.res_ladder.E.to_numpy()
     
     def test_uniform_density(self):
         """
@@ -215,8 +212,7 @@ class TestGUESampler(unittest.TestCase):
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        chi2_bar, p = chi2_uniform_test(E, NUM_BINS)
+        chi2_bar, p = chi2_uniform_test(self.E, NUM_BINS)
         self.assertGreater(p, 0.001, f"""
 The {self.ensemble} energies do not follow a uniform density curve according to the null hypothesis.
 Calculated chi-squared bar = {chi2_bar:.5f}; p = {p:.5f}
@@ -228,8 +224,7 @@ Calculated chi-squared bar = {chi2_bar:.5f}; p = {p:.5f}
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        lvl_spacing = np.diff(E)
+        lvl_spacing = np.diff(self.E)
         dist = wigner_dist(scale=self.mls[0], beta=self.beta)
         chi2_test(dist, lvl_spacing, NUM_BINS, self, 0.001, f'{self.ensemble} level spacings', 'Wigner distribution')
 
@@ -239,8 +234,7 @@ Calculated chi-squared bar = {chi2_bar:.5f}; p = {p:.5f}
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        lvl_spacing = np.diff(E)
+        lvl_spacing = np.diff(self.E)
         ratio = lvl_spacing[1:] / lvl_spacing[:-1]
         dist = lvl_spacing_ratio_dist(beta=self.beta)
         chi2_test(dist, ratio, NUM_BINS, self, 0.001, f'{self.ensemble} level spacings', None)
@@ -274,6 +268,7 @@ class TestGSESampler(unittest.TestCase):
         SGs = TAZ.Spingroup.zip(cls.l, cls.j)
         cls.reaction = TAZ.Reaction(targ=Target, proj=Projectile, MLS=cls.mls, gn2m=cls.gn2m, nDOF=cls.dfn, gg2m=cls.gg2m, gDOF=cls.dfg, spingroups=SGs, EB=cls.EB)
         cls.res_ladder = cls.reaction.sample(cls.ensemble)[0]
+        cls.E = cls.res_ladder.E.to_numpy()
     
     def test_uniform_density(self):
         """
@@ -281,8 +276,7 @@ class TestGSESampler(unittest.TestCase):
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        chi2_bar, p = chi2_uniform_test(E, NUM_BINS)
+        chi2_bar, p = chi2_uniform_test(self.E, NUM_BINS)
         self.assertGreater(p, 0.001, f"""
 The {self.ensemble} energies do not follow a uniform density curve according to the null hypothesis.
 Calculated chi-squared bar = {chi2_bar:.5f}; p = {p:.5f}
@@ -294,8 +288,7 @@ Calculated chi-squared bar = {chi2_bar:.5f}; p = {p:.5f}
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        lvl_spacing = np.diff(E)
+        lvl_spacing = np.diff(self.E)
         dist = wigner_dist(scale=self.mls, beta=self.beta)
         chi2_test(dist, lvl_spacing, NUM_BINS, self, 0.001, f'{self.ensemble} level spacings', 'Wigner distribution')
 
@@ -305,8 +298,7 @@ Calculated chi-squared bar = {chi2_bar:.5f}; p = {p:.5f}
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        lvl_spacing = np.diff(E)
+        lvl_spacing = np.diff(self.E)
         ratio = lvl_spacing[1:] / lvl_spacing[:-1]
         dist = lvl_spacing_ratio_dist(beta=self.beta)
         chi2_test(dist, ratio, NUM_BINS, self, 0.001, f'{self.ensemble} level spacings', None)
@@ -345,7 +337,10 @@ class TestBrodySampler(unittest.TestCase):
                                     spingroups=SGs,
                                     EB=cls.EB,
                                     brody_param=cls.w)
+        # print("A")
         cls.res_ladder = cls.reaction.sample(cls.ensemble)[0]
+        # print("B")
+        cls.E = cls.res_ladder.E.to_numpy()
 
     def test_brody(self):
         """
@@ -353,8 +348,7 @@ class TestBrodySampler(unittest.TestCase):
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        lvl_spacing = np.diff(E)
+        lvl_spacing = np.diff(self.E)
         dist = self.reaction.distributions('Brody')[0]
         # dist = BrodyGen(1/self.mls[0], w=self.w[0])
         chi2_test(dist, lvl_spacing, NUM_BINS, self, 0.001, f'level spacings', 'Brody distribution')
@@ -395,6 +389,7 @@ class TestMissingSampler(unittest.TestCase):
                                     EB=cls.EB,
                                     MissFrac=cls.pM)
         cls.res_ladder = cls.reaction.sample(cls.ensemble)[0]
+        cls.E = cls.res_ladder.E.to_numpy()
 
     def test_missing(self):
         """
@@ -402,8 +397,7 @@ class TestMissingSampler(unittest.TestCase):
         """
 
         NUM_BINS = 40
-        E = self.res_ladder.E
-        lvl_spacing = np.diff(E)
+        lvl_spacing = np.diff(self.E)
         dist = self.reaction.distributions('Missing', err=self.err)[0]
         # dist = MissingGen((1-self.pM[0])/self.mls[0], pM=self.pM[0], err=self.err)
         chi2_test(dist, lvl_spacing, NUM_BINS, self, 0.001, f'level spacings', 'Missing distribution')
@@ -438,7 +432,8 @@ class TestMerger(unittest.TestCase):
         SGs = TAZ.Spingroup.zip(l, j)
         reaction = TAZ.Reaction(targ=Target, proj=Projectile, lvl_dens=lvl_dens, gn2m=gn2m, nDOF=dfn, gg2m=gg2m, gDOF=dfg, spingroups=SGs, EB=EB)
         res_ladder = reaction.sample(self.ensemble)[0]
-        level_spacings = np.diff(res_ladder.E)
+        E = res_ladder.E.to_numpy()
+        level_spacings = np.diff(E)
         freq_obs, _ = np.histogram(level_spacings, bins)
 
         X = np.linspace(0.0, xMax, 10_000)

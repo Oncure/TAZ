@@ -1,12 +1,11 @@
 import numpy as np
 
-from TAZ import Resonances
-
 def readENDF(file):
     with open(file, 'r') as contents:
         raise NotImplementedError('readENDF has not been implemented yet.')
 
 def readSammyPar(file):
+    raise NotImplementedError('...')
     with open(file, 'r') as contents:
         txt = contents.read()
         # header = txt.split('RESONANCES')[0]
@@ -20,7 +19,7 @@ def readSammyPar(file):
     Gn     = resonances[:,2]
     SGType = np.int_(resonances[:,-1]) - 1
 
-    return Resonances(E=E, Gn=Gn, Gg=Gg), SGType
+    # return Resonances(E=E, Gn=Gn, Gg=Gg), SGType
 
 if __name__ == '__main__':
     res, SGType = readSammyPar('/Users/colefritsch/ENCORE/Python_ENCORE/SAMQUA.PAR')

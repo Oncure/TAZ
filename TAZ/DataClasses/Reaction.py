@@ -1,11 +1,10 @@
 import numpy as np
-import pandas as pd
-from typing import List, Tuple, Optional
+from pandas import DataFrame
+from typing import List, Tuple
 
 from TAZ import Theory
 from TAZ.DataClasses import Spingroup
 from TAZ.DataClasses import Particle, Neutron
-from TAZ.DataClasses import Resonances
 
 __doc__ = """
 This file keeps the "Reaction" class. The "Reaction" class contains all relevent
@@ -62,7 +61,7 @@ class Reaction:
                  gn2m:List[float]=None, nDOF:List[int]=None,
                  gg2m:List[float]=None, gDOF:List[int]=None,
                  MissFrac:List[float]=None, Gn_trunc:float=None, 
-                 resonances:Resonances=None):
+                 resonances:DataFrame=None):
         """
         Initializes reaction parameters with keyword arguments.
 
@@ -201,6 +200,8 @@ class Reaction:
             self.MissFrac = np.zeros((self.num_groups,), dtype=float)
 
         # "True" Resonances:
+        if resonances is not None and not isinstance(resonances, DataFrame):
+            raise TypeError('"resonances" must be a Pandas DataFrame')
         self.resonances = resonances
 
     @property
@@ -250,7 +251,7 @@ class Reaction:
             param_vals.append(self.MissFrac)
 
         data = np.vstack(param_vals)
-        txt += str(pd.DataFrame(data=data, index=param_names, columns=self.spingroups))
+        txt += str(DataFrame(data=data, index=param_names, columns=self.spingroups))
         return txt
     def __str__(self):
         return self.__repr__()
@@ -351,28 +352,25 @@ class Reaction:
         spingroups = spingroups[idx]
 
         # Setting "True" Ladder:
-        self.resonances = Resonances(E=E, Gn=Gn, Gg=Gg, ladder_bounds=self.EB)
+        self.resonances = DataFrame({'E':E, 'Gg':Gg, 'Gn1':Gn, 'J_ID': spingroups})
 
-        # Missing Resonances:
+        # Missing Resonance Indices:
         if self.Gn_trunc_provided: # given Gn_trunc
             missed_idx = (Gn <= self.Gn_trunc)
         else:
             miss_frac = np.concatenate((self.MissFrac, [0]))
             missed_idx = (rng.uniform(size=E.shape) < miss_frac[spingroups])
 
-        # Caught resonances:
-        E_caught  =  E[~missed_idx]
-        Gn_caught = Gn[~missed_idx]
-        Gg_caught = Gg[~missed_idx]
-        resonances_caught = Resonances(E=E_caught, Gn=Gn_caught, Gg=Gg_caught, ladder_bounds=self.EB)
-        spingroups_caught = spingroups[~missed_idx]
-        
         # Missing resonances:
-        E_missed  =  E[missed_idx]
-        Gn_missed = Gn[missed_idx]
-        Gg_missed = Gg[missed_idx]
-        resonances_missed = Resonances(E=E_missed, Gn=Gn_missed, Gg=Gg_missed, ladder_bounds=self.EB)
+        resonances_missed = self.resonances.iloc[missed_idx]
+        resonances_missed.reset_index(drop=True, inplace=True)
         spingroups_missed = spingroups[missed_idx]
+
+        # Caught resonances:
+        resonances_no_sg = self.resonances.drop(columns=['J_ID'])
+        resonances_caught = resonances_no_sg.iloc[~missed_idx]
+        resonances_caught.reset_index(drop=True, inplace=True)
+        spingroups_caught = spingroups[~missed_idx]
 
         # Returning resonance data:
         return resonances_caught, spingroups_caught, resonances_missed, spingroups_missed

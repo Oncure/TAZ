@@ -2,7 +2,6 @@ import pandas as pd
 
 from TAZ import Spingroup
 from TAZ import Reaction
-from TAZ import Resonances
 
 __doc__ = """
 This file is used to interface between ATARI and TAZ Dataclasses.
@@ -60,16 +59,7 @@ def ATARI_to_TAZ_reaction(particle_pair, **kwargs):
     }
 
     # Resonance ladder:
-    res_ladder = particle_pair.resonance_ladder
-    if res_ladder is not None:
-        E  = res_ladder['E'].to_numpy()
-        Gg = res_ladder['Gg'].to_numpy()
-        Gn = res_ladder['Gn1'].to_numpy()
-        Ls = res_ladder['L'].to_numpy()
-        Js = abs(res_ladder['Jpi'].to_numpy())
-        SGs = Spingroup.zip(Ls, Js)
-        resonances = Resonances(E, Gn, Gg, SG=SGs, ladder_bounds=energy_bounds)
-        reaction_params['resonances'] = resonances
+    reaction.resonances = particle_pair.resonance_ladder
 
     for key, value in kwargs.items():
         reaction_params[key] = value
@@ -77,27 +67,6 @@ def ATARI_to_TAZ_reaction(particle_pair, **kwargs):
     return reaction
 
 def TAZ_to_ATARI_reaction(reaction:Reaction):
-    """
-    ...
-    """
-
-    raise NotImplementedError('...')
-
-def ATARI_to_TAZ_resonances(res_ladder:pd.DataFrame):
-    """
-    ...
-    """
-
-    E  = res_ladder['E'].to_numpy()
-    Gg = res_ladder['Gg'].to_numpy()
-    Gn = res_ladder['Gn1'].to_numpy()
-    Ls = res_ladder['L'].to_numpy()
-    Js = abs(res_ladder['Jpi'].to_numpy())
-    SGs = Spingroup.zip(Ls, Js)
-    resonances = Resonances(E, Gn, Gg, SG=SGs)
-    return resonances
-
-def TAZ_to_ATARI_resonances(resonances:Resonances):
     """
     ...
     """

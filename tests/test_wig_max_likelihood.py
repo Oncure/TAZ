@@ -38,18 +38,18 @@ class TestBayesSampler(unittest.TestCase):
         SGs = TAZ.Spingroup.zip(cls.l, cls.j)
         cls.reaction = TAZ.Reaction(targ=Target, proj=Projectile, lvl_dens=cls.lvl_dens, gn2m=cls.gn2m, nDOF=cls.dfn, gg2m=cls.gg2m, gDOF=cls.dfg, spingroups=SGs, EB=cls.EB, false_dens=cls.false_dens)
         cls.res_ladder = cls.reaction.sample(cls.ensemble)[0]
+        cls.E = cls.res_ladder.E.to_numpy()
 
     def test_poisson(self):
         """
         Test that WigMaxLikelihood returns the spingroups with the maximum prior probabilities
         when provided Poisson level-spacing distributions.
         """
-        E  = self.res_ladder.E
         prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
         most_likely_sample_prior = np.argmax(prior, axis=1)
 
         distributions = self.reaction.distributions(dist_type='Poisson')
-        most_likely_sample_posterior = TAZ.RunMaster.WigMaxLikelihood(E, self.EB, distributions, self.err, prior)
+        most_likely_sample_posterior = TAZ.RunMaster.WigMaxLikelihood(self.E, self.EB, distributions, self.err, prior)
 
         self.assertTrue(np.all(most_likely_sample_prior == most_likely_sample_posterior), """
 The prior and posterior samples do not match with Poisson spacing distributions.

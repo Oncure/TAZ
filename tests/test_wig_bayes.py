@@ -41,16 +41,16 @@ class TestBayesSampler2SG(unittest.TestCase):
         SGs = TAZ.Spingroup.zip(cls.l, cls.j)
         cls.reaction = TAZ.Reaction(targ=Target, proj=Projectile, lvl_dens=cls.lvl_dens, gn2m=cls.gn2m, nDOF=cls.dfn, gg2m=cls.gg2m, gDOF=cls.dfg, spingroups=SGs, EB=cls.EB, false_dens=cls.false_dens)
         cls.res_ladder, cls.true_assignments, _, _ = cls.reaction.sample(cls.ensemble)
+        cls.E = cls.res_ladder.E.to_numpy()
     
     def test_poisson(self):
         """
         Here, we intend to verify that WigBayes returns the prior when provided Poisson
         distributions.
         """
-        E  = self.res_ladder.E
         prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
         distributions = self.reaction.distributions(dist_type='Poisson')
-        runmaster = TAZ.RunMaster(E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
+        runmaster = TAZ.RunMaster(self.E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
         posterior = runmaster.WigBayes()
         
         perrors = abs(posterior - prior) / prior
@@ -68,10 +68,9 @@ Mean error    = {perror_mean:.6%}
         of resonances with said probability within statistical error.
         """
         # self.skipTest('Not implemented')
-        E  = self.res_ladder.E
         prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
         distributions = self.reaction.distributions(dist_type='Wigner')
-        runmaster = TAZ.RunMaster(E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
+        runmaster = TAZ.RunMaster(self.E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
         posterior = runmaster.WigBayes()
 
         prob_expected, prob_ans_cor_est, prob_ans_cor_std = correlate_probabilities(posterior, self.true_assignments)
@@ -97,10 +96,9 @@ class TestBayesSampler1or2SG(unittest.TestCase):
         level-density).
         """
         self.skipTest('Not implemented')
-        E  = self.res_ladder.E
         prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
         distributions = self.reaction.distributions(dist_type='Wigner')
-        runmaster = TAZ.RunMaster(E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
+        runmaster = TAZ.RunMaster(self.E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
 
 class TestBayesSampler2or3SG(unittest.TestCase):
 
@@ -115,10 +113,9 @@ class TestBayesSampler2or3SG(unittest.TestCase):
         level-density).
         """
         self.skipTest('Not implemented')
-        E  = self.res_ladder.E
         prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
         distributions = self.reaction.distributions(dist_type='Wigner')
-        runmaster = TAZ.RunMaster(E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
+        runmaster = TAZ.RunMaster(self.E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
     
 if __name__ == '__main__':
     unittest.main()
