@@ -125,7 +125,7 @@ def SampleEnergies(EB:tuple, lvl_dens:float, w:float=1.0, ensemble:str='NNE',
         rng = np.random.default_rng(seed)
 
     # Error Checking:
-    if (ensemble in ('GOE','GUE','GSE')) and (w != 1.0):
+    if (ensemble in ('GOE','GUE','GSE', 'Poisson', 'Picket')) and (w != 1.0):
         raise NotImplementedError(f'Cannot sample "{ensemble}" with Brody parameters')
 
     # Sampling based on ensemble:

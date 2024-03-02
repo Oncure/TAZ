@@ -77,7 +77,7 @@ class Reaction:
             Energy range for evaluation.
         false_dens  : float
             False resonance level density.
-        spingroups  : List [Spingroup]
+        spingroups  : Spingroup [G]
             Spingroups for the reaction.
         lvl_dens    : float [G]
             Resonance level densities for each spingroup.
