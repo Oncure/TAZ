@@ -1,6 +1,6 @@
 import sys
 sys.path.append('../TAZ')
-from TAZ.Theory.RMatrix import Rho, PenetrationFactor
+from TAZ.Theory import Rho, PenetrationFactor
 
 import numpy as np
 

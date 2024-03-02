@@ -4,7 +4,7 @@ This page will address any notation and units that do not have implied standards
 
 Uncommon Notation
 =================
-* TAZ assumes a penetrability of 1.0 for gamma rays like SAMMY and ATARI. In other words, the expectation value of `Gg` is `2&lt;gg2&gt;` for infinite degrees of freedom.
+* TAZ assumes a penetrability of 1.0 for gamma rays like SAMMY and ATARI. In other words, `<Gg> = 2<gg2>`.
 
 Standard Units
 ==============

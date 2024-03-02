@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.optimize import curve_fit
 
-from TAZ.Theory.WidthDists import fraction_missing_gn2
+from TAZ.Theory import fraction_missing_gn2
 from TAZ.Theory.distributions import porter_thomas_dist
 from TAZ.DataClasses import HalfInt
 

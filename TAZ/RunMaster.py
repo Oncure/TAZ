@@ -2,7 +2,7 @@ from typing import Tuple, List
 import numpy as np
 
 from TAZ.Encore import Encore
-from TAZ.Theory.LevelSpacingDists import SpacingDistributionBase, merge
+from TAZ.Theory import SpacingDistributionBase, merge
 
 __doc__ = """
 This module serves as a preprocessor and postprocessor for the 2-spingroup assignment algorithm,
@@ -25,6 +25,9 @@ class RunMaster:
     -------
     WigBayes
         Calculates the probability of each spingroup assignment for each resonance.
+    WigMaxScore
+        Returns the spingroup assignments that maximize the number of correct spingroup
+        assignments.
     WigSample
         Samples an ensemble of spingroup assignments.
     LogLikelihood
@@ -366,6 +369,22 @@ class RunMaster:
                 sg_probs[:,:,g] = self.encore_pipes[g].WigBayes()
             combined_sg_probs = self._prob_combinator(sg_probs)
             return combined_sg_probs
+        
+    def WigMaxScore(self):
+        """
+        Returns the spingroup assignments that maximize the number of correct spingroup
+        assignments. This is the same as taking the maximum probable spingroup for each resonance
+        from the WigBayes probabilities.
+
+        Returns
+        -------
+        spingroups : int [L]
+            The spingroup probabilities for each resonance.
+        """
+
+        sg_probs = self.WigBayes()
+        spingroups = np.max(sg_probs, axis=1)
+        return spingroups
     
     def WigSample(self, num_trials:int=1, rng:np.random.Generator=None, seed:int=None):
         """

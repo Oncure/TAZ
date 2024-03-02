@@ -4,7 +4,6 @@ This module contains the R-matrix theory quantities.
 """
 
 from .RMatrix import *
-from .WidthDists import *
 from .distributions import *
 from .LevelSpacingDists import *
 from .Samplers import *

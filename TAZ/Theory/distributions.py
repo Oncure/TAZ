@@ -1,7 +1,9 @@
 from math import pi, sqrt
 import numpy as np
 from scipy.stats import rv_continuous, chi2
-from scipy.special import erf, erfc, expm1
+from scipy.special import erf, erfc, expm1, gammainc
+
+from .RMatrix import ReduceFactor
 
 # =================================================================================================
 #   Wigner Distribution
@@ -194,3 +196,61 @@ def deltaMehtaPredict(L:int, ensemble:str='GOE'):
     else:
         raise ValueError(f'Unknown ensemble, {ensemble}. Please choose from "GOE", "Poisson" or "picket".')
     return delta_3
+
+# =================================================================================================
+#    More Width Distribution Functions:
+# =================================================================================================
+
+def fraction_missing_gn2(trunc:float, gn2m:float=1.0, dof:int=1):
+    """
+    Gives the fraction of missing resonances due to the truncation in reduced neutron width.
+
+    Parameters
+    ----------
+    trunc : float
+        The lower limit on the reduced neutron width.
+    gn2m  : float
+        The mean reduced neutron width. Default = 1.0.
+    dof   : int
+        The number of degrees of freedom for the chi-squared distribution.
+
+    Returns
+    -------
+    fraction_missing : float
+        The fraction of missing resonances within the spingroup.
+    """
+    fraction_missing = gammainc(dof/2, dof*trunc/(2*gn2m))
+    return fraction_missing
+
+def fraction_missing_Gn(trunc:float,
+                        l:int, mass_targ:float, ac:float,
+                        gn2m:float=1.0, dof:int=1):
+    """
+    Gives the fraction of missing resonances due to the truncation in partial neutron width.
+
+    Parameters
+    ----------
+    trunc     : float
+        The lower limit on the reduced neutron width.
+    l         : int
+        The orbital-angular momentum for the channel.
+    mass_targ : float
+        Mass of the target nucleus.
+    ac        : float
+        Channel radius.
+    gn2m      : float
+        The mean reduced neutron width. Default = 1.0.
+    dof       : int
+        The number of degrees of freedom for the chi-squared distribution.
+
+    Returns
+    -------
+    fraction_missing : function: float -> float
+        The fraction of missing resonances within the spingroup as a function of energy.
+    """
+
+    def func(E):
+        gn2_trunc = trunc * ReduceFactor(E, l, mass_targ, ac)
+        fraction_missing = fraction_missing_gn2(gn2_trunc, gn2m, dof)
+        return fraction_missing
+    return func

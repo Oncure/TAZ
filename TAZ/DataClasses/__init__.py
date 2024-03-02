@@ -4,7 +4,7 @@ This module contains all data-storage classes such as spingroup, particle, parti
 and resonance classes.
 """
 
-from .Spingroups import *
+from .Spingroups import HalfInt, Spingroup
 from .Particle import *
-from .Resonances import *
-from .Reaction import *
+from .Resonances import Resonances
+from .Reaction import Reaction

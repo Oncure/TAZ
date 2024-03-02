@@ -1,9 +1,9 @@
 import sys
 sys.path.append('../TAZ')
 import TAZ
-from TAZ.Theory.distributions import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist, deltaMehta3, deltaMehtaPredict
-from TAZ.Theory.LevelSpacingDists import WignerGen, BrodyGen, MissingGen, HighOrderSpacingGen
-from TAZ.Theory.WidthDists import ReduceFactor
+from TAZ.Theory import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist, deltaMehta3, deltaMehtaPredict
+from TAZ.Theory import WignerGen, BrodyGen, MissingGen, HighOrderSpacingGen
+from TAZ.Theory import ReduceFactor, G_to_g2
 from utils import chi2_test, chi2_uniform_test
 
 import numpy as np
@@ -70,7 +70,7 @@ class TestResonanceGeneration(unittest.TestCase):
 
         NUM_BINS = 40
         Gg = self.res_ladder.Gg
-        gg2 = Gg / 2
+        gg2 = G_to_g2(Gg, penatrability=1.0)
         dist = porter_thomas_dist(mean=self.gg2m[0], df=self.dfg[0], trunc=0.0)
         chi2_test(dist, gg2, NUM_BINS, self, 0.001, 'gamma widths', 'Porter-Thomas distribution')
         

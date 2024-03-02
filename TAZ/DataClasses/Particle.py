@@ -109,5 +109,6 @@ class Particle:
     def __str__(self):
         return self.name
     
-Neutron = Particle(Z=0, A=1, I=0.5, mass=MASS_NEUTRON, radius=0.8  , name='neutron')
-Proton  = Particle(Z=1, A=1, I=0.5, mass=MASS_PROTON , radius=0.833, name='proton' )
+Neutron = Particle(Z=0 , A=1  , I=0.5, mass=MASS_NEUTRON, radius=0.8  , name='neutron')
+Proton  = Particle(Z=1 , A=1  , I=0.5, mass=MASS_PROTON , radius=0.833, name='proton' )
+Ta181   = Particle(Z=73, A=181, I=3.5, mass=180.94803   , radius=None , name='Ta181'  )

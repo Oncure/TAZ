@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from typing import List
+from typing import List, Tuple, Optional
 
 from TAZ import Theory
 from TAZ.DataClasses import Spingroup
@@ -55,13 +55,14 @@ class Reaction:
     def __init__(self,
                  targ:Particle=None, proj:Particle=Neutron,
                  ac:float=None,
-                 EB:tuple=None, false_dens:float=0.0,
+                 EB:Tuple[float]=None, false_dens:float=0.0,
                  spingroups:List[Spingroup]=None,
-                 lvl_dens:list=None, MLS:list=None,
-                 brody_param:list=None,
-                 gn2m:list=None, nDOF:list=None,
-                 gg2m:list=None, gDOF:list=None,
-                 Gn_trunc:list=None, MissFrac:list=None):
+                 lvl_dens:List[float]=None, MLS:List[float]=None,
+                 brody_param:List[float]=None,
+                 gn2m:List[float]=None, nDOF:List[int]=None,
+                 gg2m:List[float]=None, gDOF:List[int]=None,
+                 MissFrac:List[float]=None, Gn_trunc:float=None, 
+                 resonances:Resonances=None):
         """
         Initializes reaction parameters with keyword arguments.
 
@@ -89,14 +90,16 @@ class Reaction:
             Resonance mean reduced neutron widths for each spingroup.
         nDOF        : float [G]
             Resonance neutron width degrees of freedom for each spingroup.
-        Gn_trunc    : float [G]
-            Lowest recordable neutron width.
         gg2m        : float [G]
             Resonance mean reduced gamma (capture) width for each spingroup.
         gDOF        : float [G]
             Resonance gamma (capture) width degrees of freedom for each spingroup.
         MissFrac    : float [G]
             Fraction of Resonances that have been missed.
+        Gn_trunc    : float
+            Lowest neutron width to record.
+        resonances  : Resonances
+            The "true" resonance ladder.
         """
 
         # Target Particle:
@@ -196,6 +199,9 @@ class Reaction:
             self.MissFrac = Theory.fraction_missing_Gn(self.Gn_trunc, self.gn2m, self.nDOF, self.ac, self.gn2m, self.nDOF)
         else:
             self.MissFrac = np.zeros((self.num_groups,), dtype=float)
+
+        # "True" Resonances:
+        self.resonances = resonances
 
     @property
     def L(self):
@@ -344,6 +350,9 @@ class Reaction:
         Gg = Gg[idx]
         spingroups = spingroups[idx]
 
+        # Setting "True" Ladder:
+        self.resonances = Resonances(E=E, Gn=Gn, Gg=Gg, ladder_bounds=self.EB)
+
         # Missing Resonances:
         if self.Gn_trunc_provided: # given Gn_trunc
             missed_idx = (Gn <= self.Gn_trunc)
@@ -462,11 +471,6 @@ class Reaction:
                 else: # CDF
                     fit = self.distributions(dist_type)[g].cdf
         elif quantity == 'neutron width':
-            # FIXME: THESE TRUNCTATIONS ARE NOT THE SAME AS GN_TRUNC!!!
-            # if not cdf: # PDF
-            #     fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=self.Gn_trunc[g]).pdf
-            # else: # CDF
-            #     fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=self.Gn_trunc[g]).cdf
             if not cdf: # PDF
                 fit = Theory.porter_thomas_dist(mean=self.gn2m[g], df=self.nDOF[g], trunc=0.0).pdf
             else: # CDF

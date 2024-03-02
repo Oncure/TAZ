@@ -10,7 +10,7 @@ found in the ENDF and SAMMY manuals.
 # Physical constants: (Table 1 in appendix H of ENDF manual)
 HBAR       = 6.582_119_514e-16 # eV*s
 LIGHTSPEED = 299_792_458 # m/s
-AMU_EV    = 931.494_095_4e6 # eV/(c^2*amu)
+AMU_EV     = 931.494_095_4e6 # eV/(c^2*amu)
 
 def Rho(mass_targ:float, ac:float, E,
         mass_proj:float=MASS_NEUTRON,
@@ -115,3 +115,43 @@ def PenetrationFactor(rho, l:int):
     else: # is not iterable
         pen_factor = np.array(_penetrationFactor(rho,l))
     return pen_factor
+
+def ReduceFactor(E, l:int, mass_targ:float, ac:float,
+                 mass_proj:float=MASS_NEUTRON,
+                 mass_targ_after:float=None,
+                 mass_proj_after:float=None,
+                 E_thres:float=None):
+    """
+    Multiplication factor to convert from neutron width to reduced neutron width.
+
+    Parameters
+    ----------
+    E               : float, array-like
+        Resonance energies.
+    l               : int, array-like
+        Orbital angular momentum number.
+    mass_proj       : float
+        Mass of the projectile. Default = 1.008665 amu (neutron mass).
+    mass_targ_after : float, optional
+        Mass of the target after the reaction. Default = mass_targ.
+    mass_proj_after : float, optional
+        Mass of the target before the reaction. Default = mass_proj.
+    E_thres         : float, optional
+        Threshold energy for the reaction. Default is calculated from Q-value.
+
+    Returns
+    -------
+    reduce_factor : float, array-like
+        A multiplication factor that converts neutron widths into reduced neutron widths.
+    """
+
+    rho = Rho(mass_targ, ac, E,
+              mass_proj, mass_targ_after, mass_proj_after, E_thres)
+    reduce_factor = 1.0 / (2.0*PenetrationFactor(rho,l))
+    return reduce_factor
+
+def G_to_g2(G, penatrability):
+    return G / (2 * penatrability)
+
+def g2_to_G(g2, penatrability):
+    return 2 * penatrability * g2

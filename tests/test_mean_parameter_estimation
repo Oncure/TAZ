@@ -1,0 +1,12 @@
+import sys
+sys.path.append('../TAZ')
+from TAZ.Theory import MeanParameterEstimation
+
+import unittest
+
+class TestMeanParameters(unittest.TestCase):
+    """
+    Tests that the mean parameter estimation methods are statistically valid.
+    """
+
+    

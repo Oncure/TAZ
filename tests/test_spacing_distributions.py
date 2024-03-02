@@ -1,6 +1,6 @@
 import sys
 sys.path.append('../TAZ')
-from TAZ.Theory.LevelSpacingDists import PoissonGen, WignerGen, BrodyGen, MissingGen, HighOrderSpacingGen, merge
+from TAZ.Theory import PoissonGen, WignerGen, BrodyGen, MissingGen, HighOrderSpacingGen, merge
 
 import numpy as np
 from scipy.integrate import quad

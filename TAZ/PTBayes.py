@@ -2,7 +2,7 @@ import numpy as np
 from numpy import newaxis as NA
 from scipy.stats import chi2
 
-from TAZ.Theory import ReduceFactor
+from TAZ.Theory import ReduceFactor, G_to_g2
 from TAZ import Reaction, Resonances
 
 __doc__ = """
@@ -64,7 +64,7 @@ def PTBayes(res:Resonances, reaction:Reaction, false_width_dist=None, prior=None
     # Gamma widths: (if gamma_width_on is True)
     if gamma_width_on:
         mult_factor = (reaction.gDOF/reaction.gg2m)[NA,:]
-        gg2 = 2 * res.Gg
+        gg2 = G_to_g2(res.Gg, penatrability=1.0)
         posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * gg2[:,NA], reaction.gDOF)
 
     # False distribution:

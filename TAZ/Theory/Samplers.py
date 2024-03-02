@@ -2,7 +2,7 @@ from math import sqrt
 import numpy as np
 from scipy.linalg import eigvalsh_tridiagonal
 
-from TAZ.Theory.WidthDists import ReduceFactor
+from TAZ.Theory.RMatrix import ReduceFactor, g2_to_G
 from TAZ.Theory.LevelSpacingDists import WignerGen, BrodyGen
 from TAZ.Theory.distributions import porter_thomas_dist, semicircle_dist
 
@@ -84,7 +84,7 @@ def SampleGammaWidth(L:int, gg2m:float, dof:int,
         rng = np.random.default_rng(seed)
 
     gg2 = porter_thomas_dist(mean=gg2m, df=dof, trunc=0.0).rvs((L,), rng)
-    Gg = 2 * gg2
+    Gg = g2_to_G(gg2, penatrability=1.0) # gamma width has penetrability of 1
     return Gg
 
 # =================================================================================================

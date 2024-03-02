@@ -21,8 +21,11 @@
 - Test that the correct assignment rate matches the assignment probabilities within statistical error.
 
 ### Test WigSample
-- Test that WigSample returns spingroups with the correct frequency based on the underlying level-densities.
+- Test that WigSample returns spingroups with the correct frequency based on the underlying level-densities. (is this correct?)
 - Test that WigSample returns spingroups that produce the underlying distribution. Verify with Chi-square test.
 
 ### Test WigMaxLikelihood
 - Test that WigMaxLikelihood returns the maximum of the prior probabilities when provided Poisson distributions.
+
+### Test Mean Parameter Estimation
+- Test that the value and uncertainty for each mean parameter is statistically valid. (NOT IMPLEMENTED YET)
