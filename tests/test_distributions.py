@@ -5,6 +5,9 @@ from TAZ.Theory import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist, 
 import numpy as np
 from scipy.integrate import quad
 
+import warnings
+warnings.filterwarnings('error', category=RuntimeWarning)
+
 import unittest
 
 class TestDistributions(unittest.TestCase):

@@ -20,17 +20,17 @@ def PTBayes(resonances:DataFrame, reaction:Reaction, false_width_dist=None, prio
 
     Parameters
     ----------
-    res              : DataFrame
-        The dataframe including resonance energies, widths, etc.
+    resonancs        : DataFrame
+        The dataframe of resonance energies, widths, etc.
     reaction         : Reaction
         A Reaction object that holds the mean parameters for the reaction.
-    false_width_dist : function
+    false_width_dist : function, optional
         The PDF for the neutron widths of false resonances. If none are given, false widths are
-        sampled from the joint neutron width PDF of all spingroups. Default is None.
-    prior            : float [L,G+1]
+        sampled from the joint neutron width PDF of all spingroups.
+    prior            : float [L,G+1], optional
         Optional prior spingroup probabilities. Such probabilities may include information on
         statistical fits. However, the probabilities must be independent of the information
-        provided by the width distributions. Default is None.
+        provided by the width distributions.
     gamma_width_on   : bool
         Determines whether the gamma-width probabilities are calculated based on the theoretical
         distribution. Many RRR evaluations assume the gamma widths are more or less constant. This
@@ -69,7 +69,7 @@ def PTBayes(resonances:DataFrame, reaction:Reaction, false_width_dist=None, prio
     # Gamma widths: (if gamma_width_on is True)
     if gamma_width_on:
         mult_factor = (reaction.gDOF/reaction.gg2m)[NA,:]
-        gg2 = G_to_g2(Gg, penatrability=1.0)
+        gg2 = G_to_g2(Gg, penatrability=1.0) # we assume gamma penetrability is 1.0
         posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * gg2[:,NA], reaction.gDOF)
 
     # False distribution:

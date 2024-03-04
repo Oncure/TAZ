@@ -5,6 +5,9 @@ from utils import chi2_test
 
 import numpy as np
 
+import warnings
+warnings.filterwarnings('error', category=RuntimeWarning)
+
 import unittest
 
 class TestBayesSample1(unittest.TestCase):

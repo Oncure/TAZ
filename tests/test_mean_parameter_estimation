@@ -4,6 +4,10 @@ from TAZ.Theory.MeanParameterEstimation import MeanSpacingAveraging
 from TAZ.Theory.Samplers import SampleEnergies
 
 import numpy as np
+
+import warnings
+warnings.filterwarnings('error', category=RuntimeWarning)
+
 import unittest
 
 class TestMeanSpacings(unittest.TestCase):

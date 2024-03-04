@@ -23,4 +23,4 @@ TAZ uses the following standard units throughout the code.
 
 Known Bugs and Issues
 =====================
-- No known bugs or issues at this time.
+- test_wig_sample.TestBayesSample1.test_distributions seems to be failing consistently, but the distribution looks alright.

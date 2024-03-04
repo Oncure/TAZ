@@ -5,22 +5,22 @@ from pandas import Series
 from TAZ.Encore import Encore
 from TAZ.Theory import SpacingDistributionBase, merge
 
+import warnings
+
 __doc__ = """
-This module serves as a preprocessor and postprocessor for the 2-spingroup assignment algorithm,
-"Encore.py". This module extends the 2-spingroup algorithm to multiple-spingroups by "merging"
-spingroups. This module finds the probabilities for various merge cases and combines the expected
-probabilities. Unlike the 2-spingroup case that gives the best answer given its information
-(i.e. mean level spacings, reduced widths, false resonance probabilities, etc.), the
-multiple-spingroup case is an approximation as some information has been lost.
+This module serves as a preprocessor and postprocessor for the spingroup assignment algorithm,
+"Encore". The "merge" feature can compress an assignment problem with more than 2 spingroups into a
+multiple 2-spingroup assignment problems. The merge feature may be needed when the number of
+spingroups is 4 or higher as the problem would become computationally infeasible. The merge
+feature finds the probabilities for various merge cases and combines the expected probabilities.
 """
 
 class RunMaster:
     f"""
-    A wrapper over Encore responsible for partitioning spingroups, merging distributions, and
-    combining spingroup probabilities. For 1 or 2 spingroups, partitioning and merging
-    distributions is not necessary and RunMaster will pass to Encore. Once a RunMaster object has
-    been initialized, the specific algorithm can be chosen (i.e. WigBayes, WigSample,
-    LogLikelihood, etc.).
+    A wrapper over Encore responsible for calculating level-spacing probabilities, and providing
+    the "merge" functionality. Once a RunMaster object has been initialized, the specific algorithm
+    can be chosen (i.e. WigBayes, WigSample, LogLikelihood, etc.). The WigMaxLikelihood does not
+    require Encore to be initialized, so it can be called as a class method without initialization.
 
     Methods
     -------
@@ -48,36 +48,35 @@ class RunMaster:
     def __init__(self, E, EB:tuple,
                  level_spacing_dists:Tuple[SpacingDistributionBase], false_dens:float=0.0,
                  prior=None, log_likelihood_prior:float=None,
-                 err:float=1e-9,
+                 err:float=1e-9, merge:bool=False,
                  verbose:bool=False):
-        
         """
         Initializes a RunMaster object.
 
         Parameters
         ----------
-        E                    : float, array-like
+        E                    : array-like of float
             Resonance energies for the ladder.
-        EB                   : float [2]
+        EB                   : (float, float)
             The ladder energy boundaries.
         level_spacing_dists  : ndarray[SpacingDistribution]
             The level-spacing distributions object.
         false_dens           : float
             The false level-density. Default = 0.0.
-        prior                : float, array-like
-            The prior probabilitiy distribution for each spingroup. Default = None.
-        log_likelihood_prior : float
-            The log-likelihood provided from the prior. Default = None.
+        prior                : array-like of float, optional
+            The prior probabilitiy distribution for each spingroup.
+        log_likelihood_prior : float, optional
+            The log-likelihood provided from the prior.
         err                  : float
             A level-spacing probability threshold at which resonances are considered to be too far
             apart to be nearest neighbors.
+        merge                : bool
+            Merges level-spacings if True. Default = False.
         verbose              : bool
-            The verbosity controller.
+            The verbosity controller. Default = False.
         """
 
         # Error Checking:
-        # if type(level_spacing_dists) != Distributions:
-        #     raise TypeError('The level-spacing distributions must be a "Distributions" object.')
         if not (0.0 < err < 1.0):
             raise ValueError('The probability threshold, "err", must be strictly between 0 and 1.')
         if len(EB) != 2:
@@ -102,13 +101,17 @@ class RunMaster:
         self.log_likelihood_prior = log_likelihood_prior
         self.verbose = verbose
 
-        self._prepare_encore_pipes(err)
+        if merge and self.G <= 2:
+            warnings.warn('Merging does not occur for G <= 2. merge will be set to False.', UserWarning)
+            merge = False
+        self.merge = merge
 
-    def _prepare_encore_pipes(self, err:float):
+        self._prepare_encore_pipe(err)
+
+    def _prepare_encore_pipe(self, err:float):
         """
-        Prepares the preprocessing for Encore such as partitioning spingroups and merging (if
-        necessary). Once the Encore dependences are prepared (like level-spacing probabilities),
-        Encore is initialized for each required runcase.
+        Prepares the preprocessing for Encore such as level-spacing probability calculations. Once
+        the Encore dependences are prepared Encore is initialized for each required runcase.
 
         Parameters
         ----------
@@ -117,18 +120,7 @@ class RunMaster:
             apart to be nearest neighbors.
         """
 
-        if self.G <= 2: # no merge needed
-            iMax = np.zeros((self.L+2, 2, self.G), 'i4')
-            level_spacing_probs = np.zeros((self.L+2, self.L+2, self.G), 'f8')
-            for g in range(self.G):
-                if self.verbose:    print(f'Finding level-spacing probabilities for group {g}.')
-                iMax[:,:,g] = self._calculate_iMax(self.E, self.EB, self.level_spacing_dists[g], err)
-                level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.EB, self.level_spacing_dists[g], iMax[:,:,g])
-            if self.verbose:    print(f'Creating ENCORE pipeline.')
-            encore_pipe = Encore(self.prior, level_spacing_probs, iMax)
-            self.encore_pipes = encore_pipe
-            if self.verbose:    print(f'Finished ENCORE initialization.')
-        else: # merge needed
+        if self.merge:
             self.encore_pipes = []
             for g in range(self.G):
                 partition = ([g_ for g_ in range(self.G) if g_ != g], [g])
@@ -138,7 +130,17 @@ class RunMaster:
             partition = ([g for g in range(self.G)],)
             encore_pipe = self._partition_encore(partition, err)
             self.encore_pipes.append(encore_pipe)
-    
+        else:
+            iMax = np.zeros((self.L+2, 2, self.G), 'i4')
+            level_spacing_probs = np.zeros((self.L+2, self.L+2, self.G), 'f8')
+            for g in range(self.G):
+                if self.verbose:    print(f'Finding level-spacing probabilities for group {g}.')
+                iMax[:,:,g] = self._calculate_iMax(self.E, self.EB, self.level_spacing_dists[g], err)
+                level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.EB, self.level_spacing_dists[g], iMax[:,:,g])
+            if self.verbose:    print(f'Creating ENCORE pipeline.')
+            self.encore_pipe = Encore(self.prior, level_spacing_probs, iMax)
+            if self.verbose:    print(f'Finished ENCORE initialization.')
+
     def _partition_encore(self, partition:Tuple[List[int]], err:float):
         """
         In the case a merge is required, _partition_encore takes a spingroup partition, calculates
@@ -333,7 +335,7 @@ class RunMaster:
 
         # FIXME: I DON'T KNOW LOG LIKELIHOOD CORRECTION FACTOR FOR MERGED CASES! 
         return np.sum(partition_log_likelihoods) - (self.G-1)*base_log_likelihoods
-
+    
     # =============================================================================================
     # Properties
     # =============================================================================================
@@ -362,16 +364,21 @@ class RunMaster:
             The spingroup probabilities for each resonance.
         """
 
-        if self.G <= 2:
-            encore = self.encore_pipes
-            sg_probs = encore.WigBayes()
-            return sg_probs
-        else:
+        if self.merge:
             sg_probs = np.zeros((self.L,3,self.G),dtype='f8')
-            for g in range(self.G):
-                sg_probs[:,:,g] = self.encore_pipes[g].WigBayes()
+            for g, encore_pipe in enumerate(self.encore_pipes[:-1]):
+                if self.verbose:    print(f'Starting WigBayes for partition {g}')
+                sg_probs[:,:,g] = encore_pipe.WigBayes()
+                if self.verbose:    print(f'Finished running WigBayes for partition {g}')
+            print(f'Combining Probabilities')
             combined_sg_probs = self._prob_combinator(sg_probs)
+            print(f'Finished calculation')
             return combined_sg_probs
+        else:
+            if self.verbose:    print('Starting WigBayes')
+            sg_probs = self.encore_pipe.WigBayes()
+            if self.verbose:    print('Finished running WigBayes')
+            return sg_probs
         
     def WigMaxScore(self):
         """
@@ -407,13 +414,14 @@ class RunMaster:
         samples : int [L,trials]
             The sampled IDs for each resonance and trial.
         """
-        
-        if self.G <= 2:
-            encore = self.encore_pipes
-            samples = encore.WigSample(num_trials, rng=rng, seed=seed)
-            return samples
+
+        if self.merge:
+            raise NotImplementedError('WigSample for the merged case has not been implemented yet.')
         else:
-            raise NotImplementedError('WigSample for more than two spingroups has not been implemented yet.')
+            if self.verbose:    print('Starting WigSample')
+            samples = self.encore_pipe.WigSample(num_trials, rng=rng, seed=seed)
+            if self.verbose:    print('Finished running WigSample')
+            return samples
     
     def LogLikelihood(self):
         """
@@ -427,17 +435,16 @@ class RunMaster:
             parameters.
         """
 
-        if self.G <= 2:
-            encore = self.encore_pipes
-            log_likelihood = encore.LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior)
-            return log_likelihood
-        else:
+        if self.merge:
             log_likelihoods = np.zeros(self.G, dtype='f8')
-            for g, encore in enumerate(self.encore_pipes[:-1]):
-                log_likelihoods[g] = encore.LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior) # FIXME this may have incorrect prior
+            for g, encore_pipe in enumerate(self.encore_pipes[:-1]):
+                log_likelihoods[g] = encore_pipe.LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior) # FIXME this may have incorrect prior
             base_log_likelihood = self.encore_pipes[-1].LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior)
             combined_log_likelihood = self._log_likelihood_combinator(log_likelihoods, base_log_likelihood)
             return combined_log_likelihood
+        else:
+            log_likelihood = self.encore_pipe.LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior)
+            return log_likelihood
         
     def ProbOfSample(self, spingroup_assignments):
         """
@@ -456,11 +463,10 @@ class RunMaster:
         """
 
         # NOTE: This needs checking!!!
-        if self.G <= 2:
-            encore = self.encore_pipes
-            likelihood = encore.ProbOfSample(spingroup_assignments)
+        if self.merge:
+            raise NotImplementedError('ProbOfSample for the merged case has not been implemented yet.')
         else:
-            raise NotImplementedError('ProbOfSample has not been implemented for 3 or more spingroups.')
+            likelihood = self.encore_pipe.ProbOfSample(spingroup_assignments)
         return likelihood
     
     @classmethod
@@ -469,9 +475,8 @@ class RunMaster:
                          prior=None):
         """
         Returns the maximum likelihood spingroup assignments using branching and pruning methods.
-
-        Unlike the other methods, this method can handle any number of spingroups without merging
-        level-spacing distributions.
+        This method does not need the CP values from initialization. Therefore, WigMaxLikelihood
+        is a class method that can be called prior to initialization.
 
         Parameters
         ----------

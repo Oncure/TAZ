@@ -5,6 +5,9 @@ from TAZ.Theory import PoissonGen, WignerGen, BrodyGen, MissingGen, HighOrderSpa
 import numpy as np
 from scipy.integrate import quad
 
+import warnings
+warnings.filterwarnings('error', category=RuntimeWarning)
+
 import unittest
 
 __doc__ = """

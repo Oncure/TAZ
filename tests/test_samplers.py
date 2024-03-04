@@ -7,8 +7,11 @@ from TAZ.Theory import ReduceFactor, G_to_g2
 from utils import chi2_test, chi2_uniform_test
 
 import numpy as np
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid as cumtrapz
 from scipy.stats import chisquare
+
+import warnings
+warnings.filterwarnings('error', category=RuntimeWarning)
 
 import unittest
 

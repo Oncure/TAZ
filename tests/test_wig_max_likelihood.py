@@ -4,6 +4,9 @@ import TAZ
 
 import numpy as np
 
+import warnings
+warnings.filterwarnings('error', category=RuntimeWarning)
+
 import unittest
 
 class TestBayesSampler(unittest.TestCase):

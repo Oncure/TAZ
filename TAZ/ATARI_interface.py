@@ -45,7 +45,7 @@ def ATARI_to_TAZ_reaction(particle_pair, **kwargs):
         gg2m.append(mean_param_dict['<gg2>'])
         gDOF.append(mean_param_dict['<g_dof>'])
 
-        reaction_params = {
+    reaction_params = {
         'targ'       : particle_pair.target,
         'proj'       : particle_pair.projectile,
         'ac'         : particle_pair.ac,
@@ -72,3 +72,4 @@ def TAZ_to_ATARI_reaction(reaction:Reaction):
     """
 
     raise NotImplementedError('...')
+    return particle_pair

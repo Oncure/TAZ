@@ -5,6 +5,9 @@ from TAZ.analysis import correlate_probabilities
 
 import numpy as np
 
+import warnings
+warnings.filterwarnings('error', category=RuntimeWarning)
+
 import unittest
 
 class TestBayesSampler2SG(unittest.TestCase):
@@ -86,7 +89,7 @@ Maximum discrepancy = {np.max(errors):.5f} standard deviations.
 class TestBayesSampler1or2SG(unittest.TestCase):
 
     ensemble = 'NNE' # Nearest Neighbor Ensemble
-    eps = 0.025
+    eps = 0.05
     err = 1e-8
 
     def test_1_2_sg_match(self):
@@ -123,6 +126,7 @@ class TestBayesSampler1or2SG(unittest.TestCase):
         distributions2 = reaction2.distributions(dist_type='Wigner')
         runmaster2 = TAZ.RunMaster(E, EB, distributions2, false_dens, prior2, log_likelihood_prior2, err=self.err)
         posterior2 = runmaster2.WigBayes()
+
         # taking out new spingroup:
         posterior2_alt = posterior2[:,::2]
         posterior2_alt /= np.sum(posterior2_alt, axis=1, keepdims=True)

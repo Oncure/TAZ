@@ -4,6 +4,9 @@ from TAZ.Theory import Rho, PenetrationFactor
 
 import numpy as np
 
+import warnings
+warnings.filterwarnings('error', category=RuntimeWarning)
+
 import unittest
 
 __doc__ == """
