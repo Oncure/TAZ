@@ -1,9 +1,9 @@
 from math import pi, sqrt
 import numpy as np
 from scipy.stats import rv_continuous, chi2
-from scipy.special import erf, erfc, expm1, gammainc
+from scipy.special import erf, erfc, expm1
 
-from .RMatrix import ReduceFactor
+# from .RMatrix import ReduceFactor
 
 # =================================================================================================
 #   Wigner Distribution
@@ -110,29 +110,44 @@ class __PorterThomasDistribution(rv_continuous):
                 & np.isfinite(mean) & (mean >= 0) \
                 & (df >= 1) & (df % 1 == 0)
     def _pdf(self, x, mean:float, df:int, trunc:float):
+        x = abs(x)
         norm = chi2.sf(trunc, df=df, scale=mean/df)
-        y = np.zeros(x.shape)
+        y = np.zeros_like(x)
         y[x >  trunc] = chi2.pdf(x[x >  trunc], df=df, scale=mean/df) / norm
         y[(x < 0) & (df == 1)] = 0
         return y
     def _cdf(self, x, mean:float, df:int, trunc:float):
+        x = abs(x)
         norm = chi2.sf(trunc, df=df, scale=mean/df)
-        y = np.zeros(x.shape)
+        y = np.zeros_like(x)
         y[x >  trunc] = 1 + (chi2.cdf(x, df=df, scale=mean/df)-1) / norm
         return y
     def _sf(self, x, mean:float, df:int, trunc:float):
+        x = abs(x)
         norm = chi2.sf(trunc, df=df, scale=mean/df)
-        y = np.ones(x.shape)
+        y = np.ones_like(x)
         y[x >  trunc] = chi2.sf(x, df=df, scale=mean/df) / norm
         return y
     def _ppf(self, q, mean:float, df:int, trunc:float):
+        # Getting the sign:
+        sign = np.ones_like(q)
+        sign[q < 0.5] = -1
+        q = 2.0 * abs(q - 0.5)
+        # Calculating the value:
         norm = chi2.sf(trunc, df=df, scale=mean/df)
         qp = (q - 1) * norm + 1
-        return chi2.ppf(qp, df=df, scale=mean/df)
+        x = chi2.ppf(qp, df=df, scale=mean/df)
+        return sign * x
     def _isf(self, q, mean:float, df:int, trunc:float):
+        # Getting the sign:
+        sign = np.ones_like(q)
+        sign[q < 0.5] = -1
+        q = 2.0 * abs(q - 0.5)
+        # Calculating the value:
         norm = chi2.sf(trunc, df=df, scale=mean/df)
         qp = q * norm
-        return chi2.isf(qp, df=df, scale=mean/df)
+        x = chi2.isf(qp, df=df, scale=mean/df)
+        return sign * x
 porter_thomas_dist = __PorterThomasDistribution(name='Porter-Thomas distribution', shapes='mean, df, trunc')
 
 # =================================================================================================
@@ -201,7 +216,7 @@ def deltaMehtaPredict(L:int, ensemble:str='GOE'):
 #    More Width Distribution Functions:
 # =================================================================================================
 
-def fraction_missing_gn2(trunc:float, gn2m:float=1.0, dof:int=1):
+def fraction_missing_gn2(gn2_trunc:float, gn2m:float=1.0, dof:int=1):
     """
     Gives the fraction of missing resonances due to the truncation in reduced neutron width.
 
@@ -219,38 +234,39 @@ def fraction_missing_gn2(trunc:float, gn2m:float=1.0, dof:int=1):
     fraction_missing : float
         The fraction of missing resonances within the spingroup.
     """
-    fraction_missing = gammainc(dof/2, dof*trunc/(2*gn2m))
+    # fraction_missing = gammainc(dof/2, dof*gn2_trunc/(2*gn2m))
+    fraction_missing = porter_thomas_dist(mean=gn2m, df=dof, trunc=0.0).cdf(gn2_trunc)
     return fraction_missing
 
-def fraction_missing_Gn(trunc:float,
-                        l:int, mass_targ:float, ac:float,
-                        gn2m:float=1.0, dof:int=1):
-    """
-    Gives the fraction of missing resonances due to the truncation in partial neutron width.
+# def fraction_missing_Gn(Gn_trunc:float,
+#                         l:int, mass_targ:float, ac:float,
+#                         gn2m:float=1.0, dof:int=1):
+#     """
+#     Gives the fraction of missing resonances due to the truncation in partial neutron width.
 
-    Parameters
-    ----------
-    trunc     : float
-        The lower limit on the reduced neutron width.
-    l         : int
-        The orbital-angular momentum for the channel.
-    mass_targ : float
-        Mass of the target nucleus.
-    ac        : float
-        Channel radius.
-    gn2m      : float
-        The mean reduced neutron width. Default = 1.0.
-    dof       : int
-        The number of degrees of freedom for the chi-squared distribution.
+#     Parameters
+#     ----------
+#     trunc     : float
+#         The lower limit on the reduced neutron width.
+#     l         : int
+#         The orbital-angular momentum for the channel.
+#     mass_targ : float
+#         Mass of the target nucleus.
+#     ac        : float
+#         Channel radius.
+#     gn2m      : float
+#         The mean reduced neutron width. Default = 1.0.
+#     dof       : int
+#         The number of degrees of freedom for the chi-squared distribution.
 
-    Returns
-    -------
-    fraction_missing : function: float -> float
-        The fraction of missing resonances within the spingroup as a function of energy.
-    """
+#     Returns
+#     -------
+#     fraction_missing : function: float -> float
+#         The fraction of missing resonances within the spingroup as a function of energy.
+#     """
 
-    def func(E):
-        gn2_trunc = trunc * ReduceFactor(E, l, mass_targ, ac)
-        fraction_missing = fraction_missing_gn2(gn2_trunc, gn2m, dof)
-        return fraction_missing
-    return func
+#     def func(E):
+#         gn2_trunc = Gn_trunc * ReduceFactor(E, l, mass_targ, ac)
+#         fraction_missing = fraction_missing_gn2(gn2_trunc, gn2m, dof)
+#         return fraction_missing
+#     return func

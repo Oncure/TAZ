@@ -1,9 +1,8 @@
 from pandas import DataFrame
 import numpy as np
 from numpy import newaxis as NA
-from scipy.stats import chi2
 
-from TAZ.Theory import ReduceFactor, G_to_g2
+from TAZ.Theory import porter_thomas_dist
 from TAZ import Reaction
 
 __doc__ = """
@@ -62,15 +61,14 @@ def PTBayes(resonances:DataFrame, reaction:Reaction, false_width_dist=None, prio
     posterior = prior
 
     # Neutron widths:
-    mult_factor = (reaction.nDOF/reaction.gn2m)[NA,:] * ReduceFactor(E, reaction.L, ac=reaction.ac,
-                                                                                  mass_targ=reaction.targ.mass, mass_proj=reaction.proj.mass)
-    posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * Gn[:,NA], reaction.nDOF)
+    Gnms = reaction.Gnm
+    for g, Gnm in enumerate(Gnms):
+        posterior[:,g] *= porter_thomas_dist.pdf(Gn, mean=Gnm(E), df=reaction.nDOF[g], trunc=0.0)
 
     # Gamma widths: (if gamma_width_on is True)
     if gamma_width_on:
-        mult_factor = (reaction.gDOF/reaction.gg2m)[NA,:]
-        gg2 = G_to_g2(Gg, penatrability=1.0) # we assume gamma penetrability is 1.0
-        posterior[:,:-1] *= mult_factor * chi2.pdf(mult_factor * gg2[:,NA], reaction.gDOF)
+        for g, Gnm in enumerate(Gnms):
+            posterior[:,g] *= porter_thomas_dist.pdf(Gg, mean=reaction.Ggm[g], df=reaction.gDOF[g], trunc=0.0)
 
     # False distribution:
     if (reaction.false_dens != 0.0) and (false_width_dist is not None):

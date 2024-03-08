@@ -3,7 +3,6 @@ import numpy as np
 from numpy.random import Generator
 from scipy.linalg import eigvalsh_tridiagonal
 
-from TAZ.Theory.RMatrix import ReduceFactor, g2_to_G
 from TAZ.Theory.LevelSpacingDists import WignerGen, BrodyGen
 from TAZ.Theory.distributions import porter_thomas_dist, semicircle_dist
 
@@ -16,8 +15,7 @@ energies.
 #    Partial Width Sampling:
 # =================================================================================================
 
-def SampleNeutronWidth(E, gn2m:float, dof:int, l:int, ac:float,
-                       mass_targ:float, mass_proj:float,
+def SampleNeutronWidth(E, Gnm, dof:int,
                        rng:Generator=None, seed:int=None):
     """
     Samples neutron widths according to the chi-squared distribution.
@@ -26,18 +24,10 @@ def SampleNeutronWidth(E, gn2m:float, dof:int, l:int, ac:float,
     ----------
     E         : float [n]
         Resonance energies, where `n` is the number of resonances.
-    gn2m      : float
-        Mean reduced neutron width.
+    Gnm       : function
+        Mean partial neutron width as a function of energy.
     dof       : int
         Chi-squared degrees of freedom.
-    l         : int
-        Quantum angular momentum number for the spingroup.
-    ac        : float
-        Nuclear radius of the target isotope.
-    mass_targ : float
-        Mass of the target particle.
-    mass_proj : float
-        Mass of the projectile particle.
     rng       : numpy.random.Generator, optional
         A provided random number generator.
     seed      : int, optional
@@ -50,12 +40,10 @@ def SampleNeutronWidth(E, gn2m:float, dof:int, l:int, ac:float,
     """
 
     if rng is None:     rng = np.random.default_rng(seed)
-
-    gn2 = porter_thomas_dist(mean=gn2m, df=dof, trunc=0.0).rvs((len(E),), rng)
-    Gn = gn2 / ReduceFactor(np.array(E), l, ac=ac, mass_targ=mass_targ, mass_proj=mass_proj)
+    Gn = porter_thomas_dist.rvs(mean=Gnm(E), df=dof, trunc=0.0, size=(len(E),), random_state=rng)
     return Gn
 
-def SampleGammaWidth(L:int, gg2m:float, dof:int,
+def SampleGammaWidth(L:int, Ggm:float, dof:int,
                      rng:Generator=None, seed:int=None):
     """
     Samples gamma (capture) widths according to the chi-squared distribution.
@@ -64,8 +52,8 @@ def SampleGammaWidth(L:int, gg2m:float, dof:int,
     ----------
     L    : int
         Number of gamma (capture) widths to sample.
-    gg2m : float
-        Mean reduced gamma (capture) width.
+    Ggm  : float
+        Mean partial gamma (capture) width.
     dof  : int
         Chi-squared degrees of freedom.
     rng  : numpy.random.Generator, optional
@@ -80,9 +68,7 @@ def SampleGammaWidth(L:int, gg2m:float, dof:int,
     """
     
     if rng is None:     rng = np.random.default_rng(seed)
-
-    gg2 = porter_thomas_dist(mean=gg2m, df=dof, trunc=0.0).rvs((L,), rng)
-    Gg = g2_to_G(gg2, penatrability=1.0) # gamma width has penetrability of 1
+    Gg = porter_thomas_dist(mean=Ggm, df=dof, trunc=0.0).rvs((L,), rng)
     return Gg
 
 # =================================================================================================

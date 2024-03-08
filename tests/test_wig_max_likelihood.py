@@ -46,7 +46,8 @@ class TestBayesSampler(unittest.TestCase):
     def test_poisson(self):
         """
         Test that WigMaxLikelihood returns the spingroups with the maximum prior probabilities
-        when provided Poisson level-spacing distributions.
+        when provided Poisson level-spacing distributions. This is because Poisson distributions
+        have the unique property of providing no addition information beyond frequency.
         """
         prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
         most_likely_sample_prior = np.argmax(prior, axis=1)

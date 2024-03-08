@@ -1,5 +1,6 @@
 import numpy as np
 from numpy import ndarray
+from scipy.stats import binom
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -8,7 +9,7 @@ This module is used to analyze the data created by TAZ with scores, confusion ma
 distributions, etc.
 """
 
-def _fractionEstimation(N:int, n:int):
+def _fraction_estimation(N:int, n:int):
     """
     A function used to estimate the fraction of successful counts when restricted between 0 and 1.
     The estimated fraction and standard deviation are derived from the expectation value and
@@ -34,7 +35,7 @@ def _fractionEstimation(N:int, n:int):
     frac_std = np.sqrt(frac_var)
     return frac_est, frac_std
 
-def spinGroupNames(num_groups:int, last_false:bool=True):
+def spingroup_names(num_groups:int, last_false:bool=True):
     """
     A function that provides default names for each of the `num_groups` spingroup. The spingroup
     names are given by letters, provided alphabetically, excluding "F", "I", and "O" to avoid
@@ -72,6 +73,9 @@ def PrintScore(pred_probs:ndarray, answer:ndarray,
         score = np.count_nonzero(answer == guess) / np.size(answer)
     elif metric == 'probability score':
         score = np.mean(pred_probs[:,answer])
+    elif metric == 'Brier score':
+        score = np.mean(np.sum(pred_probs**2, axis=1)
+                        + (1-2*pred_probs[:,answer]))
     else:
         raise NotImplementedError(f'Unknown metric, "{metric}"')
 
@@ -91,6 +95,8 @@ def PrintPredScore(pred_probs:ndarray,
         score = np.mean(pred_probs[:,guess])
     elif metric == 'probability score':
         score = np.mean(np.sum(pred_probs**2, axis=1))
+    elif metric == 'Brier score':
+        score = np.mean(np.sum(pred_probs*(1-pred_probs), axis=1))
     else:
         raise NotImplementedError(f'Unknown metric, "{metric}"')
 
@@ -115,7 +121,7 @@ def ConfusionMatrix(pred_probs:ndarray, answer:ndarray, sg_names:list=None):
 
     # Determine the number of groups:
     if sg_names is None:
-        sg_names = spinGroupNames(num_groups)
+        sg_names = spingroup_names(num_groups)
     elif len(sg_names) != num_groups:
         raise ValueError('The length of the list of spingroup names must equal the number of spingroups, given by the rows of `pred_probs`.')
 
@@ -137,25 +143,19 @@ def ConfusionMatrix(pred_probs:ndarray, answer:ndarray, sg_names:list=None):
 
 def correlate_probabilities(pred_probs:ndarray, answer:ndarray):
     """
-    Groups resonances into bins based on their predicted probabilities and calculates the frequency
-    of correct assignments. This function can be used for statistical tests to ensure that WigBayes
-    is working correctly.
+    ...
 
     Parameters
     ----------
     pred_probs : array[float]
         Predicted spingroup probabilties for each resonance.
-    answer     : array[int]
+    answer : array[int]
         The number of correct solutions.
 
     Returns
     -------
-    prob_expected : ndarray[float]
-        Chosen probabilities from binning predicted probabilities.
-    freq_cor_est  : ndarray[float]
-        The mean frequency of correct assignments for each bin.
-    freq_cor_std  : ndarray[float]
-        The standard deviation of the frequency of correct assignments for each bin.
+    Qs : list[array[float]]
+        The pmf values for the frequency of each probability bin for each spingroup.
 
     See Also:
     --------
@@ -166,10 +166,7 @@ def correlate_probabilities(pred_probs:ndarray, answer:ndarray):
 
     nBin = round(np.sqrt(len(answer)))
     edges = np.linspace(0.0, 1.0, nBin+1)
-    X = (edges[:-1] + edges[1:])/2 # the center of each bin
-    prob_expecteds = []
-    prob_ans_cor_ests = []
-    prob_ans_cor_stds = []
+    Qs = []
     for g in range(num_groups):
         prob_guess_type = pred_probs[:,g]
         prob_guess_cor  = prob_guess_type[answer == g]
@@ -177,16 +174,23 @@ def correlate_probabilities(pred_probs:ndarray, answer:ndarray):
         count_cor = np.histogram(prob_guess_cor , bins=edges)[0]
 
         # Only plot the cases where counts exist:
-        prob_expected = X[count_all != 0]
-        count_all_non_zero = count_all[count_all != 0]
-        count_cor_non_zero = count_cor[count_all != 0]
+        count_all_non_zero = count_all[count_all > 1]
+        count_cor_non_zero = count_cor[count_all > 1]
+
+        # Find the expected mean probability:
+        prob_expected_non_zero = []
+        for binID in range(nBin):
+            if count_all[binID] <= 1:
+                continue
+            prob_expected_non_zero.append(np.mean(prob_guess_type[(prob_guess_type > edges[binID]) & (prob_guess_type < edges[binID+1])]))
+        prob_expected_non_zero = np.array(prob_expected_non_zero)
 
         # Estimating probability and confidence:
-        prob_ans_cor_est, prob_ans_cor_std = _fractionEstimation(count_all_non_zero, count_cor_non_zero)
-        prob_expecteds.append(prob_expected)
-        prob_ans_cor_ests.append(prob_ans_cor_est)
-        prob_ans_cor_stds.append(prob_ans_cor_std)
-    return prob_expecteds, prob_ans_cor_ests, prob_ans_cor_stds
+        Q = np.zeros((len(count_all_non_zero),))
+        for i, (count_all_, count_cor_, prob_expected_) in enumerate(zip(count_all_non_zero, count_cor_non_zero, prob_expected_non_zero)):
+            Q[i] = binom(count_all_, prob_expected_).pmf(count_cor_) * count_all_
+        Qs.append(Q)
+    return Qs
 
 def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
                  sg_names:list=None, image_name:str=None, fig_num:int=None):
@@ -215,11 +219,10 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
 
     num_groups = pred_probs.shape[1]
     if sg_names is None:
-        sg_names = spinGroupNames(num_groups)
+        sg_names = spingroup_names(num_groups)
 
     nBin = round(np.sqrt(len(answer)))
     edges = np.linspace(0.0, 1.0, nBin+1)
-    X = (edges[:-1] + edges[1:])/2 # the center of each bin
     for g in range(num_groups):
         prob_guess_type = pred_probs[:,g]
         prob_guess_cor  = prob_guess_type[answer == g]
@@ -227,23 +230,32 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
         count_cor = np.histogram(prob_guess_cor , bins=edges)[0]
 
         # Only plot the cases where counts exist:
-        prob_expected = X[count_all != 0]
-        count_all_non_zero = count_all[count_all != 0]
-        count_cor_non_zero = count_cor[count_all != 0]
+        count_all_non_zero = count_all[count_all > 1]
+        count_cor_non_zero = count_cor[count_all > 1]
+
+        # Find the expected mean probability:
+        prob_expected_non_zero = []
+        for binID in range(nBin):
+            if count_all[binID]  <= 1:
+                continue
+            prob_expected_non_zero.append(np.mean(prob_guess_type[(prob_guess_type > edges[binID]) & (prob_guess_type < edges[binID+1])]))
+        prob_expected_non_zero = np.array(prob_expected_non_zero)
+        prob_expected = 0.5 * (edges[1:] + edges[:-1])
+        prob_expected[count_all > 1] = prob_expected_non_zero
 
         # Estimating probability and confidence:
-        prob_ans_cor_est, prob_ans_cor_std = _fractionEstimation(count_all_non_zero, count_cor_non_zero)
+        prob_ans_cor_est, prob_ans_cor_std = _fraction_estimation(count_all_non_zero, count_cor_non_zero)
 
         # Plotting:
         plt.figure(fig_num+g)
         plt.clf()
-        plt.errorbar(prob_expected, prob_ans_cor_est, prob_ans_cor_std, capsize=3, ls='none', c='k')
-        plt.scatter(prob_expected, prob_ans_cor_est, marker='.', s=14, c='k')
+        plt.errorbar(prob_expected_non_zero, prob_ans_cor_est, prob_ans_cor_std, capsize=3, ls='none', c='k')
+        plt.scatter(prob_expected_non_zero, prob_ans_cor_est, marker='.', s=14, c='k')
         plt.plot([0,1], [0,1], ':b', lw=2, label='Ideal Correlation')
 
         # Probability density on the guessed probability:
         norm = 0.25/np.max(count_all)
-        plt.fill_between(X,norm*count_all, alpha=0.8, color=(0.1,0.5,0.1), label='Probability Density')
+        plt.fill_between(prob_expected, norm*count_all, alpha=0.8, color=(0.1,0.5,0.1), label='Probability Density')
         
         plt.xlim(0,1)
         plt.ylim(0,1)

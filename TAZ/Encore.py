@@ -476,9 +476,6 @@ numerical instability.
         G = s.G
 
         likelihood = 1.0
-        if G != 2:
-            raise NotImplementedError('Sampling probability has not been implemented yet for any number of spingroups other than 2.')
-        
         last_res = np.zeros((G,),'i4')
         for i, g in enumerate(spingroup_assignments):
             i1 = i + 1

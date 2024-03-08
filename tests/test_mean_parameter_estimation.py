@@ -3,8 +3,6 @@ sys.path.append('../TAZ')
 from TAZ.Theory.MeanParameterEstimation import MeanSpacingAveraging
 from TAZ.Theory.Samplers import SampleEnergies
 
-import numpy as np
-
 import warnings
 warnings.filterwarnings('error', category=RuntimeWarning)
 

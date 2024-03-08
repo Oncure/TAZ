@@ -23,4 +23,5 @@ TAZ uses the following standard units throughout the code.
 
 Known Bugs and Issues
 =====================
+- PTBayes was clearly wrong and probably has been for a while. MATCH WITH ATARI!
 - test_wig_sample.TestBayesSample1.test_distributions seems to be failing consistently, but the distribution looks alright.

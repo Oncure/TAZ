@@ -1,6 +1,9 @@
 import numpy as np
 from pandas import DataFrame
 from typing import List, Tuple
+from functools import partial
+
+import warnings
 
 from TAZ import Theory
 from TAZ.DataClasses import Spingroup
@@ -103,7 +106,7 @@ class Reaction:
 
         # Target Particle:
         if targ is not None:
-            if type(targ) != Particle:
+            if not isinstance(targ, Particle):
                 raise TypeError('"targ" must by a "Particle" object.')
             self.targ = targ
         else:
@@ -111,7 +114,7 @@ class Reaction:
 
         # Projectile Particle:
         if proj is not None:
-            if type(proj) != Particle:
+            if not isinstance(proj, Particle):
                 raise TypeError('"proj" must by a "Particle" object.')
             self.proj = proj
         else:
@@ -119,8 +122,8 @@ class Reaction:
 
         # Channel Radius:
         if ac is not None:
-            if   ac > 1.00: print(Warning(f'The channel radius, {ac} 1e-12 cm, is quite high. Make sure it is in units of square-root barns or 1e-12 cm.'))
-            elif ac < 0.08: print(Warning(f'The channel radius, {ac} 1e-12 cm, is quite low. Make sure it is in units of square-root barns or 1e-12 cm.'))
+            if   ac > 1.00: warnings.warn(f'The channel radius, {ac} 1e-12 cm, is quite high. Make sure it is in units of square-root barns or 1e-12 cm.', UserWarning)
+            elif ac < 0.08: warnings.warn(f'The channel radius, {ac} 1e-12 cm, is quite low. Make sure it is in units of square-root barns or 1e-12 cm.', UserWarning)
             self.ac = float(ac)
         elif (self.proj is not None and self.proj.radius is not None) \
          and (self.targ is not None and self.targ.radius is not None):
@@ -143,7 +146,7 @@ class Reaction:
         # Spingroups:
         if spingroups is None:
             raise ValueError('The spingroups are a required argument for initialization of a "Reaction" object.')
-        elif (type(spingroups) != list) or (type(spingroups[0]) != Spingroup):
+        elif (not isinstance(spingroups, list)) or (not isinstance(spingroups[0], Spingroup)):
             raise TypeError('"spingroups" must be a list of "Spingroup" objects.')
         self.spingroups = spingroups
         self.num_groups = len(spingroups)
@@ -195,7 +198,14 @@ class Reaction:
         if MissFrac is not None:
             self.MissFrac = spingroupParameter(MissFrac, self.num_groups, dtype=float) # FIXME: MAKE THIS AS A FUNCTION OF ENERGY!
         elif self.Gn_trunc_provided:
-            self.MissFrac = Theory.fraction_missing_Gn(self.Gn_trunc, self.gn2m, self.nDOF, self.ac, self.gn2m, self.nDOF)
+            def _miss_frac(gn2m, df, l, E):
+                gn2_trunc = self.Gn_to_gn2(Gn_trunc, E, l)
+                frac_missing = Theory.fraction_missing_gn2(gn2_trunc, gn2m, df)
+                return frac_missing
+            missing_fracs = []
+            for gn2m, df, l in zip(self.gn2m, self.nDOF, self.L):
+                missing_fracs.append(partial(_miss_frac, gn2m, df, l))
+            self.MissFrac = missing_fracs
         else:
             self.MissFrac = np.zeros((self.num_groups,), dtype=float)
 
@@ -206,24 +216,146 @@ class Reaction:
 
     @property
     def L(self):
-        'Orbital Angular Momentum'
+        'Orbital Angular Momentums'
         return np.array([spingroup.L for spingroup in self.spingroups])
     @property
     def J(self):
-        'Total Angular Momentum'
+        'Total Angular Momentums'
         return np.array([spingroup.J for spingroup in self.spingroups])
     @property
     def S(self):
-        'Channel Spin'
+        'Channel Spins'
         return np.array([spingroup.S for spingroup in self.spingroups])
     @property
     def MLS(self):
-        'Mean Level Spacing'
+        'Mean Level Spacings'
         return 1.0 / self.lvl_dens
     @property
     def lvl_dens_all(self):
         'Level densities, including False level density'
         return np.concatenate((self.lvl_dens, [self.false_dens]))
+    
+    def penetration_factor(self, E, l:int):
+        """
+        Calculates the penetration factor for the given particle pair.
+
+        Parameters
+        ----------
+        E : float, array-like
+            Resonance energy.
+        l : int
+            The orbital angular momentum quantum number.
+        
+        Returns
+        -------
+        P : float, array-like
+            The penetration factor.
+        """
+        k = Theory.k_wavenumber(self.targ.mass, E, self.proj.mass)
+        rho = Theory.rho(k, self.ac)
+        P = Theory.penetration_factor(rho, l)
+        return P
+    def gn2_to_Gn(self, gn2, E, l:int):
+        """
+        Converts reduced neutron widths to partial neutron widths.
+
+        Parameters
+        ----------
+        gn2 : float, array-like
+            Reduced neutron widths.
+        E : float, array-like
+            Resonance energy.
+        l : int
+            The orbital angular momentum quantum number.
+
+        Returns
+        -------
+        Gn : float, array-like
+            Partial neutron widths.
+        """
+        P = self.penetration_factor(E, l)
+        Gn = Theory.g2_to_G(gn2, P)
+        return Gn
+    def Gn_to_gn2(self, Gn, E, l:int):
+        """
+        Converts partial neutron widths to reduced neutron widths.
+
+        Parameters
+        ----------
+        Gn : float, array-like
+            Partial neutron widths.
+        E : float, array-like
+            Resonance energy.
+        l : int
+            The orbital angular momentum quantum number.
+
+        Returns
+        -------
+        gn2 : float, array-like
+            Reduced neutron widths.
+        """
+        P = self.penetration_factor(E, l)
+        gn2 = Theory.G_to_g2(Gn, P)
+        return gn2
+    @property
+    def Gnm(self):
+        'Mean Partial Neutron Widths'
+        def _Gnm_func(l, gn2m, E):
+            P = self.penetration_factor(E, l)
+            return Theory.g2_to_G(gn2m, P)
+        Gnm_funcs = []
+        for l, gn2m in zip(self.L, self.gn2m):
+            Gnm_func = partial(_Gnm_func, l, gn2m)
+            Gnm_funcs.append(Gnm_func)
+        return Gnm_funcs
+    
+    def gg2_to_Gg(self, gg2):
+        """
+        Converts reduced capture widths to partial capture widths.
+
+        Parameters
+        ----------
+        gg2 : float, array-like
+            Reduced capture widths.
+        E : float, array-like
+            Resonance energy.
+        l : int
+            The orbital angular momentum quantum number.
+
+        Returns
+        -------
+        Gg : float, array-like
+            Partial capture widths.
+        """
+        P = 1.0 # penetrability is 1 for capture widths
+        Gg = Theory.g2_to_G(gg2, P)
+        return Gg
+    def Gg_to_gg2(self, Gg):
+        """
+        Converts partial capture widths to reduced capture widths.
+
+        Parameters
+        ----------
+        Gg : float, array-like
+            Partial capture widths.
+        E : float, array-like
+            Resonance energy.
+        l : int
+            The orbital angular momentum quantum number.
+
+        Returns
+        -------
+        gg2 : float, array-like
+            Reduced capture widths.
+        """
+        P = 1.0 # penetrability is 1 for capture widths
+        gg2 = Theory.G_to_g2(Gg, P)
+        return gg2
+    @property
+    def Ggm(self):
+        'Mean Partial Gamma (Capture) Widths'
+        P = 1.0 # penetrability is 1 for capture widths
+        return Theory.g2_to_G(self.gg2m, P)
     
     def __repr__(self):
         txt = ''
@@ -295,6 +427,9 @@ class Reaction:
         if rng is None:
             rng = np.random.default_rng(seed)
 
+        Ggms = self.Ggm
+        Gnms = self.Gnm
+
         # Energy Sampling:
         E          = np.zeros((0,))
         Gn         = np.zeros((0,))
@@ -307,10 +442,8 @@ class Reaction:
             
             # Width sampling:
             len_group = len(E_group)
-            Gn_group = Theory.SampleNeutronWidth(E_group, self.gn2m[g], self.nDOF[g], self.L[g], ac=self.ac,
-                                                  mass_targ=self.targ.mass, mass_proj=self.proj.mass,
-                                                  rng=rng)
-            Gg_group = Theory.SampleGammaWidth(len_group, self.gg2m[g], self.gDOF[g], rng=rng)
+            Gn_group = Theory.SampleNeutronWidth(E_group, Gnms[g], self.nDOF[g], rng=rng)
+            Gg_group = Theory.SampleGammaWidth(len_group, Ggms[g], self.gDOF[g], rng=rng)
             
             # Append to group:
             E          = np.concatenate((E         , E_group ))
@@ -329,10 +462,8 @@ class Reaction:
             Gn_false_group = np.zeros((num_false,self.num_groups))
             Gg_false_group = np.zeros((num_false,self.num_groups))
             for g in range(self.num_groups):
-                Gn_false_group[:,g] = Theory.SampleNeutronWidth(E_false, self.gn2m[g], self.nDOF[g], self.L[g], ac=self.ac,
-                                                                 mass_targ=self.targ.mass, mass_proj=self.proj.mass,
-                                                                 rng=rng)
-                Gg_false_group[:,g] = Theory.SampleGammaWidth(num_false, self.gg2m[g], self.gDOF[g], rng=rng)
+                Gn_false_group[:,g] = Theory.SampleNeutronWidth(E_false, Gnms[g], self.nDOF[g], rng=rng)
+                Gg_false_group[:,g] = Theory.SampleGammaWidth(num_false, Ggms[g], self.gDOF[g], rng=rng)
             idx = np.arange(num_false)
             group_idx = rng.choice(self.num_groups, size=(num_false,), p=self.lvl_dens/np.sum(self.lvl_dens))
             Gn_false = Gn_false_group[idx,group_idx]

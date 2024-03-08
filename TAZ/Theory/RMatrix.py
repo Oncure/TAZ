@@ -12,13 +12,13 @@ HBAR       = 6.582_119_514e-16 # eV*s
 LIGHTSPEED = 299_792_458 # m/s
 AMU_EV     = 931.494_095_4e6 # eV/(c^2*amu)
 
-def Rho(mass_targ:float, ac:float, E,
-        mass_proj:float=MASS_NEUTRON,
-        mass_targ_after:float=None,
-        mass_proj_after:float=None,
-        E_thres:float=None):
+def k_wavenumber(mass_targ:float, E,
+                 mass_proj:float=MASS_NEUTRON,
+                 mass_targ_after:float=None,
+                 mass_proj_after:float=None,
+                 E_thres:float=None):
     """
-    Finds the momentum factor, `rho`.
+    Finds the k wavenumber.
 
     Based on equation II A.9 in the SAMMY manual.
 
@@ -26,8 +26,6 @@ def Rho(mass_targ:float, ac:float, E,
     ----------
     mass_targ       : float
         Mass of the target isotope.
-    ac              : float
-        Channel radius .
     E               : float, array-like
         Energy points for which Rho is evaluated.
     mass_proj       : float
@@ -41,10 +39,11 @@ def Rho(mass_targ:float, ac:float, E,
         
     Returns
     --------
-    rho : float, array-like
+    k : float, array-like
         Momentum factor, ρ.
     """
 
+    E = np.array(E)
     if mass_targ_after is None:
         mass_targ_after = mass_targ # assume elastic scattering
     if mass_proj_after is None:
@@ -57,15 +56,37 @@ def Rho(mass_targ:float, ac:float, E,
     if any(E < E_thres):
         raise ValueError(f'The given energies are below the threshold energy of {E_thres} eV.')
 
-    CONSTANT = np.sqrt(AMU_EV * LIGHTSPEED**2) / HBAR * 1e-14 # = 0.0001546691274 -- (√amu * √b) / h_bar --> √eV
+    CONSTANT = np.sqrt(AMU_EV / LIGHTSPEED**2) / HBAR * 1e-14 # = 0.0001546691274 -- (√amu * √b) / h_bar --> √eV
 
     mass_ratio_before = mass_targ / (mass_proj + mass_targ)
     mass_ratio_after  = 2 * mass_proj_after * mass_targ_after / (mass_proj_after + mass_targ_after)
     Delta_E = E-E_thres
-    rho = CONSTANT * np.sqrt((mass_ratio_before * mass_ratio_after) * Delta_E) * ac
+    k = CONSTANT * np.sqrt((mass_ratio_before * mass_ratio_after) * Delta_E)
+    return k
+
+def rho(k, ac:float):
+    """
+    Finds the momentum factor, ρ.
+
+    Based on equation II A.9 in the SAMMY manual.
+
+    Parameters
+    ----------
+    k  : float, array-like
+        The k-wavenumber(s).
+    ac : float
+        Channel radius.
+        
+    Returns
+    --------
+    rho : float, array-like
+        Momentum factor, ρ.
+    """
+
+    rho = k * ac
     return rho
 
-def PenetrationFactor(rho, l:int):
+def penetration_factor(rho, l:int):
     """
     Finds the Penetration factor.
 
@@ -84,7 +105,7 @@ def PenetrationFactor(rho, l:int):
         Penetration factor.
     """
 
-    def _penetrationFactor(rho, l:int):
+    def _penetration_factor(rho, l:int):
         rho2 = rho**2
         if   l == 0:
             return rho
@@ -111,47 +132,63 @@ def PenetrationFactor(rho, l:int):
     if hasattr(l, '__iter__'): # is iterable
         pen_factor = np.zeros((len(rho),len(l)))
         for g, lg in enumerate(l):
-            pen_factor[:,g] = _penetrationFactor(rho,lg)
+            pen_factor[:,g] = _penetration_factor(rho,lg)
     else: # is not iterable
-        pen_factor = np.array(_penetrationFactor(rho,l))
+        pen_factor = np.array(_penetration_factor(rho,l))
     return pen_factor
 
-def ReduceFactor(E, l:int, mass_targ:float, ac:float,
-                 mass_proj:float=MASS_NEUTRON,
-                 mass_targ_after:float=None,
-                 mass_proj_after:float=None,
-                 E_thres:float=None):
+def G_to_g2(G, penetrability):
     """
-    Multiplication factor to convert from neutron width to reduced neutron width.
+    Converts partial widths to reduced widths.
 
     Parameters
     ----------
-    E               : float, array-like
-        Resonance energies.
-    l               : int, array-like
-        Orbital angular momentum number.
-    mass_proj       : float
-        Mass of the projectile. Default = 1.008665 amu (neutron mass).
-    mass_targ_after : float, optional
-        Mass of the target after the reaction. Default = mass_targ.
-    mass_proj_after : float, optional
-        Mass of the target before the reaction. Default = mass_proj.
-    E_thres         : float, optional
-        Threshold energy for the reaction. Default is calculated from Q-value.
+    G : float, array-like
+        The partial width.
+    penetrability : float, array-like
+        The penetration factor.
 
     Returns
     -------
-    reduce_factor : float, array-like
-        A multiplication factor that converts neutron widths into reduced neutron widths.
+    g2 : float, array-like
+        The reduced width.
     """
 
-    rho = Rho(mass_targ, ac, E,
-              mass_proj, mass_targ_after, mass_proj_after, E_thres)
-    reduce_factor = 1.0 / (2.0*PenetrationFactor(rho,l))
-    return reduce_factor
+    g2 = G / (2 * penetrability)
+    return g2
 
-def G_to_g2(G, penatrability):
-    return G / (2 * penatrability)
+def g2_to_G(g2, penetrability):
+    """
+    Converts reduced widths to partial widths.
 
-def g2_to_G(g2, penatrability):
-    return 2 * penatrability * g2
+    Parameters
+    ----------
+    g2 : float, array-like
+        The reduced width.
+    penetrability : float, array-like
+        The penetration factor.
+
+    Returns
+    -------
+    G : float, array-like
+        The partial width.
+    """
+
+    G = 2 * penetrability * g2
+    return G
+
+def g_to_g2(g):
+    """
+    ...
+    """
+
+    g2 = g * abs(g)
+    return g2
+
+def g2_to_g(g2):
+    """
+    ...
+    """
+
+    g = np.sign(g2) * np.sqrt(abs(g2))
+    return g

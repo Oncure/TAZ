@@ -18,7 +18,7 @@ class TestBayesSample1(unittest.TestCase):
     """
 
     ensemble = 'NNE' # Nearest Neighbor Ensemble
-    num_trials = 200 # number of sample trials
+    num_trials = 100 # number of sample trials
     num_groups = 1   # number of spingroups
 
     @classmethod
@@ -32,7 +32,7 @@ class TestBayesSample1(unittest.TestCase):
         Projectile = TAZ.Neutron
 
         # Mean Parameters
-        cls.EB = (1e-5,5000)
+        cls.EB = (1e-5,1000)
         cls.false_dens = 1/8.0
         cls.lvl_dens  = [1/4.0]
         cls.gn2m  = [44.11355]

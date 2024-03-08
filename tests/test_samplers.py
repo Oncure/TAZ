@@ -3,7 +3,6 @@ sys.path.append('../TAZ')
 import TAZ
 from TAZ.Theory import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist, deltaMehta3, deltaMehtaPredict
 from TAZ.Theory import WignerGen, BrodyGen, MissingGen, HighOrderSpacingGen
-from TAZ.Theory import ReduceFactor, G_to_g2
 from utils import chi2_test, chi2_uniform_test
 
 import numpy as np
@@ -73,7 +72,7 @@ class TestResonanceGeneration(unittest.TestCase):
 
         NUM_BINS = 40
         Gg = self.res_ladder.Gg.to_numpy()
-        gg2 = G_to_g2(Gg, penatrability=1.0)
+        gg2 = self.reaction.Gg_to_gg2(Gg)
         dist = porter_thomas_dist(mean=self.gg2m[0], df=self.dfg[0], trunc=0.0)
         chi2_test(dist, gg2, NUM_BINS, self, 0.001, 'gamma widths', 'Porter-Thomas distribution')
         
@@ -85,7 +84,7 @@ class TestResonanceGeneration(unittest.TestCase):
         NUM_BINS = 40
         E  = self.res_ladder.E.to_numpy()
         Gn = self.res_ladder.Gn1.to_numpy()
-        gn2 = Gn * ReduceFactor(E, self.l[0], self.reaction.targ.mass, self.reaction.ac, self.reaction.proj.mass)
+        gn2 = self.reaction.Gn_to_gn2(Gn, E, self.l[0])
         dist = porter_thomas_dist(mean=self.gn2m[0], df=self.dfn[0], trunc=0.0)
         chi2_test(dist, gn2, NUM_BINS, self, 0.001, 'neutron widths', 'Porter-Thomas distribution')
         

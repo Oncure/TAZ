@@ -1,3 +1,5 @@
+import warnings
+
 from TAZ.DataClasses import HalfInt
 
 __doc__ = """
@@ -50,13 +52,13 @@ class Particle:
         # Isotope Spin:
         self._I = HalfInt(I)
         # Mass: (amu)
-        if   mass > 300.0:     print(Warning(f'The particle mass, {mass} amu, is quite high. Make sure it is in units of amu.'))
-        elif mass <   1.0:     print(Warning(f'The particle mass, {mass} amu, is quite low. Make sure it is in units of amu.'))
+        if   mass > 300.0:     warnings.warn(f'The particle mass, {mass} amu, is quite high. Make sure it is in units of amu.', UserWarning)
+        elif mass <   1.0:     warnings.warn(f'The particle mass, {mass} amu, is quite low. Make sure it is in units of amu.', UserWarning)
         self._mass = float(mass)
         # Nuclear Radius: (fm)
         if radius is not None:
-            if   radius > 1.00:     print(Warning(f'The nuclear radius, {radius} 1e-12 cm, is quite high. Make sure it is in units of square-root barns or 1e-12 cm.'))
-            elif radius < 0.05:     print(Warning(f'The nuclear radius, {radius} 1e-12 cm, is quite low. Make sure it is in units of square-root barns or 1e-12 cm.'))
+            if   radius > 1.00:     warnings.warn(f'The nuclear radius, {radius} 1e-12 cm, is quite high. Make sure it is in units of square-root barns or 1e-12 cm.', UserWarning)
+            elif radius < 0.05:     warnings.warn(f'The nuclear radius, {radius} 1e-12 cm, is quite low. Make sure it is in units of square-root barns or 1e-12 cm.', UserWarning)
             self._radius = float(radius)
         else:
             self._radius = 0.123 * self.A**(1/3) # 1e-12 cm

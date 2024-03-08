@@ -66,7 +66,7 @@ def ATARI_to_TAZ_reaction(particle_pair, **kwargs):
     reaction = Reaction(**reaction_params)
     return reaction
 
-def TAZ_to_ATARI_reaction(reaction:Reaction):
+def TAZ_to_ATARI_reaction(reaction:Reaction, **kwargs):
     """
     ...
     """

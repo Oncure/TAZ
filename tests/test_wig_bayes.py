@@ -70,20 +70,17 @@ Mean error    = {perror_mean:.6%}
         Here, we intend to verify that WigBayes returns probabilities that match the fraction
         of resonances with said probability within statistical error.
         """
-        # self.skipTest('Not implemented')
         prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
         distributions = self.reaction.distributions(dist_type='Wigner')
         runmaster = TAZ.RunMaster(self.E, self.EB, distributions, self.false_dens, prior, log_likelihood_prior, err=self.err)
         posterior = runmaster.WigBayes()
 
-        prob_expected, prob_ans_cor_est, prob_ans_cor_std = correlate_probabilities(posterior, self.true_assignments)
-        for g in range(self.num_groups):
-            errors = abs(prob_expected[g] - prob_ans_cor_est[g]) / prob_ans_cor_std[g]
-
-            stderr = 3.5
-            self.assertTrue(np.all(errors < stderr), f"""
-WigBayes probabilities do not match the frequency of correct sampling to within {stderr} standard deviations.
-Maximum discrepancy = {np.max(errors):.5f} standard deviations.
+        Qs = correlate_probabilities(posterior, self.true_assignments)
+        for g, Q in enumerate(Qs):
+            errlim = 0.01
+            self.assertTrue(np.all(Q > errlim), f"""
+WigBayes probabilities do not match the frequency of correct sampling to within {errlim} standard deviations for group {g} of {self.num_groups}.
+Lowest probability density = {np.min(Q):.5f}.
 """)
 
 class TestBayesSampler1or2SG(unittest.TestCase):
@@ -98,7 +95,6 @@ class TestBayesSampler1or2SG(unittest.TestCase):
         2-spingroup Encore algorithms when the one spingroup is very infrequent (i.e. low
         level-density).
         """
-        # self.skipTest('Not implemented')
         Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
         Projectile = TAZ.Neutron
         EB = (1e-5,1000)
