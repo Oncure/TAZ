@@ -6,7 +6,7 @@ from numpy import newaxis as NA
 import warnings
 
 __doc__ = """
-This file is contains the spingroup classification algorithm. `RunMaster` is used as a pre- and
+This file is contains the spingroup assignment algorithm. `RunMaster` is used as a pre- and
 post-processor for Encore.
 """
 

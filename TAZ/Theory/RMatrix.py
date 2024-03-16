@@ -179,7 +179,17 @@ def g2_to_G(g2, penetrability):
 
 def g_to_g2(g):
     """
-    ...
+    Converts reduced width amplitude(s) to reduced width(s).
+
+    Parameters
+    ----------
+    g : float, array-like
+        Reduce width amplitude(s).
+
+    Returns
+    -------
+    g2 : float, array-like
+        Reduced width(s).
     """
 
     g2 = g * abs(g)
@@ -187,7 +197,17 @@ def g_to_g2(g):
 
 def g2_to_g(g2):
     """
-    ...
+    Converts reduced width(s) to reduced width amplitude(s).
+
+    Parameters
+    ----------
+    g2 : float, array-like
+        Reduce width(s).
+
+    Returns
+    -------
+    g : float, array-like
+        Reduced width amplitude(s).
     """
 
     g = np.sign(g2) * np.sqrt(abs(g2))

@@ -318,4 +318,3 @@ def ecdf(X, lb:float=None, ub:float=None,
         ax.hlines(0.0, lb, X_unique[0], color=color, linestyle=linestyle)
     if ub is not None:
         ax.hlines(1.0, X_unique[-1], ub, color=color, linestyle=linestyle)
-        

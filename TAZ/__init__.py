@@ -9,6 +9,7 @@ from .DataClasses import *
 from .PTBayes import PTBayes
 from .RunMaster import RunMaster
 from .Encore import *
+from .MissingBayes import MissBayes
 
 from .FileReader import *
 from .ATARI_interface import *

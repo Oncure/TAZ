@@ -169,7 +169,7 @@ class TestSpacingDistributions(unittest.TestCase):
         err = 1e-6
         places = 4
 
-        X = np.array([0, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0])
+        X = np.array([0, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3, 1e4, 1e5])
 
         DISTNAME = f'MissingGen(lvl_dens={1/MLS:.6f}, pM={pM}, err={err})'
         dist = MissingGen(lvl_dens=1/MLS, pM=pM, err=err)
@@ -193,12 +193,18 @@ class TestSpacingDistributions(unittest.TestCase):
             F2_  = quad(dist.f1, x, np.inf)[0]
             self.assertAlmostEqual(F2, F2_, places, f'"{DISTNAME}.f2({x})" should be the integral of f1 from {x = } to infinity.')
 
-        X_ = dist.iF0(MLS*dist.f1(X))
-        for x, x_ in zip(X, X_):
+        Y = dist.f1(X)
+        for x, y in zip(X, Y):
+            if y <= 1e-30:
+                continue
+            x_ = dist.iF0(MLS*y)
             self.assertAlmostEqual(x, x_, places, f'{DISTNAME}.iF0 is not the inverse CDF of f0 when evaluated at {x=}.')
 
-        X_ = dist.iF1(MLS*dist.f2(X))
-        for x, x_ in zip(X, X_):
+        Y = dist.f2(X)
+        for x, y in zip(X, Y):
+            if y <= 1e-30:
+                continue
+            x_ = dist.iF1(MLS*y)
             self.assertAlmostEqual(x, x_, places, f'{DISTNAME}.iF1 is not the inverse CDF of f1 when evaluated at {x=}.')
 
         R1 = dist.r1(X)
@@ -207,8 +213,10 @@ class TestSpacingDistributions(unittest.TestCase):
         F1 = dist.f1(X)
         F2 = dist.f2(X)
         for i, x, in enumerate(X):
-            self.assertAlmostEqual(R1[i], F0[i]/F1[i], places, f'{DISTNAME}.r1 is not f0/f1 when evaluated at {x=}.')
-            self.assertAlmostEqual(R2[i], F1[i]/F2[i], places, f'{DISTNAME}.r2 is not f1/f2 when evaluated at {x=}.')
+            if F1[i] != 0.0:
+                self.assertAlmostEqual(R1[i], F0[i]/F1[i], places, f'{DISTNAME}.r1 is not f0/f1 when evaluated at {x=}.')
+            if F2[i] != 0.0:
+                self.assertAlmostEqual(R2[i], F1[i]/F2[i], places, f'{DISTNAME}.r2 is not f1/f2 when evaluated at {x=}.')
     
     def test_high_order(self):
         'Tests the High-Order level-spacing distribution generator.'

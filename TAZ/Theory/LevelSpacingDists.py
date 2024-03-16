@@ -1,5 +1,5 @@
 from typing import Tuple, List
-from math import pi, sqrt, log, ceil
+from math import pi, sqrt, log, floor
 from sys import float_info
 import numpy as np
 from numpy import newaxis as NA
@@ -49,6 +49,7 @@ class SpacingDistributionBase:
                 x = -np.log(u)
             return self._f1(x) - y
         def invfunc(y):
+            if func(1.0, y) <  1e-13: return 0.0
             u = brentq(func, a=0.0, b=1.0, args=(y,), xtol=float_info.epsilon, rtol=1e-15)
             with np.errstate(divide='ignore'):
                 x = -np.log(u)
@@ -61,6 +62,7 @@ class SpacingDistributionBase:
                 x = -np.log(u)
             return self._f2(x) - y
         def invfunc(y):
+            if func(1.0, y) <  1e-13: return 0.0
             u = brentq(func, a=0.0, b=1.0, args=(y,), xtol=float_info.epsilon, rtol=1e-15)
             with np.errstate(divide='ignore'):
                 x = -np.log(u)
@@ -239,64 +241,18 @@ class BrodyGen(SpacingDistributionBase):
         return (gammainccinv(w1i, q) / a) ** w1i
     
 # =================================================================================================
-#    Missing Distribution:
-# =================================================================================================
-    
-class MissingGen(SpacingDistributionBase):
-    """
-    Generates a missing resonances level-spacing distribution.
-    """
-    def __init__(self, lvl_dens:float=None, pM:float=None, err:float=1e-5):
-        if not (0 < pM <= 1):
-            raise ValueError('The missing resonance fraction, "pM", must be in the range, 0 < pM <= 1.')
-        elif not (0 < err < 1):
-            raise ValueError('The error threshold, "err", must be in the range, 0 < err < 1.')
-        self.pM = float(pM)
-        self.err = float(err)
-        self.lvl_dens = float(lvl_dens)
-    @property
-    def lvl_dens_true(self):
-        return self.lvl_dens / (1-self.pM)
-    def _f0(self, x):
-        N_max = ceil(log(self.err, self.pM))
-        mult_fact = (1-self.pM) / (1 - self.pM**(N_max+1))
-        y = np.zeros_like(x)
-        for n in range(N_max+1):
-            f0n = HighOrderSpacingGen(lvl_dens=1/(1-self.pM), n=n).f0(x)
-            y += mult_fact * f0n
-            mult_fact *= self.pM
-        return y
-    def _f1(self, x):
-        N_max = ceil(log(self.err, self.pM))
-        mult_fact = (1-self.pM)**2 / (1 - self.pM**(N_max+1))
-        y = np.zeros_like(x)
-        for n in range(N_max+1):
-            f1n = HighOrderSpacingGen(lvl_dens=1/(1-self.pM), n=n).f1(x) * (n+1)
-            y += mult_fact * f1n
-            mult_fact *= self.pM
-        return y
-    def _f2(self, x):
-        N_max = ceil(log(self.err, self.pM))
-        mult_fact = (1-self.pM)**3 / (1 - self.pM**(N_max+1))
-        y = np.zeros_like(x)
-        for n in range(N_max+1):
-            f2n = HighOrderSpacingGen(lvl_dens=1/(1-self.pM), n=n).f2(x) * (n+1)**2
-            y += mult_fact * f2n
-            mult_fact *= self.pM
-        return y
-    
-# =================================================================================================
 #    Higher-Order Spacing Distributions:
 # =================================================================================================
     
-def _gamma_ratio(x):
+@np.vectorize(otypes=[float])
+def _gamma_ratio(x:float):
     """
     A function to calculate the ratio, `Gamma(x/2) / Gamma((x-1)/2)`. This function is used instead
     of calculating each gamma separately for numerical stability.
 
     Parameters
     ----------
-    x : int
+    x : float
         The function parameter of `Gamma(x/2) / Gamma((x-1)/2)`.
 
     Returns
@@ -308,20 +264,15 @@ def _gamma_ratio(x):
     --------
     `HighOrderSpacingGen`
     """
-    rpii = 1.0 / sqrt(pi)
-    if hasattr(x, '__iter__'):
-        ratio = np.zeros(len(x))
-        for idx, w in enumerate(x):
-            q = rpii
-            for i in range(3,int(w)):
-                q = (i-2) / (2*q)
-            ratio[idx] = q
-    else:
-        ratio = rpii
-        for i in range(3,int(x)+1):
-            ratio = (i-2) / (2*ratio)
+    if x < 2.0:
+        raise TypeError('"x" must be greater than or equal to 2.')
+    r = (0.5*x) % 1.0
+    coef = gamma(r+1.0)/gamma(r+0.5)
+    K = np.arange(floor(0.5*x)-1.0)
+    ratio = coef * np.prod(1.0 + 0.5/(r+K+0.5))
     return ratio
 
+@np.vectorize(otypes=[float])
 def _high_order_variance(n:int):
     """
     A function for calculating the variance of the `n+1`-th nearest level-spacing distribution.
@@ -330,7 +281,7 @@ def _high_order_variance(n:int):
 
     Parameters
     ----------
-    n : int
+    n : int or float
         The number of levels between the two selected levels.
 
     Returns
@@ -343,6 +294,8 @@ def _high_order_variance(n:int):
     `HighOrderSpacingGen`
     """
     a = (n**2 + 5*n + 2)/2
+    if a > 1e3:
+        return 1.0 # variance asymptotically approaches 1.0
     B = (_gamma_ratio(a+2) / (n+1))**2
     variance = (a+1)/(2*B) - (n+1)**2
     return variance
@@ -355,6 +308,9 @@ class HighOrderSpacingGen(SpacingDistributionBase):
 
     Source: https://journals.aps.org/pre/pdf/10.1103/PhysRevE.60.5371
     """
+
+    NTHRES = 15
+
     def __init__(self, lvl_dens:float=1, n:int=1):
         if (n % 1 > 0) or (n < 0):
             raise ValueError(f'The skipping index, "n", must be a positive integer number.')
@@ -365,7 +321,7 @@ class HighOrderSpacingGen(SpacingDistributionBase):
         return self.lvl_dens / (self.n+1)
     def _f0(self, x):
         n = self.n
-        if n <= 15: # Lower n --> Exact Calculation
+        if n <= self.NTHRES: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
             coef = 2 * rB / gamma((a+1)/2)
@@ -376,7 +332,7 @@ class HighOrderSpacingGen(SpacingDistributionBase):
             return norm.pdf(x, n+1, sig)
     def _f1(self, x):
         n = self.n
-        if n <= 15: # Lower n --> Exact Calculation
+        if n <= self.NTHRES: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
             return gammaincc((a+1)/2, (rB * x)**2) / (n+1)
@@ -385,7 +341,7 @@ class HighOrderSpacingGen(SpacingDistributionBase):
             return norm.sf(x, n+1, sig) / (n+1)
     def _f2(self, x):
         n = self.n
-        if n <= 15: # Lower n --> Exact Calculation
+        if n <= self.NTHRES: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
             return ((n+1)*gammaincc((a+2)/2, (rB * x)**2) - x*gammaincc((a+1)/2, (rB * x)**2)) / (n+1)**2
@@ -397,7 +353,7 @@ class HighOrderSpacingGen(SpacingDistributionBase):
             return (var*f0 - (x-n-1)*f1) / (n+1)**2
     def _iF0(self, q):
         n = self.n
-        if n <= 15: # Lower n --> Exact Calculation
+        if n <= self.NTHRES: # Lower n --> Exact Calculation
             a = n + (n+1)*(n+2)/2 # (Eq. 10)
             rB = _gamma_ratio(a+2) / (n+1) # square root of B (Eq. 12)
             return np.sqrt(gammainccinv((a+1)/2, q)) / rB
@@ -407,6 +363,91 @@ class HighOrderSpacingGen(SpacingDistributionBase):
             return np.maximum(y, 0)
     def _iF1(self, q):
         raise NotImplementedError('Current iF1 function is unstable for HighOrderSpacing.')
+    
+# =================================================================================================
+#    Missing Distribution:
+# =================================================================================================
+    
+class MissingGen(SpacingDistributionBase):
+    """
+    Generates a missing resonances level-spacing distribution.
+    """
+
+    NTHRES = (13, 20)
+
+    def __init__(self, lvl_dens:float, pM:float, err:float):
+        if not (0 < pM <= 1):
+            raise ValueError('The missing resonance fraction, "pM", must be in the range, 0 < pM <= 1.')
+        self.pM = float(pM)
+        self.lvl_dens = float(lvl_dens)
+    @property
+    def lvl_dens_true(self):
+        return self.lvl_dens / (1-self.pM)
+    def _f0(self, x):
+        XTHRES = self.NTHRES[0] + 1
+        y = np.zeros_like(x)
+
+        # Below threshold:
+        mult_fact = (1-self.pM)
+        for n in range(self.NTHRES[1]+1):
+            f0n = HighOrderSpacingGen(lvl_dens=1/(1-self.pM), n=n).f0(x[x < XTHRES])
+            y[x < XTHRES] += mult_fact * f0n
+            mult_fact *= self.pM
+        
+        # Above threshold:
+        u = x[x >= XTHRES]/(1-self.pM) - 1
+        y[x >= XTHRES] = (1.0/(1-self.pM)) * self.pM**u * np.exp(0.5*_high_order_variance(u)*(log(self.pM))**2)
+        return y
+    def _f1(self, x):
+        XTHRES = self.NTHRES[0] + 1
+        y = np.zeros_like(x)
+
+        # Below threshold:
+        mult_fact = (1-self.pM)**2
+        for n in range(self.NTHRES[1]+1):
+            f1n = HighOrderSpacingGen(lvl_dens=1/(1-self.pM), n=n).f1(x[x < XTHRES]) * (n+1)
+            y[x < XTHRES] += mult_fact * f1n
+            mult_fact *= self.pM
+
+        # Above threshold:
+        u = x[x >= XTHRES]/(1-self.pM) - 1
+        y[x >= XTHRES] = (-1.0/log(self.pM)) * self.pM**u * np.exp(0.5*_high_order_variance(u)*(log(self.pM))**2)
+        return y
+    def _f2(self, x):
+        XTHRES = self.NTHRES[0] + 1
+        y = np.zeros_like(x)
+
+        # Below threshold:
+        mult_fact = (1-self.pM)**3
+        for n in range(self.NTHRES[1]+1):
+            f2n = HighOrderSpacingGen(lvl_dens=1/(1-self.pM), n=n).f2(x[x < XTHRES]) * (n+1)**2
+            y[x < XTHRES] += mult_fact * f2n
+            mult_fact *= self.pM
+
+        # Above threshold:
+        u = x[x >= XTHRES]/(1-self.pM) - 1
+        y[x >= XTHRES] = (1-self.pM)/(log(self.pM))**2 * self.pM**u * np.exp(0.5*_high_order_variance(u)*(log(self.pM))**2)
+        return y
+    def _r1(self, x):
+        XTHRES = self.NTHRES[0] + 1
+        y = np.zeros_like(x)
+
+        # Below threshold:
+        y[x < XTHRES] = self._f0(x[x < XTHRES]) / self._f1(x[x < XTHRES])
+
+        # Above threshold:
+        y[x >= XTHRES] = -log(self.pM) / (1-self.pM)
+        return y
+    def _r2(self, x):
+        XTHRES = self.NTHRES[0] + 1
+        y = np.zeros_like(x)
+
+        # Below threshold:
+        y[x < XTHRES] = self._f1(x[x < XTHRES]) / self._f2(x[x < XTHRES])
+
+        # Above threshold:
+        y[x >= XTHRES] = -log(self.pM) / (1-self.pM)
+        return y
 
 # =================================================================================================
 #    Distribution Merger:
