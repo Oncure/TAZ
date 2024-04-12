@@ -659,3 +659,126 @@ numerical instability.
                 max_log_likelihood = log_likelihood
                 max_spingroups = spingroups
         return max_spingroups
+    
+    @staticmethod
+    def WigMaxLikelihoods(prior, level_spacing_probs, iMax, num_best:int=1):
+        """
+        Returns the maximum likelihood spingroup assignments using branching and pruning methods.
+
+        WigMaxLikelihood starts with the left-most (lowest-energy) resonance and branches into
+        spingroup ladders for following resonances. When unrestricted, there are `G` additional
+        ladders each iteration. Several pruning methods are applied to make this procedure
+        computationally feasible. First, since level-spacing distributions only account for the
+        nearest reasonances, only the right-most assigned resonances for each spingroup matter in
+        calculating level-spacing likelihoods. Therefore, ladders with the same right-most
+        assigned resonances for each spingroup will share the maximum likelihood ladder following
+        the last assigned resonance. Therefore, only the ladder with the highest likelihood up to
+        the last assigned resonances could be the maximum-likelihood ladder. All other ladders with
+        matching right-most assigned resonances can be pruned. Additionally, if the resonances with
+        the same spingroup become too large, the likelihood may be too low to be the maximum
+        likelihood ladder.
+
+        Let `G` be the number of spingroups, and let `L` be the number of resonances. `B` is the
+        number of highest likelihood spingroup ladders. `m` is the expected number of resonances
+        before `xMax` is exceeded.
+
+        Time complexity: O( B⋅G⋅m^G⋅L )
+
+        Parameters
+        ----------
+        prior : float [L,G+1]
+            The prior probabilities.
+        level_spacing_probs : float [L+2,L+2,G]
+            The level-spacing probability densities between each resonance for each spingroup.
+        iMax : int [L+2,2,G]
+            Maximum/minimum index for approximation threshold for each resonance (index 0) in each
+            direction (index 1) for each spingroup (index 2).
+        num_best : int
+            The number of highest likelihood samples to pull.
+
+        Returns
+        -------
+        max_spingroups : int [L]
+            An array of spingroup assignment IDs with maximal likelihood.
+        """
+
+        L = level_spacing_probs.shape[0] - 2
+        G = level_spacing_probs.shape[2]
+
+        # Logification:
+        with np.errstate(divide='ignore'):
+            log_prior = np.log(prior)
+            log_level_spacing_probs = np.log(level_spacing_probs)
+
+        # Initialization:
+        contenders = {} # list of spingroup assignments and likelihood, indexed by a G-tuple of last indices
+        for g in range(G):
+            spingroups = [g]
+            log_likelihood = log_prior[0,g] + log_level_spacing_probs[0,1,g]
+            last_indices = [0]*G
+            last_indices[g] = 1
+            contenders[tuple(last_indices)] = [(spingroups, log_likelihood)]
+        spingroups = [G]
+        log_likelihood = log_prior[0,G]
+        contenders[tuple([0]*G)] = (spingroups, log_likelihood)
+
+        # Loop for each additional resonance:
+        for i in range(1,L):
+            i1 = i + 1
+            # Generate new contenders:
+            new_contenders = {}
+            for last_indices, data_best in contenders.items():
+                # Preparing contender dict with empty lists:
+                new_contenders[last_indices] = []
+                for g in range(G):
+                    new_last_indices = list(last_indices)
+                    new_last_indices[g] = i1
+                    new_last_indices = tuple(new_last_indices)
+                    new_contenders[new_last_indices] = []
+                # Selecting Best in branch depth:
+                for spingroups, log_likelihood in data_best:
+                    # True Groups:
+                    for g in range(G):
+                        new_last_indices = list(last_indices)
+                        new_last_indices[g] = i1
+                        new_last_indices = tuple(new_last_indices)
+                        if np.any(new_last_indices < iMax[i1,1,:]):
+                            continue # branch has forgotten about a spingroup. It is quite unlikely that this branch will be of maximal likelihood.
+                        new_spingroups = spingroups + [g]
+                        new_log_likelihood = log_likelihood + log_prior[i,g] + log_level_spacing_probs[last_indices[g],i1,g]
+                        # Add assignment to the list:
+                        if len(new_contenders[new_last_indices]) == num_best:
+                            prev_log_likelihoods = [data_best[1] for data_best in new_contenders[new_last_indices]]
+                            min_likelihood_idx = np.argmin(prev_log_likelihoods)
+                            prev_log_likelihood_min = prev_log_likelihoods[min_likelihood_idx]
+                            if new_log_likelihood > prev_log_likelihood_min:
+                                new_contenders[new_last_indices][min_likelihood_idx] = (new_spingroups, new_log_likelihood)
+                        else:
+                            new_contenders[new_last_indices].append((new_spingroups, new_log_likelihood))
+                    # False Group:
+                    new_spingroups = spingroups + [G]
+                    new_log_likelihood = log_likelihood + log_prior[i,G]
+                    new_contenders[last_indices].append((new_spingroups, new_log_likelihood))
+            contenders = copy(new_contenders)
+            del new_contenders
+
+            # Raise error if there are no more contenders left:
+            if len(contenders) == 0:
+                raise RuntimeError('The number of maximum likelihood contenders has dropped to zero unexpectedly.')
+        
+        # When finished, find the best contenders and return:
+        best_log_likelihoods = np.full((num_best,), -np.inf)
+        best_spingroups = [None]*num_best
+        best_min_idx = 0
+        best_log_likelihood_min = -np.inf
+        for last_indices, data_best in contenders.items():
+            for spingroups, log_likelihood in data_best:
+                for g in range(G):
+                    log_likelihood += log_level_spacing_probs[last_indices[g],-1,g]
+                if log_likelihood > best_log_likelihood_min:
+                    best_log_likelihoods[best_min_idx] = log_likelihood
+                    best_spingroups[best_min_idx] = spingroups
+                    # find worst of best again:
+                    best_min_idx = np.argmin(best_log_likelihoods)
+                    best_log_likelihood_min = best_log_likelihoods[best_min_idx]
+        return best_spingroups
