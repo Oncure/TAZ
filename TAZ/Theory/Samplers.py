@@ -218,6 +218,8 @@ def sampleGEEnergies(EB:tuple, lvl_dens:float=1.0, beta:int=1,
 
     eigs = sampleGEEigs(N_Tot, beta=beta, rng=rng)
     eigs /= 2*sqrt(N_Tot)
+    if eigs[-1] < -1.0+margin:
+        raise RuntimeError('Not enough eigenvalues were sampled!')
     eigs = eigs[eigs > -1.0+margin]
     # eigs = eigs[eigs <  1.0-margin] # this should already be true
 

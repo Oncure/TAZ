@@ -3,8 +3,6 @@ import numpy as np
 from scipy.stats import rv_continuous, chi2
 from scipy.special import erf, erfc, expm1
 
-# from .RMatrix import ReduceFactor
-
 # =================================================================================================
 #   Wigner Distribution
 # =================================================================================================

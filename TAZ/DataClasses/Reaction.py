@@ -317,10 +317,6 @@ class Reaction:
         ----------
         gg2 : float, array-like
             Reduced capture widths.
-        E : float, array-like
-            Resonance energy.
-        l : int
-            The orbital angular momentum quantum number.
 
         Returns
         -------
@@ -338,10 +334,6 @@ class Reaction:
         ----------
         Gg : float, array-like
             Partial capture widths.
-        E : float, array-like
-            Resonance energy.
-        l : int
-            The orbital angular momentum quantum number.
 
         Returns
         -------

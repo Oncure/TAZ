@@ -2,6 +2,7 @@ from typing import Tuple, List
 from math import pi, sqrt, log, floor
 from sys import float_info
 import numpy as np
+from numpy.random import Generator
 from numpy import newaxis as NA
 from scipy.special import gamma, gammaincc, gammainccinv, erfc, erfcx, erfcinv
 from scipy.integrate import quad
@@ -25,20 +26,25 @@ class SpacingDistributionBase:
 
     # Probability Distributions:
     def _f0(self, x):
+        'Level-spacing PDF.'
         raise ValueError('A "_f0" method must be defined.')
     def _f1(self, x):
+        'Edge level-spacing PDF.'
         func = lambda t: self._f0(t)
         intfunc = lambda x: quad(func, a=x, b=np.inf)[0]
         return np.vectorize(intfunc)(x) * self.lvl_dens
     def _f2(self, x):
+        'Double edge level-spacing PDF.'
         func = lambda t,x: (t-x)*self._f0(t)
         intfunc = lambda x: quad(func, a=x, b=np.inf, args=(x,))[0]
         return np.vectorize(intfunc)(x) * self.lvl_dens**2
     
     # Distribution Ratios:
     def _r1(self, x):
+        'Ratio of _f0/_f1.'
         return self._f0(x) / self._f1(x)
     def _r2(self, x):
+        'Ratio of _f1/_f2.'
         return self._f1(x) / self._f2(x)
     
     # Survival Inverse Functions:
@@ -69,26 +75,43 @@ class SpacingDistributionBase:
             return x
         return np.vectorize(invfunc)(q)
     
-    # Level density handlers:
+    # Samplers:
+    def _sample_f0(self, size:tuple=None, rng:Generator=None, seed:int=None):
+        'Sampling of "f0" distribution.'
+        if rng is None:
+            rng = np.random.RandomState(seed)
+        return self._iF0(rng.random(size))
+    def _sample_f1(self, size:tuple=None, rng:Generator=None, seed:int=None):
+        'Sampling of "f1" distribution.'
+        if rng is None:
+            rng = np.random.RandomState(seed)
+        return self._iF1(rng.random(size))
+    
+    # Function Handlers:
     def f0(self, x):
+        'Level-spacing PDF.'
         x = np.array(x)
         y = np.zeros_like(x)
         y[~np.isinf(x)] = self.lvl_dens * self._f0(self.lvl_dens * x[~np.isinf(x)])
         return y
     def f1(self, x):
+        'Edge level-spacing PDF.'
         x = np.array(x)
         y = np.zeros_like(x)
         y[~np.isinf(x)] = self.lvl_dens * self._f1(self.lvl_dens * x[~np.isinf(x)])
         return y
     def f2(self, x):
+        'Double edge level-spacing PDF.'
         x = np.array(x)
         y = np.zeros_like(x)
         y[~np.isinf(x)] = self.lvl_dens * self._f2(self.lvl_dens * x[~np.isinf(x)])
         return y
     def r1(self, x):
+        'Ratio of f0/f1.'
         x = np.array(x)
         return self._r1(self.lvl_dens * x)
     def r2(self, x):
+        'Ratio of f1/f2.'
         x = np.array(x)
         r = np.zeros_like(x)
         return self._r2(self.lvl_dens * x)
@@ -100,18 +123,12 @@ class SpacingDistributionBase:
         'Inverse of the survival function of the "f1" probability density function.'
         q = np.array(q)
         return self._iF1(q) / self.lvl_dens
-    
-    # Samplers:
-    def sample_f0(self, size:tuple=None, rng=None, seed:int=None):
+    def sample_f0(self, size:tuple=None, rng:Generator=None, seed:int=None):
         'Sampling of "f0" distribution.'
-        if rng is None:
-            rng = np.random.RandomState(seed)
-        return self.iF0(rng.random(size))
-    def sample_f1(self, size:tuple=None, rng=None, seed:int=None):
+        return self._sample_f0(size, rng, seed) / self.lvl_dens
+    def sample_f1(self, size:tuple=None, rng:Generator=None, seed:int=None):
         'Sampling of "f1" distribution.'
-        if rng is None:
-            rng = np.random.RandomState(seed)
-        return self.iF1(rng.random(size))
+        return self._sample_f1(size, rng, seed) / self.lvl_dens
     
     # Nicely Named Functions:
     def pdf(self, x):
@@ -130,7 +147,7 @@ class SpacingDistributionBase:
         'Inverse survival function'
         return self.iF0(x)
     
-    # xMax functions:
+    # xMax Functions:
     def xMax_f0(self, err):
         return self.iF0(err)
     def xMax_f1(self, err):
@@ -502,12 +519,12 @@ class MergedDistributionBase:
         raise NotImplementedError('"iF1" has not been implemented for merged distributions.')
     
     # Samplers:
-    def sample_f0(self, size:tuple=None, rng=None, seed:int=None):
+    def sample_f0(self, size:tuple=None, rng:Generator=None, seed:int=None):
         'Sampling of "f0" distribution.'
         if rng is None:
             rng = np.random.RandomState(seed)
         return self.iF0(rng.random(size))
-    def sample_f1(self, size:tuple=None, rng=None, seed:int=None):
+    def sample_f1(self, size:tuple=None, rng:Generator=None, seed:int=None):
         'Sampling of "f1" distribution.'
         if rng is None:
             rng = np.random.RandomState(seed)

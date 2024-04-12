@@ -24,8 +24,6 @@ def ATARI_to_TAZ_reaction(particle_pair, **kwargs):
         A TAZ Reaction dataclass instance.
     """
 
-    # raise NotImplementedError('...')
-
     energy_bounds = (min(particle_pair.energy_range), max(particle_pair.energy_range))
     
     spingroups = []
