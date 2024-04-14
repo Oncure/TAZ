@@ -121,9 +121,11 @@ Index:     {idx}
             direction (index 1) for each spingroup (index 2).
         """
 
+        # Error Checking:
+        self.__check_errors(prior, level_spacing_probs, iMax)
         # Initialization:
-        self.G = level_spacing_probs.shape[2]
-        self.L = np.int32(prior.shape[0])
+        self.L = prior.shape[0]
+        self.G = prior.shape[1] - 1
         self.Prior = np.ones((self.L+2,self.G+1), dtype='f8')
         self.Prior[1:-1,:] = prior
         self.LSP = level_spacing_probs
@@ -132,6 +134,22 @@ Index:     {idx}
         # Calculating "CP" and "TP":
         self.__makeCP()
         self.__makeTP()
+
+    # ==================================================================================
+    # Error Checking:
+    # ==================================================================================
+
+    @classmethod
+    def __check_errors(cls, prior, level_spacing_probs, iMax):
+        """
+        ...
+        """
+        L = prior.shape[0]
+        G = prior.shape[1] - 1
+        if level_spacing_probs.shape != (L+2,L+2,G):
+            raise ValueError(f'Level-spacing probabilities does not have the correct shape:\nExpected ({L+2},{L+2},{G}) but got {level_spacing_probs.shape}.')
+        if iMax.shape != (L+2,2,G):
+            raise ValueError(f'iMax does not have the correct shape:\nExpected ({L+2},2,{G}) but got {iMax.shape}.')
 
     # ==================================================================================
     # Make CP
@@ -558,8 +576,8 @@ numerical instability.
     # ==================================================================================
     # Maximum-Likelihood Assignments
     # ==================================================================================
-    @staticmethod
-    def WigMaxLikelihood(prior, level_spacing_probs, iMax):
+    @classmethod
+    def WigMaxLikelihood(cls, prior, level_spacing_probs, iMax):
         """
         Returns the maximum likelihood spingroup assignments using branching and pruning methods.
 
@@ -597,8 +615,11 @@ numerical instability.
             An array of spingroup assignment IDs with maximal likelihood.
         """
 
-        L = level_spacing_probs.shape[0] - 2
-        G = level_spacing_probs.shape[2]
+        # Error Checking:
+        cls.__check_errors(prior, level_spacing_probs, iMax)
+
+        L = prior.shape[0]
+        G = prior.shape[1] - 1
 
         # Logification:
         with np.errstate(divide='ignore'):
@@ -608,12 +629,14 @@ numerical instability.
         # Initialization:
         contenders = {} # list of spingroup assignments and likelihood, indexed by a G-tuple of last indices
         for g in range(G):
-            spingroups = [g]
+            spingroups = np.full((L,), 255, dtype=np.int8)
+            spingroups[0] = g
             log_likelihood = log_prior[0,g] + log_level_spacing_probs[0,1,g]
             last_indices = [0]*G
             last_indices[g] = 1
             contenders[tuple(last_indices)] = (spingroups, log_likelihood)
-        spingroups = [G]
+        spingroups = np.full((L,), 255, dtype=np.int8)
+        spingroups[0] = G
         log_likelihood = log_prior[0,G]
         contenders[tuple([0]*G)] = (spingroups, log_likelihood)
 
@@ -630,7 +653,8 @@ numerical instability.
                     new_last_indices = tuple(new_last_indices)
                     if np.any(new_last_indices < iMax[i1,1,:]):
                         continue # branch has forgotten about a spingroup. It is quite unlikely that this branch will be of maximal likelihood.
-                    new_spingroups = spingroups + [g]
+                    new_spingroups = copy(spingroups)
+                    new_spingroups[i] = g
                     new_log_likelihood = log_likelihood + log_prior[i,g] + log_level_spacing_probs[last_indices[g],i1,g]
                     # Add assignment to the list:
                     if new_last_indices in new_contenders:
@@ -640,7 +664,8 @@ numerical instability.
                     else:
                         new_contenders[new_last_indices] = (new_spingroups, new_log_likelihood)
                 # False Group:
-                new_spingroups = spingroups + [G]
+                new_spingroups = copy(spingroups)
+                new_spingroups[i] = G
                 new_log_likelihood = log_likelihood + log_prior[i,G]
                 new_contenders[last_indices] = (new_spingroups, new_log_likelihood)
             contenders = copy(new_contenders)
@@ -660,8 +685,8 @@ numerical instability.
                 max_spingroups = spingroups
         return max_spingroups
     
-    @staticmethod
-    def WigMaxLikelihoods(prior, level_spacing_probs, iMax, num_best:int=1):
+    @classmethod
+    def WigMaxLikelihoods(cls, prior, level_spacing_probs, iMax, num_best:int=1):
         """
         Returns the maximum likelihood spingroup assignments using branching and pruning methods.
 
@@ -694,7 +719,7 @@ numerical instability.
             Maximum/minimum index for approximation threshold for each resonance (index 0) in each
             direction (index 1) for each spingroup (index 2).
         num_best : int
-            The number of highest likelihood samples to pull.
+            The number of highest likelihood spingroup ladders to select.
 
         Returns
         -------
@@ -702,8 +727,11 @@ numerical instability.
             An array of spingroup assignment IDs with maximal likelihood.
         """
 
-        L = level_spacing_probs.shape[0] - 2
-        G = level_spacing_probs.shape[2]
+        # Error Checking:
+        cls.__check_errors(prior, level_spacing_probs, iMax)
+
+        L = prior.shape[0]
+        G = prior.shape[1] - 1
 
         # Logification:
         with np.errstate(divide='ignore'):
@@ -713,52 +741,70 @@ numerical instability.
         # Initialization:
         contenders = {} # list of spingroup assignments and likelihood, indexed by a G-tuple of last indices
         for g in range(G):
-            spingroups = [g]
+            spingroups = np.full((L,), 255, dtype=np.int8)
+            spingroups[0] = g
             log_likelihood = log_prior[0,g] + log_level_spacing_probs[0,1,g]
             last_indices = [0]*G
             last_indices[g] = 1
-            contenders[tuple(last_indices)] = [(spingroups, log_likelihood)]
-        spingroups = [G]
+            contenders[tuple(last_indices)] = [(log_likelihood, spingroups)]
+        spingroups = np.full((L,), 255, dtype=np.int8)
+        spingroups[0] = G
         log_likelihood = log_prior[0,G]
-        contenders[tuple([0]*G)] = (spingroups, log_likelihood)
+        contenders[tuple([0]*G)] = [(log_likelihood, spingroups)]
 
         # Loop for each additional resonance:
         for i in range(1,L):
             i1 = i + 1
-            # Generate new contenders:
+            # Preparing contender dict with empty lists:
             new_contenders = {}
             for last_indices, data_best in contenders.items():
-                # Preparing contender dict with empty lists:
-                new_contenders[last_indices] = []
                 for g in range(G):
                     new_last_indices = list(last_indices)
                     new_last_indices[g] = i1
                     new_last_indices = tuple(new_last_indices)
                     new_contenders[new_last_indices] = []
-                # Selecting Best in branch depth:
-                for spingroups, log_likelihood in data_best:
-                    # True Groups:
-                    for g in range(G):
-                        new_last_indices = list(last_indices)
-                        new_last_indices[g] = i1
-                        new_last_indices = tuple(new_last_indices)
-                        if np.any(new_last_indices < iMax[i1,1,:]):
-                            continue # branch has forgotten about a spingroup. It is quite unlikely that this branch will be of maximal likelihood.
-                        new_spingroups = spingroups + [g]
-                        new_log_likelihood = log_likelihood + log_prior[i,g] + log_level_spacing_probs[last_indices[g],i1,g]
-                        # Add assignment to the list:
-                        if len(new_contenders[new_last_indices]) == num_best:
-                            prev_log_likelihoods = [data_best[1] for data_best in new_contenders[new_last_indices]]
-                            min_likelihood_idx = np.argmin(prev_log_likelihoods)
-                            prev_log_likelihood_min = prev_log_likelihoods[min_likelihood_idx]
-                            if new_log_likelihood > prev_log_likelihood_min:
-                                new_contenders[new_last_indices][min_likelihood_idx] = (new_spingroups, new_log_likelihood)
-                        else:
-                            new_contenders[new_last_indices].append((new_spingroups, new_log_likelihood))
-                    # False Group:
-                    new_spingroups = spingroups + [G]
-                    new_log_likelihood = log_likelihood + log_prior[i,G]
-                    new_contenders[last_indices].append((new_spingroups, new_log_likelihood))
+                new_contenders[last_indices] = [] # false last indices
+            # Selecting best true groups in branch depth:
+            for last_indices, data_best in contenders.items():
+                for g in range(G):
+                    new_last_indices = list(last_indices)
+                    new_last_indices[g] = i1
+                    new_last_indices = tuple(new_last_indices)
+                    if np.any(new_last_indices < iMax[i1,1,:]):
+                        continue # branch has forgotten about a spingroup. It is quite unlikely that this branch will be of maximal likelihood.
+                    for old_log_likelihood, old_spingroups in data_best:
+                        new_log_likelihood = old_log_likelihood + log_prior[i,g] + log_level_spacing_probs[last_indices[g],i1,g]
+                        new_spingroups = copy(old_spingroups)
+                        new_spingroups[i] = g
+                        # Add assignment to the list if better than existing:
+                        log_likelihoods = [log_likelihood for log_likelihood, spingroup in new_contenders[new_last_indices]]
+                        idx = np.searchsorted(log_likelihoods, new_log_likelihood)
+                        new_contenders[new_last_indices].insert(idx,(new_log_likelihood, new_spingroups))
+                        if len(new_contenders[new_last_indices]) > num_best:
+                            del new_contenders[new_last_indices][0]
+                    
+                # Selecting best false groups in branch depth:
+                if np.any(last_indices < iMax[i1,1,:]):
+                    continue # branch has forgotten about a spingroup. It is quite unlikely that this branch will be of maximal likelihood.
+                for idx, (old_log_likelihood, old_spingroups) in enumerate(data_best):
+                    new_log_likelihood = old_log_likelihood + log_prior[i,G]
+                    if new_log_likelihood == -np.inf:
+                        continue # potential computation time improvement
+                    new_spingroups = copy(old_spingroups)
+                    new_spingroups[i] = G
+                    # Add assignment to the list:
+                    new_contenders[last_indices].append((new_log_likelihood, new_spingroups))
+                # new_contenders[last_indices].sort()
+
+            # Removing unused last-indices:
+            empty_lists = []
+            for last_indices, data_best in new_contenders.items():
+                if len(data_best) == 0:
+                    empty_lists.append(last_indices)
+            for last_indices in empty_lists:
+                del new_contenders[last_indices]
+
+            # Update Contenders:
             contenders = copy(new_contenders)
             del new_contenders
 
@@ -767,18 +813,19 @@ numerical instability.
                 raise RuntimeError('The number of maximum likelihood contenders has dropped to zero unexpectedly.')
         
         # When finished, find the best contenders and return:
-        best_log_likelihoods = np.full((num_best,), -np.inf)
-        best_spingroups = [None]*num_best
-        best_min_idx = 0
+        best_log_likelihoods = []
+        best_spingroups      = []
         best_log_likelihood_min = -np.inf
         for last_indices, data_best in contenders.items():
-            for spingroups, log_likelihood in data_best:
+            for log_likelihood_old, spingroups in data_best:
+                log_likelihood_new = log_likelihood_old
                 for g in range(G):
-                    log_likelihood += log_level_spacing_probs[last_indices[g],-1,g]
-                if log_likelihood > best_log_likelihood_min:
-                    best_log_likelihoods[best_min_idx] = log_likelihood
-                    best_spingroups[best_min_idx] = spingroups
-                    # find worst of best again:
-                    best_min_idx = np.argmin(best_log_likelihoods)
-                    best_log_likelihood_min = best_log_likelihoods[best_min_idx]
+                    log_likelihood_new += log_level_spacing_probs[last_indices[g],-1,g]
+                if log_likelihood_new > best_log_likelihood_min:
+                    idx = np.searchsorted(best_log_likelihoods, log_likelihood_new)
+                    best_log_likelihoods.insert(idx, log_likelihood_new)
+                    best_spingroups.insert(idx, spingroups)
+                    if len(best_log_likelihoods) > num_best:
+                        del best_log_likelihoods[0], best_spingroups[0]
+                    best_log_likelihood_min = best_log_likelihoods[0]
         return best_spingroups

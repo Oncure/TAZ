@@ -513,7 +513,7 @@ class RunMaster:
         iMax = np.zeros((L+2, 2, G), 'i4')
         level_spacing_probs = np.zeros((L+2, L+2, G), 'f8')
         for g, distribution in enumerate(level_spacing_dists):
-            iMax[:,:,g]  = cls._calculate_iMax(E, EB, distribution, err)
+            iMax[:,:,g] = cls._calculate_iMax(E, EB, distribution, err)
             level_spacing_probs[:,:,g] = cls._calculate_probs(E, EB, distribution, iMax[:,:,g])
         best_spingroup_ladder = Encore.WigMaxLikelihood(prior, level_spacing_probs, iMax)
         best_spingroup_ladder = np.array(best_spingroup_ladder, dtype='i4')
@@ -522,7 +522,7 @@ class RunMaster:
     @classmethod
     def WigMaxLikelihoods(cls, E, EB:tuple,
                          level_spacing_dists:Tuple[SpacingDistributionBase],
-                         num_best:int=1,
+                         num_best:int=None,
                          err:float=1e-8,
                          prior=None):
         """
@@ -538,10 +538,12 @@ class RunMaster:
             The lower and upper energy limits of the resonance ladder.
         level_spacing_dists : Tuple[SpacingDistributionBase]
             The level-spacing distributions for each spingroup (not including false group).
-        num_best : int
-            The number of highest likelihood samples to pull.
+        num_best : int, optional
+            The number of highest likelihood spingroup ladders to select. By default,
+            provides the highest likelihood ladder only.
         err : float
             The maximum error allowed, beyond which level-spacings are not calculated.
+            Default is 1e-8.
         prior : array-like of float, optional
             The prior spingroup probabilities for each resonance.
 
@@ -567,8 +569,11 @@ class RunMaster:
         iMax = np.zeros((L+2, 2, G), 'i4')
         level_spacing_probs = np.zeros((L+2, L+2, G), 'f8')
         for g, distribution in enumerate(level_spacing_dists):
-            iMax[:,:,g]  = cls._calculate_iMax(E, EB, distribution, err)
+            iMax[:,:,g] = cls._calculate_iMax(E, EB, distribution, err)
             level_spacing_probs[:,:,g] = cls._calculate_probs(E, EB, distribution, iMax[:,:,g])
-        best_spingroup_ladders = Encore.WigMaxLikelihoods(prior, level_spacing_probs, iMax, num_best)
-        best_spingroup_ladders = [np.array(best_spingroup_ladder, dtype='i4') for best_spingroup_ladder in best_spingroup_ladders] 
-        return best_spingroup_ladders
+        if num_best is None:
+            best_spingroup_ladder = Encore.WigMaxLikelihoods(prior, level_spacing_probs, iMax, 1)[0]
+            return best_spingroup_ladder
+        else:
+            best_spingroup_ladders = Encore.WigMaxLikelihoods(prior, level_spacing_probs, iMax, num_best)
+            return best_spingroup_ladders

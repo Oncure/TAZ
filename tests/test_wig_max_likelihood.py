@@ -9,7 +9,7 @@ warnings.filterwarnings('error', category=RuntimeWarning)
 
 import unittest
 
-class TestBayesSampler(unittest.TestCase):
+class TestBayesMaxLogLikelihood(unittest.TestCase):
     """
     The purpose of this test is to verify that the WigMaxLikelihood algorithm is working correctly.
     """
@@ -28,15 +28,15 @@ class TestBayesSampler(unittest.TestCase):
         Projectile = TAZ.Neutron
 
         # Mean Parameters
-        cls.EB = (1e-5, 500)
+        cls.EB         = (1e-5, 250)
         cls.false_dens = 1/20.0
-        cls.lvl_dens  = [1/5.0, 1/5.0]
-        cls.gn2m  = [40, 70]
-        cls.gg2m   = [55.00000, 55.00000]
-        cls.dfn   = [1, 1]
-        cls.dfg   = [250, 250]
-        cls.l     = [0, 0]
-        cls.j     = [3.0, 4.0]
+        cls.lvl_dens   = [1/5.0, 1/6.0]
+        cls.gn2m       = [ 40,  70]
+        cls.gg2m       = [55.00000, 55.00000]
+        cls.dfn        = [  1,   1]
+        cls.dfg        = [250, 250]
+        cls.l          = [  0,   0]
+        cls.j          = [3.0, 4.0]
 
         SGs = TAZ.Spingroup.zip(cls.l, cls.j)
         cls.reaction = TAZ.Reaction(targ=Target, proj=Projectile, lvl_dens=cls.lvl_dens, gn2m=cls.gn2m, nDOF=cls.dfn, gg2m=cls.gg2m, gDOF=cls.dfg, spingroups=SGs, EB=cls.EB, false_dens=cls.false_dens)
