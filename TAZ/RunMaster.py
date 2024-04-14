@@ -470,56 +470,6 @@ class RunMaster:
         return likelihood
     
     @classmethod
-    def WigMaxLikelihood(cls, E, EB:tuple,
-                         level_spacing_dists:Tuple[SpacingDistributionBase], err:float=1e-8,
-                         prior=None):
-        """
-        Returns the maximum likelihood spingroup assignments using branching and pruning methods.
-        This method does not need the CP values from initialization. Therefore, WigMaxLikelihood
-        is a class method that can be called prior to initialization.
-
-        Parameters
-        ----------
-        E : array-like of float
-            The ordered resonance energies.
-        EB : (float, float)
-            The lower and upper energy limits of the resonance ladder.
-        level_spacing_dists : Tuple[SpacingDistributionBase]
-            The level-spacing distributions for each spingroup (not including false group).
-        err : float
-            The maximum error allowed, beyond which level-spacings are not calculated.
-        prior : array-like of float, optional
-            The prior spingroup probabilities for each resonance.
-
-        Returns
-        -------
-        best_spingroup_ladder : ndarray[int]
-            The best spingroup ladder, stored as an array of spingroup IDs.
-        """
-        
-        L = len(E)
-        G = len(level_spacing_dists)
-
-        if isinstance(E, Series):
-            E = E.to_numpy()
-        E = np.sort(E)
-
-        if prior is None:
-            prior = np.zeros((L,G))
-            for g, distribution in enumerate(level_spacing_dists):
-                prior[:,g] = distribution.lvl_dens
-            prior /= np.sum(prior, axis=1)
-
-        iMax = np.zeros((L+2, 2, G), 'i4')
-        level_spacing_probs = np.zeros((L+2, L+2, G), 'f8')
-        for g, distribution in enumerate(level_spacing_dists):
-            iMax[:,:,g] = cls._calculate_iMax(E, EB, distribution, err)
-            level_spacing_probs[:,:,g] = cls._calculate_probs(E, EB, distribution, iMax[:,:,g])
-        best_spingroup_ladder = Encore.WigMaxLikelihood(prior, level_spacing_probs, iMax)
-        best_spingroup_ladder = np.array(best_spingroup_ladder, dtype='i4')
-        return best_spingroup_ladder
-    
-    @classmethod
     def WigMaxLikelihoods(cls, E, EB:tuple,
                          level_spacing_dists:Tuple[SpacingDistributionBase],
                          num_best:int=None,

@@ -9,6 +9,8 @@ __doc__ = """
 This file contains all information regarding the MissingBayes methods, which calculates probability
 density functions for resonances at some energy with some spingroup, given the known ladder.
 Additionally, this distribution can be sampled probabilistically.
+
+WORK IN PROGRESS!
 """
 
 def missing_pdf(E, EL:float, ER:float, pdf:Callable, pM:float):

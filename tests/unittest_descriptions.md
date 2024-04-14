@@ -31,11 +31,8 @@
 - Test that WigSample returns spingroups with the correct frequency based on the underlying level-densities. (this is a poor unit test)
 - Test that WigSample returns spingroups that produce the underlying distribution. Verify with Chi-square test. (this is a poor unit test)
 
-### Test WigMaxLikelihood
-- Test that WigMaxLikelihood returns the maximum of the prior probabilities when provided Poisson distributions.
-
 ### Test WigMaxLikelihoods
-- Test that WigMaxLikelihoods returns the B-most likely prior ladders when provided Poisson distributions. (NOT IMPLEMENTED YET)
+- Test that WigMaxLikelihoods returns the B-most likely prior ladders when provided Poisson distributions.
 
 ### Test Mean Parameter Estimation
 - Test that the value and uncertainty for each mean parameter is statistically valid. (NOT IMPLEMENTED YET)
