@@ -1,3 +1,4 @@
+from copy import copy
 from pandas import DataFrame
 import numpy as np
 from numpy import newaxis as NA
@@ -19,7 +20,7 @@ def PTBayes(resonances:DataFrame, reaction:Reaction, false_width_dist=None, prio
 
     Parameters
     ----------
-    resonancs        : DataFrame
+    resonances       : DataFrame
         The dataframe of resonance energies, widths, etc.
     reaction         : Reaction
         A Reaction object that holds the mean parameters for the reaction.
@@ -84,3 +85,54 @@ def PTBayes(resonances:DataFrame, reaction:Reaction, false_width_dist=None, prio
     log_likelihood = np.sum(np.log(total_probability))
 
     return posterior, log_likelihood
+
+def PTMaxLogLikelihoods(probs, num_best:int):
+    """
+    Finds the best ladder given independent probabilities for each spingroup of each resonance.
+
+    Let `L` be the number of resonances and `G` be the number of (true) spingroups.
+
+    Parameters
+    ----------
+    probs    : float [L,G+1]
+        Independent probabilities on spingroup assignment for each resonance.
+    num_best : int
+        The number of maximal likelihood solutions to return.
+
+    Returns
+    -------
+    best_spingroup_ladders : list[list[int]]
+        A list of the highest likelihood spingroup ladders, represented by a list of spingroup IDs.
+    best_log_likelihoods   : list[float]
+        Log-likelihoods for the best spingroup assignments.
+    """
+
+    L = probs.shape[0]
+    G = probs.shape[1] - 1
+
+    # Logification:
+    with np.errstate(divide='ignore'):
+        log_probs = np.log(probs)
+
+    # Finding best spingroups:
+    best_spingroup_ladders = [[]]
+    best_log_likelihoods = [0.0]
+    for i in range(L):
+        new_best_spingroup_ladders = []
+        new_best_log_likelihoods = []
+        for old_spingroup_ladder, old_likelihood in zip(best_spingroup_ladders, best_log_likelihoods):
+            for g in range(G+1):
+                new_likelihood = old_likelihood + log_probs[i,g]
+                new_spingroup_ladder = old_spingroup_ladder + [g]
+                idx = np.searchsorted(new_best_log_likelihoods, new_likelihood)
+                new_best_log_likelihoods.insert(idx, new_likelihood)
+                new_best_spingroup_ladders.insert(idx, new_spingroup_ladder)
+                if len(new_best_log_likelihoods) > num_best:
+                    del new_best_log_likelihoods[0], new_best_spingroup_ladders[0]
+        best_spingroup_ladders = copy(new_best_spingroup_ladders)
+        best_log_likelihoods = copy(new_best_log_likelihoods)
+    best_spingroup_ladders = np.array(best_spingroup_ladders, dtype=np.int8)
+    # Provide in decreasing order:
+    best_spingroup_ladders = best_spingroup_ladders[::-1]
+    best_log_likelihoods   = best_log_likelihoods  [::-1]
+    return best_spingroup_ladders, best_log_likelihoods

@@ -33,6 +33,10 @@
 
 ### Test WigMaxLikelihoods
 - Test that WigMaxLikelihoods returns the B-most likely prior ladders when provided Poisson distributions.
+- Test case with identical mean parameters and different distributions. There should be spingroup symmetry.
+
+### Test ProbOfSample
+- ???
 
 ### Test Mean Parameter Estimation
 - Test that the value and uncertainty for each mean parameter is statistically valid. (NOT IMPLEMENTED YET)

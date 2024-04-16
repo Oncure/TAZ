@@ -501,6 +501,8 @@ class RunMaster:
         -------
         best_spingroup_ladders : list[ndarray[int]]
             List of the best spingroup ladders, stored as arrays of spingroup IDs.
+        best_log_likelihoods   : list[float]
+            Log-likelihoods for the best spingroup assignments.
         """
         
         L = len(E)
@@ -522,8 +524,10 @@ class RunMaster:
             iMax[:,:,g] = cls._calculate_iMax(E, EB, distribution, err)
             level_spacing_probs[:,:,g] = cls._calculate_probs(E, EB, distribution, iMax[:,:,g])
         if num_best is None:
-            best_spingroup_ladder = Encore.WigMaxLikelihoods(prior, level_spacing_probs, iMax, 1)[0]
-            return best_spingroup_ladder
+            best_spingroup_ladders, best_log_likelihoods = Encore.WigMaxLikelihoods(prior, level_spacing_probs, iMax, 1)
+            best_spingroup_ladder = best_spingroup_ladders[0]
+            best_log_likelihood   = best_log_likelihoods  [0]
+            return best_spingroup_ladder, best_log_likelihood
         else:
-            best_spingroup_ladders = Encore.WigMaxLikelihoods(prior, level_spacing_probs, iMax, num_best)
-            return best_spingroup_ladders
+            best_spingroup_ladders, best_log_likelihoods = Encore.WigMaxLikelihoods(prior, level_spacing_probs, iMax, num_best)
+            return best_spingroup_ladders, best_log_likelihoods

@@ -582,6 +582,8 @@ numerical instability.
         -------
         best_spingroup_ladders : list[int [L]]
             An array of spingroup assignment IDs with maximal likelihood.
+        best_log_likelihoods   : list[float]
+            Log-likelihoods for the best spingroup assignments.
         """
 
         # Error Checking:
@@ -619,7 +621,11 @@ numerical instability.
                     new_last_indices = list(last_indices)
                     new_last_indices[g] = i1
                     new_last_indices = tuple(new_last_indices)
+                    if np.any(new_last_indices < iMax[i1,1,:]):
+                        continue # branch has forgotten about a spingroup. It is quite unlikely that this branch will be of maximal likelihood.
                     new_contenders[new_last_indices] = []
+                if np.any(last_indices < iMax[i1,1,:]):
+                    continue # branch has forgotten about a spingroup. It is quite unlikely that this branch will be of maximal likelihood.
                 new_contenders[last_indices] = [] # false last indices
             # Selecting best true groups in branch depth:
             for last_indices, data_best in contenders.items():
@@ -631,6 +637,8 @@ numerical instability.
                         continue # branch has forgotten about a spingroup. It is quite unlikely that this branch will be of maximal likelihood.
                     for old_log_likelihood, old_spingroups in data_best:
                         new_log_likelihood = old_log_likelihood + log_prior[i,g] + log_level_spacing_probs[last_indices[g],i1,g]
+                        if new_log_likelihood == -np.inf:
+                            continue # potential computation time improvement
                         new_spingroups = copy(old_spingroups)
                         new_spingroups[i] = g
                         # Add assignment to the list if better than existing:
@@ -685,4 +693,7 @@ numerical instability.
                     if len(best_log_likelihoods) > num_best:
                         del best_log_likelihoods[0], best_spingroup_ladders[0]
                     best_log_likelihood_min = best_log_likelihoods[0]
-        return best_spingroup_ladders
+        # Provide in decreasing order:
+        best_spingroup_ladders = best_spingroup_ladders[::-1]
+        best_log_likelihoods   = best_log_likelihoods  [::-1]
+        return best_spingroup_ladders, best_log_likelihoods
