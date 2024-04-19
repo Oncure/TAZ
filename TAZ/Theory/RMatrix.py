@@ -1,4 +1,5 @@
 import numpy as np
+from pandas import DataFrame
 
 from TAZ.DataClasses import MASS_NEUTRON
 
