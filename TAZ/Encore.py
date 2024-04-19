@@ -10,30 +10,6 @@ This file is contains the spingroup assignment algorithm. `RunMaster` is used as
 post-processor for Encore.
 """
 
-def shape(vec, g:int, G:int):
-    """
-    Shapes a provided 1-dimensional vector to a `G` dimensional array along axis `g`.
-
-    Parameters
-    ----------
-    vec : array-like
-        The vector to reshape.
-    g : int
-        The dimension to reshape into.
-    G : int
-        The number of dimensions.
-    
-    Returns
-    -------
-    array : array-like
-        The G-dimensional array reshaped from array
-    """
-
-    shape_ = [1]*G
-    shape_[g] = -1
-    array = vec.reshape(*shape_)
-    return array
-
 class Encore:
     """
     A class spingroup classification. This class has many features:
@@ -697,3 +673,31 @@ numerical instability.
         best_spingroup_ladders = best_spingroup_ladders[::-1]
         best_log_likelihoods   = best_log_likelihoods  [::-1]
         return best_spingroup_ladders, best_log_likelihoods
+    
+# ======================================================================================
+# Utility Functions
+# ======================================================================================
+
+def shape(vec, g:int, G:int):
+    """
+    Shapes a provided 1-dimensional vector to a `G` dimensional array along axis `g`.
+
+    Parameters
+    ----------
+    vec : array-like
+        The vector to reshape.
+    g : int
+        The dimension to reshape into.
+    G : int
+        The number of dimensions.
+    
+    Returns
+    -------
+    array : array-like
+        The G-dimensional array reshaped from array
+    """
+
+    shape_ = [1]*G
+    shape_[g] = -1
+    array = vec.reshape(*shape_)
+    return array
