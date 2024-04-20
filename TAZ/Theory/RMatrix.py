@@ -1,7 +1,6 @@
 import numpy as np
-from pandas import DataFrame
 
-from TAZ.DataClasses import MASS_NEUTRON
+from ATARI.ModelData.particle import mass_neutron
 
 __doc__ = """
 This module is the collection of relevant R-Matrix Theory quantities. Many of these equations are
@@ -14,7 +13,7 @@ LIGHTSPEED = 299_792_458 # m/s
 AMU_EV     = 931.494_095_4e6 # eV/(c^2*amu)
 
 def k_wavenumber(mass_targ:float, E,
-                 mass_proj:float=MASS_NEUTRON,
+                 mass_proj:float=mass_neutron,
                  mass_targ_after:float=None,
                  mass_proj_after:float=None,
                  E_thres:float=None):

@@ -5,5 +5,4 @@ dataclasses.
 """
 
 from .Spingroups import HalfInt, Spingroup
-from .Particle import *
 from .Reaction import Reaction

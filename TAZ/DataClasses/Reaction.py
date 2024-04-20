@@ -7,7 +7,7 @@ import warnings
 
 from TAZ import Theory
 from TAZ.DataClasses import Spingroup
-from TAZ.DataClasses import Particle, Neutron
+from ATARI.ModelData.particle import Particle, Neutron
 
 __doc__ = """
 This file keeps the "Reaction" class. The "Reaction" class contains all relevent
@@ -63,6 +63,7 @@ class Reaction:
                  brody_param:List[float]=None,
                  gn2m:List[float]=None, nDOF:List[int]=None,
                  gg2m:List[float]=None, gDOF:List[int]=None,
+                 J_ID:List[int]=None,
                  MissFrac:List[float]=None, Gn_trunc:float=None, 
                  resonances:DataFrame=None):
         """
@@ -96,6 +97,8 @@ class Reaction:
             Resonance mean reduced gamma (capture) width for each spingroup.
         gDOF        : float [G]
             Resonance gamma (capture) width degrees of freedom for each spingroup.
+        J_ID        : int [G]
+            Resonance J_ID for ATARI spingroups.
         MissFrac    : float [G]
             Fraction of Resonances that have been missed.
         Gn_trunc    : float
@@ -185,6 +188,10 @@ class Reaction:
         # Gamma Channel Degrees of Freedom:
         if gDOF is not None:    self.gDOF = spingroupParameter(gDOF, self.num_groups, dtype=int)
         else:                   self.gDOF = self.DEFAULT_GDOF * np.ones((self.num_groups,), dtype=int)
+
+        # J_ID for ATARI spingroups:
+        if nDOF is not None:    self.J_ID = spingroupParameter(J_ID, self.num_groups, dtype=int)
+        else:                   self.J_ID = np.arange(1, self.num_groups+1)
 
         # Truncation Width:
         if Gn_trunc is not None:

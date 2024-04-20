@@ -45,7 +45,7 @@ class RunMaster:
     # Initialization and Creating Pipeline
     # =============================================================================================
 
-    def __init__(self, E, EB:tuple,
+    def __init__(self, E, energy_range:tuple,
                  level_spacing_dists:Tuple[SpacingDistributionBase], false_dens:float=0.0,
                  prior=None, log_likelihood_prior:float=None,
                  err:float=1e-9, merge:bool=False,
@@ -57,7 +57,7 @@ class RunMaster:
         ----------
         E                    : array-like of float
             Resonance energies for the ladder.
-        EB                   : (float, float)
+        energy_range         : (float, float)
             The ladder energy boundaries.
         level_spacing_dists  : ndarray[SpacingDistribution]
             The level-spacing distributions object.
@@ -79,15 +79,15 @@ class RunMaster:
         # Error Checking:
         if not (0.0 < err < 1.0):
             raise ValueError('The probability threshold, "err", must be strictly between 0 and 1.')
-        if len(EB) != 2:
-            raise ValueError('"EB" must be a tuple with two elements: an lower and upper bound on the resonance ladder energies.')
-        if EB[0] >= EB[1]:
-            raise ValueError('EB[0] must be strictly less than EB[1].')
+        if len(energy_range) != 2:
+            raise ValueError('"energy_range" must be a tuple with two elements: an lower and upper bound on the resonance ladder energies.')
+        if energy_range[0] >= energy_range[1]:
+            raise ValueError('energy_range[0] must be strictly less than energy_range[1].')
         
         if isinstance(E, Series):
             E = E.to_numpy()
         self.E  = np.sort(E)
-        self.EB = tuple(EB)
+        self.energy_range = tuple(energy_range)
         self.level_spacing_dists = np.array(level_spacing_dists)
         self.lvl_dens = np.array([lvl_spacing_dist.lvl_dens for lvl_spacing_dist in level_spacing_dists] + [false_dens])
 
@@ -135,8 +135,8 @@ class RunMaster:
             level_spacing_probs = np.zeros((self.L+2, self.L+2, self.G), 'f8')
             for g in range(self.G):
                 if self.verbose:    print(f'Finding level-spacing probabilities for group {g}.')
-                iMax[:,:,g] = self._calculate_iMax(self.E, self.EB, self.level_spacing_dists[g], err)
-                level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.EB, self.level_spacing_dists[g], iMax[:,:,g])
+                iMax[:,:,g] = self._calculate_iMax(self.E, self.energy_range, self.level_spacing_dists[g], err)
+                level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.energy_range, self.level_spacing_dists[g], iMax[:,:,g])
             if self.verbose:    print(f'Creating ENCORE pipeline.')
             self.encore_pipe = Encore(self.prior, level_spacing_probs, iMax)
             if self.verbose:    print(f'Finished ENCORE initialization.')
@@ -168,8 +168,8 @@ class RunMaster:
             if self.verbose:    print(f'Partitioning groups {groups} for partition {g}.')
             distribution = merge(*self.level_spacing_dists[groups])
             if self.verbose:    print(f'Finding level-spacing probabilities for groups {groups}.')
-            iMax[:,:,g] = self._calculate_iMax(self.E, self.EB, distribution, err)
-            level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.EB, distribution, iMax[:,:,g], self.prior[:,groups])
+            iMax[:,:,g] = self._calculate_iMax(self.E, self.energy_range, distribution, err)
+            level_spacing_probs[:,:,g] = self._calculate_probs(self.E, self.energy_range, distribution, iMax[:,:,g], self.prior[:,groups])
             if hasattr(groups, '__iter__'):
                 prior_merged[:,g] = np.sum(self.prior[:,groups], axis=1)
             else:
@@ -181,7 +181,7 @@ class RunMaster:
         return encore_pipe
         
     @staticmethod
-    def _calculate_iMax(E, EB:tuple,
+    def _calculate_iMax(E, energy_range:tuple,
                         distribution:SpacingDistributionBase, err:float):
         """
         Calculates the index limits for calculating level-spacings. 
@@ -190,7 +190,7 @@ class RunMaster:
         ----------
         E            : ndarray[float]
             The ordered resonance energies.
-        EB           : (float, float)
+        energy_range : (float, float)
             A tuple providing the lower and upper energies for the grid.
         distribution : SpacingDistribution
             The SpacingDistribution object for the spingroup or merged group.
@@ -220,7 +220,7 @@ class RunMaster:
 
         # Lower boundary cases:
         for j in range(L):
-            if E[j] - EB[0] >= xMax_f1:
+            if E[j] - energy_range[0] >= xMax_f1:
                 iMax[0,0]    = j
                 iMax[:j+1,1] = 0
                 break
@@ -239,7 +239,7 @@ class RunMaster:
 
         # Upper boundary cases:
         for j in range(L-1,-1,-1):
-            if EB[1] - E[j] >= xMax_f1:
+            if energy_range[1] - E[j] >= xMax_f1:
                 iMax[-1,1] = j
                 iMax[j:,0] = L+1
                 break
@@ -247,7 +247,7 @@ class RunMaster:
         return iMax
     
     @staticmethod
-    def _calculate_probs(E, EB:tuple,
+    def _calculate_probs(E, energy_range:tuple,
                          distribution:SpacingDistributionBase, iMax,
                          prior=None):
         """
@@ -258,7 +258,7 @@ class RunMaster:
         ----------
         E            : ndarray[float]
             The ordered resonance energies.
-        EB           : (float, float)
+        energy_range : (float, float)
             A tuple providing the lower and upper energies for the grid.
         distribution : SpacingDistribution
             The SpacingDistribution object for the spingroup or merged group.
@@ -292,11 +292,11 @@ class RunMaster:
             level_spacing_probs[i+1,i+2:iMax[i+1,0]] = lvl_spacing_prob
         # Boundary distribution:
         if prior is None:
-            level_spacing_probs[0,1:-1]  = distribution.f1(E - EB[0])
-            level_spacing_probs[1:-1,-1] = distribution.f1(EB[1] - E)
+            level_spacing_probs[0,1:-1]  = distribution.f1(E - energy_range[0])
+            level_spacing_probs[1:-1,-1] = distribution.f1(energy_range[1] - E)
         else:
-            level_spacing_probs[0,1:-1]  = distribution.f1(E - EB[0], prior)
-            level_spacing_probs[1:-1,-1] = distribution.f1(EB[1] - E, prior)
+            level_spacing_probs[0,1:-1]  = distribution.f1(E - energy_range[0], prior)
+            level_spacing_probs[1:-1,-1] = distribution.f1(energy_range[1] - E, prior)
 
         # Error checking:
         if (level_spacing_probs == np.nan).any():   raise RuntimeError('Level-spacing probabilities have "NaN" values.')
@@ -438,12 +438,12 @@ class RunMaster:
         if self.merge:
             log_likelihoods = np.zeros(self.G, dtype='f8')
             for g, encore_pipe in enumerate(self.encore_pipes[:-1]):
-                log_likelihoods[g] = encore_pipe.LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior) # FIXME this may have incorrect prior
-            base_log_likelihood = self.encore_pipes[-1].LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior)
+                log_likelihoods[g] = encore_pipe.LogLikelihood(self.energy_range, self.false_dens, self.log_likelihood_prior) # FIXME this may have incorrect prior
+            base_log_likelihood = self.encore_pipes[-1].LogLikelihood(self.energy_range, self.false_dens, self.log_likelihood_prior)
             combined_log_likelihood = self._log_likelihood_combinator(log_likelihoods, base_log_likelihood)
             return combined_log_likelihood
         else:
-            log_likelihood = self.encore_pipe.LogLikelihood(self.EB, self.false_dens, self.log_likelihood_prior)
+            log_likelihood = self.encore_pipe.LogLikelihood(self.energy_range, self.false_dens, self.log_likelihood_prior)
             return log_likelihood
         
     def ProbOfSample(self, spingroup_assignments):
@@ -470,8 +470,8 @@ class RunMaster:
         return likelihood
     
     @classmethod
-    def WigMaxLikelihoods(cls, E, EB:tuple,
-                         level_spacing_dists:Tuple[SpacingDistributionBase],
+    def WigMaxLikelihoods(cls, E, energy_range:tuple,
+                         level_spacing_dists:Tuple[SpacingDistributionBase], false_dens:float=0.0,
                          num_best:int=None,
                          err:float=1e-8,
                          prior=None):
@@ -482,19 +482,21 @@ class RunMaster:
 
         Parameters
         ----------
-        E : array-like of float
+        E                   : array-like of float
             The ordered resonance energies.
-        EB : (float, float)
+        energy_range        : (float, float)
             The lower and upper energy limits of the resonance ladder.
         level_spacing_dists : Tuple[SpacingDistributionBase]
             The level-spacing distributions for each spingroup (not including false group).
-        num_best : int, optional
+        false_dens          : float
+            The level-density for the false group. Default = 0.0.
+        num_best            : int, optional
             The number of highest likelihood spingroup ladders to select. By default,
             provides the highest likelihood ladder only.
-        err : float
+        err                 : float
             The maximum error allowed, beyond which level-spacings are not calculated.
             Default is 1e-8.
-        prior : array-like of float, optional
+        prior               : array-like of float, optional
             The prior spingroup probabilities for each resonance.
 
         Returns
@@ -513,16 +515,17 @@ class RunMaster:
         E = np.sort(E)
 
         if prior is None:
-            prior = np.zeros((L,G))
+            prior = np.zeros((L,G+1))
             for g, distribution in enumerate(level_spacing_dists):
                 prior[:,g] = distribution.lvl_dens
+            prior[:,G] = false_dens
             prior /= np.sum(prior, axis=1)
 
         iMax = np.zeros((L+2, 2, G), 'i4')
         level_spacing_probs = np.zeros((L+2, L+2, G), 'f8')
         for g, distribution in enumerate(level_spacing_dists):
-            iMax[:,:,g] = cls._calculate_iMax(E, EB, distribution, err)
-            level_spacing_probs[:,:,g] = cls._calculate_probs(E, EB, distribution, iMax[:,:,g])
+            iMax[:,:,g] = cls._calculate_iMax(E, energy_range, distribution, err)
+            level_spacing_probs[:,:,g] = cls._calculate_probs(E, energy_range, distribution, iMax[:,:,g])
         if num_best is None:
             best_spingroup_ladders, best_log_likelihoods = Encore.WigMaxLikelihoods(prior, level_spacing_probs, iMax, 1)
             best_spingroup_ladder = best_spingroup_ladders[0]
