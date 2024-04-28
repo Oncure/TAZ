@@ -15,7 +15,7 @@ class HalfInt:
     """
 
     def __init__(self, value):
-        if type(value) == HalfInt:
+        if isinstance(value, HalfInt):
             self = value
         else:
             if value % 0.5 != 0.0:
@@ -42,68 +42,68 @@ class HalfInt:
     def __float__(self):
         return self.value
     def __eq__(self, other) -> bool:
-        if type(other) == self.__class__:
+        if isinstance(other, self.__class__):
             return self.value == other.value
         else:
             return self.value == other
     def __ne__(self, other) -> bool:
-        if type(other) == self.__class__:
+        if isinstance(other, self.__class__):
             return self.value != other.value
         else:
             return self.value != other
     def __lt__(self, other) -> bool:
-        if type(other) == self.__class__:
+        if isinstance(other, self.__class__):
             return self.value < other.value
         else:
             return self.value < other
     def __le__(self, other) -> bool:
-        if type(other) == self.__class__:
+        if isinstance(other, self.__class__):
             return self.value <= other.value
         else:
             return self.value <= other
     def __gt__(self, other) -> bool:
-        if type(other) == self.__class__:
+        if isinstance(other, self.__class__):
             return self.value > other.value
         else:
             return self.value > other
     def __ge__(self, other) -> bool:
-        if type(other) == self.__class__:
+        if isinstance(other, self.__class__):
             return self.value >= other.value
         else:
             return self.value >= other
     def __add__(self, other):
-        if type(other) == self.__class__:
+        if   isinstance(other, self.__class__):
             return self.__class__(self.value + other.value)
-        elif type(other) == int:
+        elif isinstance(other, int):
             return self.__class__(self.value + other)
         else:
             return self.value + other
     def __radd__(self, other):
-        if type(other) == int:
+        if   isinstance(other, int):
             return self.__class__(other + self.value)
         else:
             return other + self.value
     def __sub__(self, other):
-        if type(other) == self.__class__:
+        if   isinstance(other, self.__class__):
             return self.__class__(self.value - other.value)
-        elif type(other) == int:
+        elif isinstance(other, int):
             return self.__class__(self.value - other)
         else:
             return self.value - other
     def __rsub__(self, other):
-        if type(other) == int:
+        if   isinstance(other, int):
             return self.__class__(other - self.value)
         else:
             return other - self.value
     def __mul__(self, other):
-        if type(other) == self.__class__:
+        if   isinstance(other, self.__class__):
             return self.value * other.value
-        elif (type(other) == int) and (other % 2 == 0):
+        elif isinstance(other, int) and (other % 2 == 0):
             return self.__2x_value * (other // 2)
         else:
             return self.value * other
     def __rmul__(self, other):
-        if (type(other) == int) and (other % 2 == 0):
+        if isinstance(other, int) and (other % 2 == 0):
             return self.__2x_value * (other // 2)
         else:
             return self.value * other
@@ -143,8 +143,7 @@ class Spingroup:
 
         self.L = int(l)
         
-        if type(j) == HalfInt:      self.J = j
-        else:                       self.J = HalfInt(j)
+        self.J = HalfInt(j)
 
         if s is not None:   self.S = HalfInt(s)
         else:               self.S = None
@@ -167,6 +166,11 @@ class Spingroup:
     
     def __hash__(self):
         return hash((self.L, self.J, self.S))
+    
+    @property
+    def Jpi(self):
+        if self.L % 2:  return  float(self.J)
+        else:           return -float(self.J)
     
     def g(self, spin_target:HalfInt, spin_proj:HalfInt):
         'Statistical spin factor'
@@ -276,12 +280,12 @@ class Spingroup:
 
         if spingroup in ('false', 'False'):
             return len(spingroups)
-        elif type(spingroup) == Spingroup:
+        elif isinstance(spingroup, Spingroup):
             for g, candidate in enumerate(spingroups):
                 if spingroup == candidate:
                     return g
             raise ValueError(f'The provided spingroup, {spingroup}, does not match any of the recorded spingroups.')
-        elif type(spingroup) == int:
+        elif isinstance(spingroup, int):
             num_sgs = len(spingroups)
             if (spingroup > num_sgs) or (spingroup < 0):
                 raise ValueError(f'The provided spingroup id, {spingroup}, is above the number of spingroups, {num_sgs}.')

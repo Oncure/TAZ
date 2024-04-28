@@ -1,3 +1,4 @@
+from typing import Tuple, Union
 from copy import copy
 import math
 import numpy as np
@@ -165,7 +166,7 @@ Index:     {idx}
 
         # Leading index (left iteration):
         for lnL in range(1,L+2): # next lead index (left-to-right)
-            lnR = L+1-lnL # next lead index (right-to-left)
+            lnR = L+1-lnL        # next lead index (right-to-left)
 
             # =====================================================================================
             # Left to Right:
@@ -176,11 +177,10 @@ Index:     {idx}
                 mult_chain *= s.PW[ll]
                 slices = [slice(s.iMax[lnL,1,g], max(ll,1)) for g in range(G)]
                 for gl in range(G): # last lead index group
-                    slicesl = (*slices[:gl], slice(ll,ll+1), *slices[gl+1:])
+                    slicesl = insert_slice(slices, ll, gl)
                     for gn in range(G): # next lead index group
-                        slicesn = (*slicesl[:gn], slice(lnL,lnL+1), *slicesl[gn+1:])
-                        lsp = s.LSP[slicesl[gn],lnL,gn]
-                        lsp = shape(lsp, gn, G)
+                        slicesn = insert_slice(slicesl, lnL, gn)
+                        lsp = s.get_LSP(slicesl[gn], lnL, gn)
                         s.CPL[*slicesn] += mult_chain * s.Prior[ll,gl] * np.sum(lsp * s.CPL[*slicesl], axis=gn, keepdims=True)
                 mult_chain *= s.Prior[ll,-1]
                 if mult_chain == 0.0:
@@ -195,11 +195,10 @@ Index:     {idx}
                 mult_chain *= s.PW[ll]
                 slices = [slice(s.iMax[lnR,0,g], min(ll,L), -1) for g in range(G)]
                 for gl in range(G): # last lead index group
-                    slicesl = (*slices[:gl], slice(ll,ll+1), *slices[gl+1:])
+                    slicesl = insert_slice(slices, ll, gl)
                     for gn in range(G): # next lead index group
-                        slicesn = (*slicesl[:gn], slice(lnR,lnR+1), *slicesl[gn+1:])
-                        lsp = s.LSP[lnR,slicesl[gn],gn]
-                        lsp = shape(lsp, gn, G)
+                        slicesn = insert_slice(slicesl, lnR, gn)
+                        lsp = s.get_LSP(lnR, slicesl[gn], gn)
                         s.CPR[*slicesn] += mult_chain * s.Prior[ll,gl] * np.sum(lsp * s.CPR[*slicesl], axis=gn, keepdims=True)
                 mult_chain *= s.Prior[ll,-1]
                 if mult_chain == 0.0:
@@ -213,7 +212,7 @@ Index:     {idx}
                 slices = [slice(s.iMax[lnL,1,g], max(lnL,1)) for g in range(G)]
                 denom = 0.0
                 for gn in range(G):
-                    slicesn = (*slices[:gn], slice(lnL,lnL+1), *slices[gn+1:])
+                    slicesn = insert_slice(slices, lnL, gn)
                     denom += np.sum(s.CPL[*slicesn])
                 if denom == 0.0:
                     raise RuntimeError(s.PW_INF_ERROR.format(side='left', idx=lnL))
@@ -224,7 +223,7 @@ Index:     {idx}
                 slices = [slice(s.iMax[lnR,0,g], min(lnR,L), -1) for g in range(G)]
                 denom = 0.0
                 for gn in range(G):
-                    slicesn = (*slices[:gn], slice(lnR,lnR+1), *slices[gn+1:])
+                    slicesn = insert_slice(slices, lnR, gn)
                     denom += np.sum(s.CPR[*slicesn])
                 if denom == 0.0:
                     raise RuntimeError(s.PW_INF_ERROR.format(side='right', idx=lnR))
@@ -242,10 +241,9 @@ Index:     {idx}
         slicesl = (slice(lnL,lnL+1), *slices[1:])
         for gn in range(1, G):
             sliceg = slice(s.iMax[lnL,1,gn], lnL)
-            slicesn = (*slicesl[:gn], slice(lnL,lnL+1), *slicesl[gn+1:])
-            slicesnp = (*slicesl[:gn], sliceg, *slicesl[gn+1:])
-            lsp = s.LSP[sliceg, lnL, gn]
-            lsp = shape(lsp, gn, G)
+            slicesn  = insert_slice(slicesl, lnL, gn)
+            slicesnp = insert_slice(slicesl, sliceg, gn)
+            lsp = s.get_LSP(sliceg, lnL, gn)
             s.CPL[*slicesn] += np.sum(lsp * s.CPL[*slicesnp], axis=gn, keepdims=True)
         s.CPL[*negs] *= G # I don't understand this correction factor
 
@@ -255,10 +253,9 @@ Index:     {idx}
         slicesl = (slice(lnR,lnR+1), *slices[1:])
         for gn in range(1, G):
             sliceg = slice(s.iMax[lnR,0,gn], lnR, -1)
-            slicesn = (*slicesl[:gn], slice(lnR,lnR+1), *slicesl[gn+1:])
-            slicesnp = (*slicesl[:gn], sliceg, *slicesl[gn+1:])
-            lsp = s.LSP[lnR, sliceg, gn]
-            lsp = shape(lsp, gn, G)
+            slicesn  = insert_slice(slicesl, lnR, gn)
+            slicesnp = insert_slice(slicesl, sliceg, gn)
+            lsp = s.get_LSP(lnR, sliceg, gn)
             s.CPR[*slicesn] += np.sum(lsp * s.CPR[*slicesnp], axis=gn, keepdims=True)
         s.CPR[*zeros] *= G # I don't understand this correction factor
 
@@ -311,10 +308,9 @@ numerical instability.
 
         L = s.L; G = s.G
         sp = np.zeros((L,G), dtype='f8') # No longer need the edge cases, so the bounds are 0:L instead of 0:L+2
+        NAs  = [NA]*G
 
         for i in range(1,L+1):
-            NAs = [NA]*G
-            NAs2 = [NA]*(2*G-2)
             slicesL = [slice(s.iMax[i,1,g], max(i,1)    ) for g in range(G)]
             slicesR = [slice(s.iMax[i,0,g], min(i,L), -1) for g in range(G)]
             for gt in range(G):
@@ -322,12 +318,9 @@ numerical instability.
                 for g in range(G):
                     if g == gt:     continue
                     lspsg = s.LSP[slicesL[g],slicesR[g],g]
-                    Dims = np.arange(2, 2*G)
-                    Dims = np.insert(Dims,   g, 0)
-                    Dims = np.insert(Dims, G+g, 1)
-                    lsps = lsps * lspsg[:,:,*NAs2].transpose(*Dims)
-                slicesiL = (*slicesL[:gt], slice(i,i+1), *slicesL[gt+1:])
-                slicesiR = (*slicesR[:gt], slice(i,i+1), *slicesR[gt+1:])
+                    lsps = lsps * transposer(lspsg, (g,G+g), 2*G)
+                slicesiL = insert_slice(slicesL, i, gt)
+                slicesiR = insert_slice(slicesR, i, gt)
                 sp[i-1,gt] = s.Prior[i,gt] * s.PW[i] * np.sum(lsps * s.CPL[*slicesiL,*NAs] * s.CPR[*NAs,*slicesiR])
 
         # Dividing by total probability, "TP":
@@ -384,16 +377,16 @@ numerical instability.
                 iMaxmin = np.min(iMax)
                 likelihoods = np.zeros((iMaxmin-last_seen_all,G), dtype='f8')
                 mult_chain = 1.0
-                lls = np.arange(last_seen_all+1, iMaxmin+1, dtype='i4')
+                lls = np.arange(last_seen_all+1, iMaxmin+1, dtype='u4')
                 for lidx, ll in enumerate(lls): # last leader
                     mult_chain *= s.PW[ll]
                     if mult_chain == 0.0:   break   # potential computation time improvement
                     slices = [slice(ll+1, iMax[g]+1) for g in range(G)]
                     for gn in range(G): # next leader group
-                        slicesn = (*slices[:gn], slice(ll, ll+1), *slices[gn+1:])
+                        slicesn = insert_slice(slices, ll, gn)
                         lsps = 1.0
                         for g in range(G):
-                            lsps = lsps * shape(s.LSP[last_seen[g],slicesn[g],g], g, G)
+                            lsps = lsps * s.get_LSP(last_seen[g], slicesn[g], g)
                         likelihoods[lidx,gn] = s.LSP[last_seen[gn],ll,0] * s.Prior[ll,gn] * mult_chain \
                                                 * np.sum(lsps * s.CPR[*slicesn])
                     mult_chain *= s.Prior[ll,G]
@@ -674,30 +667,84 @@ numerical instability.
         best_log_likelihoods   = best_log_likelihoods  [::-1]
         return best_spingroup_ladders, best_log_likelihoods
     
-# ======================================================================================
+# %%====================================================================================
 # Utility Functions
 # ======================================================================================
 
-def shape(vec, g:int, G:int):
+    def get_LSP(self, idxL:Union[slice,int], idxR:Union[slice,int], g:int):
+        """
+        Returns the level-spacing probabilities at the provided indices, for the provided spingroup
+        as an G-dimensional array along the group's dimension.
+
+        Parameters
+        ----------
+        idxL : slice or int
+            The lower energy index for the level-spacing probabilities.
+        idxR : slice or int
+            The upper energy index for the level-spacing probabilities.
+        g    : int
+            The group for the level-spacing probabilities.
+        
+        Returns
+        -------
+        lsp  : ndarray of float
+            Level-spacing probabilities shaped to the specified group dimension.
+        """
+
+        lsp = self.LSP[idxL, idxR, g]
+        shape_ = [1]*self.G
+        shape_[g] = -1
+        lsp = lsp.reshape(*shape_)
+        return lsp
+
+def transposer(array_in, mapped_dims:Tuple[int], num_dims:int):
     """
-    Shapes a provided 1-dimensional vector to a `G` dimensional array along axis `g`.
+    Transposes a provided array such that working dimensions are mapped to the specified mapped
+    dimensions.
 
     Parameters
     ----------
-    vec : array-like
-        The vector to reshape.
-    g : int
-        The dimension to reshape into.
-    G : int
-        The number of dimensions.
+    array_in    : ndarray
+        The input array.
+    mapped_dims : tuple[int]
+        A tuple of dimension indices to map the working dimensions to.
+    num_dims    : int
+        The total number of dimensions for the outgoing array.
     
     Returns
     -------
-    array : array-like
-        The G-dimensional array reshaped from array
+    array_out   : ndarray
+        The outgoing array.
     """
 
-    shape_ = [1]*G
-    shape_[g] = -1
-    array = vec.reshape(*shape_)
-    return array
+    num_working_dim = len(array_in.shape)
+    new_shape = np.concatenate((array_in.shape, [1]*num_working_dim))
+    permutation = np.arange(len(mapped_dims), num_dims)
+    for working_dim, mapped_dim in enumerate(mapped_dims):
+        permutation = np.insert(permutation, mapped_dim, working_dim)
+    array_out = array_in.reshape(*new_shape).transpose(permutation)
+    return array_out
+
+def insert_slice(slice_tuple:Tuple[slice], value:Union[slice,int], dim:int):
+    """
+    Provided a tuple of slices for each dimension, `insert_slice` replaces the slice in dimension,
+    `g` with `value`.
+
+    Parameters
+    ----------
+    slice_tuple : Tuple[slice]
+        A tuple of slice objects.
+    value       : slice or int
+        A value to replace one of the dimensions with.
+    dim         : int
+        The dimension at which the slice is being replaced.
+
+    Returns
+    -------
+    slice_tuple_out : Tuple[slice]
+        The updated tuple of slices.
+    """
+
+    if not isinstance(value, slice):
+        value = slice(value, value+1)
+    return (*slice_tuple[:dim], value, *slice_tuple[dim+1:])

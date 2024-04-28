@@ -1,5 +1,7 @@
+from typing import List
 import numpy as np
-import pandas as pd
+from numpy import ndarray
+from pandas import DataFrame
 
 from TAZ import Spingroup
 from TAZ import Reaction
@@ -79,7 +81,34 @@ def ATARI_to_TAZ(particle_pair, **kwargs):
     reaction = Reaction(**reaction_params)
     return reaction, resonances, spingroup_IDs
 
-def TAZ_to_ATARI(reaction:Reaction, **kwargs):
+def ATARI_to_TAZ_resonances(resonances:DataFrame, J_ID:List[int]):
+    """
+    ...
+    """
+
+    # Resonances:
+    resonances.sort_values(by=['E'], ignore_index=True, inplace=True)
+    res_J_IDs = resonances['J_ID'].to_numpy()
+
+    # Spingroup IDs:
+    spingroup_IDs = np.empty_like(res_J_IDs, dtype=int)
+    for TAZ_ID, jid in enumerate(J_ID):
+        spingroup_IDs[res_J_IDs == jid] = TAZ_ID
+
+    return resonances, spingroup_IDs
+
+def TAZ_to_ATARI_resonances(resonances:DataFrame, spingroup_IDs:ndarray, reaction:Reaction):
+    """
+    ...
+    """
+
+    resonances['Ls']   = [reaction.spingroups[spingroup_ID].L   for spingroup_ID in spingroup_IDs]
+    resonances['Jpi']  = [reaction.spingroups[spingroup_ID].Jpi for spingroup_ID in spingroup_IDs]
+    resonances['J_ID'] = [reaction.J_ID[spingroup_ID]           for spingroup_ID in spingroup_IDs]
+
+    return resonances
+
+def TAZ_to_ATARI_particle_pair(reaction:Reaction, **kwargs):
     """
     ...
     """

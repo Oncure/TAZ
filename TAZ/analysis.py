@@ -50,11 +50,11 @@ def spingroup_names(num_groups:int, last_false:bool=True):
             raise ValueError(f'Only a positive integer number of spingroups are allowed, not {num_groups}.')
         else:
             num_groups = int(num_groups)
-    if num_groups > 24:
+    if num_groups > 23:
         raise ValueError(f'You are implying you have {num_groups} groups. I do not have enough letters in the alphabet to differentiate each spingroup!')
     
     # Assigning spingroup names:
-    letters = 'ABCDEGHJKLMNPQRSTUVWXYZ'
+    letters = 'ABCDEGHJKLMNPQRSTUVWXYZ' # some letters removed to avoid confusion.
     if last_false:
         sg_names = [*letters[:num_groups-1], 'False']
     else:
@@ -73,7 +73,7 @@ def PrintScore(pred_probs:ndarray, answer:ndarray,
         score = np.count_nonzero(answer == guess) / np.size(answer)
     elif metric == 'probability score':
         score = np.mean(pred_probs[:,answer])
-    elif metric == 'Brier score':
+    elif metric == 'brier score':
         score = np.mean(np.sum(pred_probs**2, axis=1)
                         + (1-2*pred_probs[:,answer]))
     else:
@@ -237,17 +237,6 @@ def ProbCorrPlot(pred_probs:ndarray, answer:ndarray,
         prob_expected = 0.5 * (edges[1:] + edges[:-1])
         prob_expected_non_zero = np.histogram(prob_guess_all, weights=prob_guess_all, bins=edges)[0][count_all > 1] / count_all[count_all > 1]
         prob_expected[count_all > 1] = prob_expected_non_zero
-        # # Find the expected mean probability:
-        # prob_expected_non_zero = []
-        # for bin_id in range(nBin):
-        #     if count_all[bin_id] <= 1:
-        #         continue
-        #     prob_guess_all_in_bin = prob_guess_all[(prob_guess_all > edges[bin_id]) & (prob_guess_all < edges[bin_id+1])]
-        #     print(count_all[bin_id], prob_guess_all_in_bin)
-        #     prob_expected_non_zero.append(np.mean(prob_guess_all_in_bin))
-        # prob_expected_non_zero = np.array(prob_expected_non_zero)
-        # prob_expected = 0.5 * (edges[1:] + edges[:-1])
-        # prob_expected[count_all > 1] = prob_expected_non_zero
 
         # Estimating probability and confidence:
         prob_ans_cor_est, prob_ans_cor_std = _fraction_estimation(count_all_non_zero, count_cor_non_zero)

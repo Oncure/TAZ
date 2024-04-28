@@ -20,7 +20,7 @@
 - Test that the correct assignment rate matches the assignment probabilities within statistical error for both gamma on and off. (NOT IMPLEMENTED YET)
 
 ### Test WigBayes
-- Test that False probabilities are zero when false level-density is zero. (NOT IMPLEMENTED YET)
+- Test that False probabilities are zero when false level-density is zero.
 - Test that a 2 spingroup case with a small second level-density converges to the 1 spingroup case.
 - Test that a 3 spingroup case with a small third level-density converges to the 2 spingroup case. (NOT IMPLEMENTED YET)
 - Test that providing Poisson distributions to WigBayes will return the same as the prior.
