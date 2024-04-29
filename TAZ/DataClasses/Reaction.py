@@ -190,7 +190,7 @@ class Reaction:
         else:                   self.gDOF = self.DEFAULT_GDOF * np.ones((self.num_groups,), dtype=int)
 
         # J_ID for ATARI spingroups:
-        if nDOF is not None:    self.J_ID = spingroupParameter(J_ID, self.num_groups, dtype=int)
+        if J_ID is not None:    self.J_ID = spingroupParameter(J_ID, self.num_groups, dtype=int)
         else:                   self.J_ID = np.arange(1, self.num_groups+1)
 
         # Truncation Width:

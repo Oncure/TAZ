@@ -5,6 +5,8 @@ from TAZ.Theory import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist, 
 from TAZ.Theory import WignerGen, BrodyGen, MissingGen, HighOrderSpacingGen
 from utils import chi2_test, chi2_uniform_test
 
+from ATARI.ModelData.particle import Particle, Neutron
+
 import numpy as np
 from scipy.integrate import cumulative_trapezoid as cumtrapz
 from scipy.stats import chisquare
@@ -31,8 +33,8 @@ class TestResonanceGeneration(unittest.TestCase):
         """
 
         # Particle Types:
-        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
-        Projectile = TAZ.Neutron
+        Target = Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
+        Projectile = Neutron
 
         # Mean Parameters
         cls.EB   = (1e-5,5000)
@@ -100,8 +102,8 @@ class TestGOESampler(unittest.TestCase):
         """
 
         # Particle Types:
-        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
-        Projectile = TAZ.Neutron
+        Target = Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
+        Projectile = Neutron
 
         # Mean Parameters
         cls.EB   = (1e-5,5000)
@@ -189,8 +191,8 @@ class TestGUESampler(unittest.TestCase):
         """
 
         # Particle Types:
-        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
-        Projectile = TAZ.Neutron
+        Target = Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
+        Projectile = Neutron
 
         # Mean Parameters
         cls.EB   = (1e-5,5000)
@@ -253,8 +255,8 @@ class TestGSESampler(unittest.TestCase):
         """
 
         # Particle Types:
-        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
-        Projectile = TAZ.Neutron
+        Target = Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
+        Projectile = Neutron
 
         # Mean Parameters
         cls.EB   = (1e-5,5000)
@@ -316,8 +318,8 @@ class TestBrodySampler(unittest.TestCase):
         """
 
         # Particle Types:
-        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
-        Projectile = TAZ.Neutron
+        Target = Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
+        Projectile = Neutron
 
         # Mean Parameters
         cls.EB   = (1e-5,5000)
@@ -365,8 +367,8 @@ class TestMissingSampler(unittest.TestCase):
         """
 
         # Particle Types:
-        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
-        Projectile = TAZ.Neutron
+        Target = Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
+        Projectile = Neutron
 
         # Mean Parameters
         cls.EB   = (1e-5,5000)
@@ -417,8 +419,8 @@ class TestMerger(unittest.TestCase):
 
         bins = np.linspace(0, xMax, num_bins+1)
 
-        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
-        Projectile = TAZ.Neutron
+        Target = Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
+        Projectile = Neutron
 
         EB = (1e-5,2e5)
         lvl_dens  = [1.3, 0.5]

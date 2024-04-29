@@ -1,7 +1,6 @@
-import sys
-sys.path.append('../TAZ')
-import TAZ
+from ATARI import TAZ
 from TAZ import analysis
+from ATARI.ModelData.particle import Particle, Neutron
 
 import numpy as np
 
@@ -22,8 +21,8 @@ class TestPTBayes(unittest.TestCase):
         """
 
         # Particle Types:
-        Target = TAZ.Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
-        Projectile = TAZ.Neutron
+        Target = Particle(Z=73, A=181, I=7/2, mass=180.9479958, name='Ta-181')
+        Projectile = Neutron
 
         # Mean Parameters
         # cls.EB = (1e-5,1e6)

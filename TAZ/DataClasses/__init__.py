@@ -6,3 +6,4 @@ dataclasses.
 
 from .Spingroups import HalfInt, Spingroup
 from .Reaction import Reaction
+from ATARI.ModelData.particle import Particle, Neutron
