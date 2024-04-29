@@ -1,7 +1,5 @@
-import sys
-sys.path.append('../TAZ')
-from TAZ.Theory.MeanParameterEstimation import MeanSpacingAveraging
-from TAZ.Theory.Samplers import SampleEnergies
+from ATARI.TAZ.TAZ.Theory.MeanParameterEstimation import MeanSpacingAveraging
+from ATARI.TAZ.TAZ.Theory.Samplers import SampleEnergies
 
 import warnings
 warnings.filterwarnings('error', category=RuntimeWarning)

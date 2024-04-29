@@ -519,7 +519,7 @@ class RunMaster:
             for g, distribution in enumerate(level_spacing_dists):
                 prior[:,g] = distribution.lvl_dens
             prior[:,G] = false_dens
-            prior /= np.sum(prior, axis=1)
+            prior /= np.sum(prior, axis=1, keepdims=True)
 
         iMax = np.zeros((L+2, 2, G), 'i4')
         level_spacing_probs = np.zeros((L+2, L+2, G), 'f8')

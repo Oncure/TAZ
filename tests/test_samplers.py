@@ -1,8 +1,6 @@
-import sys
-sys.path.append('../TAZ')
-import TAZ
-from TAZ.Theory import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist, deltaMehta3, deltaMehtaPredict
-from TAZ.Theory import WignerGen, BrodyGen, MissingGen, HighOrderSpacingGen
+from ATARI.TAZ import TAZ
+from ATARI.TAZ.TAZ.Theory import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist, deltaMehta3, deltaMehtaPredict
+from ATARI.TAZ.TAZ.Theory import WignerGen, BrodyGen, MissingGen, HighOrderSpacingGen
 from utils import chi2_test, chi2_uniform_test
 
 from ATARI.ModelData.particle import Particle, Neutron

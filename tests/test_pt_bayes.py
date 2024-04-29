@@ -1,5 +1,5 @@
-from ATARI import TAZ
-from TAZ import analysis
+from ATARI.TAZ import TAZ
+from ATARI.TAZ.TAZ import analysis
 from ATARI.ModelData.particle import Particle, Neutron
 
 import numpy as np
