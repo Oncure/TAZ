@@ -260,8 +260,7 @@ class BrodyGen(SpacingDistributionBase):
 # =================================================================================================
 #    Higher-Order Spacing Distributions:
 # =================================================================================================
-    
-@np.vectorize(otypes=[float])
+
 def _gamma_ratio(x:float):
     """
     A function to calculate the ratio, `Gamma(x/2) / Gamma((x-1)/2)`. This function is used instead
@@ -289,7 +288,6 @@ def _gamma_ratio(x:float):
     ratio = coef * np.prod(1.0 + 0.5/(r+K+0.5))
     return ratio
 
-@np.vectorize(otypes=[float])
 def _high_order_variance(n:int):
     """
     A function for calculating the variance of the `n+1`-th nearest level-spacing distribution.
@@ -413,7 +411,8 @@ class MissingGen(SpacingDistributionBase):
         
         # Above threshold:
         u = x[x >= XTHRES]/(1-self.pM) - 1
-        y[x >= XTHRES] = (1.0/(1-self.pM)) * self.pM**u * np.exp(0.5*_high_order_variance(u)*(log(self.pM))**2)
+        _high_order_variances = np.vectorize(pyfunc=_high_order_variance, otypes=[float])
+        y[x >= XTHRES] = (1.0/(1-self.pM)) * self.pM**u * np.exp(0.5*_high_order_variances(u)*(log(self.pM))**2)
         return y
     def _f1(self, x):
         XTHRES = self.NTHRES[0] + 1
@@ -428,7 +427,8 @@ class MissingGen(SpacingDistributionBase):
 
         # Above threshold:
         u = x[x >= XTHRES]/(1-self.pM) - 1
-        y[x >= XTHRES] = (-1.0/log(self.pM)) * self.pM**u * np.exp(0.5*_high_order_variance(u)*(log(self.pM))**2)
+        _high_order_variances = np.vectorize(pyfunc=_high_order_variance, otypes=[float])
+        y[x >= XTHRES] = (-1.0/log(self.pM)) * self.pM**u * np.exp(0.5*_high_order_variances(u)*(log(self.pM))**2)
         return y
     def _f2(self, x):
         XTHRES = self.NTHRES[0] + 1
@@ -443,7 +443,8 @@ class MissingGen(SpacingDistributionBase):
 
         # Above threshold:
         u = x[x >= XTHRES]/(1-self.pM) - 1
-        y[x >= XTHRES] = (1-self.pM)/(log(self.pM))**2 * self.pM**u * np.exp(0.5*_high_order_variance(u)*(log(self.pM))**2)
+        _high_order_variances = np.vectorize(pyfunc=_high_order_variance, otypes=[float])
+        y[x >= XTHRES] = (1-self.pM)/(log(self.pM))**2 * self.pM**u * np.exp(0.5*_high_order_variances(u)*(log(self.pM))**2)
         return y
     def _r1(self, x):
         XTHRES = self.NTHRES[0] + 1
