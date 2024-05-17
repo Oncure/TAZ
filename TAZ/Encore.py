@@ -155,11 +155,11 @@ Index:     {idx}
         L = s.L;    G = s.G
         s.CPL = np.zeros([L+2]*G, dtype='f8')
         s.CPR = np.zeros([L+2]*G, dtype='f8')
-        s.PW = np.zeros(L+2, dtype='f8')
+        s.PW  = np.zeros(L+2, dtype='f8')
 
         # Trivial CP values:
-        zeros = [0]*G       ;   negs = [-1]*G
-        s.CPL[*zeros] = 1.0 ;   s.CPR[*negs] = 1.0
+        zeros = tuple([0]*G);   negs = tuple([-1]*G)
+        s.CPL[zeros] = 1.0  ;   s.CPR[negs] = 1.0
         s.PW[0] = 1.0       ;   s.PW[-1] = 1.0
 
         np.seterr(divide='raise', over='raise', invalid='raise')
@@ -175,13 +175,13 @@ Index:     {idx}
             mult_chain = 1.0
             for ll in range(lnL-1, iMax_all-1, -1): # last lead index
                 mult_chain *= s.PW[ll]
-                slices = [slice(s.iMax[lnL,1,g], max(ll,1)) for g in range(G)]
+                slices = tuple([slice(s.iMax[lnL,1,g], max(ll,1)) for g in range(G)])
                 for gl in range(G): # last lead index group
                     slicesl = insert_slice(slices, ll, gl)
                     for gn in range(G): # next lead index group
                         slicesn = insert_slice(slicesl, lnL, gn)
                         lsp = s.get_LSP(slicesl[gn], lnL, gn)
-                        s.CPL[*slicesn] += mult_chain * s.Prior[ll,gl] * np.sum(lsp * s.CPL[*slicesl], axis=gn, keepdims=True)
+                        s.CPL[slicesn] += mult_chain * s.Prior[ll,gl] * np.sum(lsp * s.CPL[slicesl], axis=gn, keepdims=True)
                 mult_chain *= s.Prior[ll,-1]
                 if mult_chain == 0.0:
                     break   # potential computation time improvement
@@ -193,13 +193,13 @@ Index:     {idx}
             mult_chain = 1.0
             for ll in range(lnR+1, iMax_all+1): # last lead index
                 mult_chain *= s.PW[ll]
-                slices = [slice(s.iMax[lnR,0,g], min(ll,L), -1) for g in range(G)]
+                slices = tuple([slice(s.iMax[lnR,0,g], min(ll,L), -1) for g in range(G)])
                 for gl in range(G): # last lead index group
                     slicesl = insert_slice(slices, ll, gl)
                     for gn in range(G): # next lead index group
                         slicesn = insert_slice(slicesl, lnR, gn)
                         lsp = s.get_LSP(lnR, slicesl[gn], gn)
-                        s.CPR[*slicesn] += mult_chain * s.Prior[ll,gl] * np.sum(lsp * s.CPR[*slicesl], axis=gn, keepdims=True)
+                        s.CPR[slicesn] += mult_chain * s.Prior[ll,gl] * np.sum(lsp * s.CPR[slicesl], axis=gn, keepdims=True)
                 mult_chain *= s.Prior[ll,-1]
                 if mult_chain == 0.0:
                     break   # potential computation time improvement
@@ -209,22 +209,22 @@ Index:     {idx}
                 
             # Left-hand Side PW Calculation:
             if 2*lnL <= L+1:
-                slices = [slice(s.iMax[lnL,1,g], max(lnL,1)) for g in range(G)]
+                slices = tuple([slice(s.iMax[lnL,1,g], max(lnL,1)) for g in range(G)])
                 denom = 0.0
                 for gn in range(G):
                     slicesn = insert_slice(slices, lnL, gn)
-                    denom += np.sum(s.CPL[*slicesn])
+                    denom += np.sum(s.CPL[slicesn])
                 if denom == 0.0:
                     raise RuntimeError(s.PW_INF_ERROR.format(side='left', idx=lnL))
                 s.PW[lnL] = 1.0 / denom
                 
             # Right-hand Side PW Calculation:
             if 2*lnL <= L:
-                slices = [slice(s.iMax[lnR,0,g], min(lnR,L), -1) for g in range(G)]
+                slices = tuple([slice(s.iMax[lnR,0,g], min(lnR,L), -1) for g in range(G)])
                 denom = 0.0
                 for gn in range(G):
                     slicesn = insert_slice(slices, lnR, gn)
-                    denom += np.sum(s.CPR[*slicesn])
+                    denom += np.sum(s.CPR[slicesn])
                 if denom == 0.0:
                     raise RuntimeError(s.PW_INF_ERROR.format(side='right', idx=lnR))
                 s.PW[lnR] = 1.0 / denom
@@ -235,29 +235,29 @@ Index:     {idx}
                 
         lnL = L+1;      lnR = 0
 
-        #                             the new part
-        #                                  v
-        slices = [slice(s.iMax[lnL,1,g], None) for g in range(G)]
-        slicesl = (slice(lnL,lnL+1), *slices[1:])
+        #                                  the new part
+        #                                       v
+        slices = tuple([slice(s.iMax[lnL,1,g], None) for g in range(G)])
+        slicesl = insert_slice(slices, lnL, 0)
         for gn in range(1, G):
             sliceg = slice(s.iMax[lnL,1,gn], lnL)
             slicesn  = insert_slice(slicesl, lnL, gn)
             slicesnp = insert_slice(slicesl, sliceg, gn)
             lsp = s.get_LSP(sliceg, lnL, gn)
-            s.CPL[*slicesn] += np.sum(lsp * s.CPL[*slicesnp], axis=gn, keepdims=True)
-        s.CPL[*negs] *= G # I don't understand this correction factor
+            s.CPL[slicesn] += np.sum(lsp * s.CPL[slicesnp], axis=gn, keepdims=True)
+        s.CPL[negs] *= G
 
-        #                             the new part
-        #                                  v
-        slices = [slice(s.iMax[lnR,0,g], None, -1) for g in range(G)]
-        slicesl = (slice(lnR,lnR+1), *slices[1:])
+        #                                  the new part
+        #                                       v
+        slices = tuple([slice(s.iMax[lnR,0,g], None, -1) for g in range(G)])
+        slicesl = insert_slice(slices, lnR, 0)
         for gn in range(1, G):
             sliceg = slice(s.iMax[lnR,0,gn], lnR, -1)
             slicesn  = insert_slice(slicesl, lnR, gn)
             slicesnp = insert_slice(slicesl, sliceg, gn)
             lsp = s.get_LSP(lnR, sliceg, gn)
-            s.CPR[*slicesn] += np.sum(lsp * s.CPR[*slicesnp], axis=gn, keepdims=True)
-        s.CPR[*zeros] *= G # I don't understand this correction factor
+            s.CPR[slicesn] += np.sum(lsp * s.CPR[slicesnp], axis=gn, keepdims=True)
+        s.CPR[zeros] *= G
 
     # ==================================================================================
     # Find Total Probability Factor
@@ -271,8 +271,8 @@ Index:     {idx}
         """
 
         # CPL[-1, ..., -1] = TPL and CPR[0, ..., 0] = TPR:
-        negs = [-1]*s.G     ;   zeros = [0]*s.G
-        TPL = s.CPL[*negs]  ;   TPR = s.CPR[*zeros]
+        negs = tuple([-1]*s.G)  ;   zeros = tuple([0]*s.G)
+        TPL = s.CPL[negs]       ;   TPR = s.CPR[zeros]
         
         # Taking the average of the two sides for the total probability factor:
         s.TP = (TPL + TPR) / 2
@@ -308,20 +308,20 @@ numerical instability.
 
         L = s.L; G = s.G
         sp = np.zeros((L,G), dtype='f8') # No longer need the edge cases, so the bounds are 0:L instead of 0:L+2
-        NAs  = [NA]*G
+        NAs  = tuple([NA]*G)
 
         for i in range(1,L+1):
-            slicesL = [slice(s.iMax[i,1,g], max(i,1)    ) for g in range(G)]
-            slicesR = [slice(s.iMax[i,0,g], min(i,L), -1) for g in range(G)]
+            slicesL = tuple([slice(s.iMax[i,1,g], max(i,1)    ) for g in range(G)])
+            slicesR = tuple([slice(s.iMax[i,0,g], min(i,L), -1) for g in range(G)])
             for gt in range(G):
                 lsps = np.array(1.0, ndmin=2*G)
                 for g in range(G):
                     if g == gt:     continue
                     lspsg = s.LSP[slicesL[g],slicesR[g],g]
                     lsps = lsps * transposer(lspsg, (g,G+g), 2*G)
-                slicesiL = insert_slice(slicesL, i, gt)
-                slicesiR = insert_slice(slicesR, i, gt)
-                sp[i-1,gt] = s.Prior[i,gt] * s.PW[i] * np.sum(lsps * s.CPL[*slicesiL,*NAs] * s.CPR[*NAs,*slicesiR])
+                slicesiL =       insert_slice(slicesL, i, gt) + NAs # New axes added in to support sum
+                slicesiR = NAs + insert_slice(slicesR, i, gt)       # New axes added in to support sum
+                sp[i-1,gt] = s.Prior[i,gt] * s.PW[i] * np.sum(lsps * s.CPL[slicesiL] * s.CPR[slicesiR])
 
         # Dividing by total probability, "TP":
         sp /= s.TP
@@ -381,14 +381,14 @@ numerical instability.
                 for lidx, ll in enumerate(lls): # last leader
                     mult_chain *= s.PW[ll]
                     if mult_chain == 0.0:   break   # potential computation time improvement
-                    slices = [slice(ll+1, iMax[g]+1) for g in range(G)]
+                    slices = tuple([slice(ll+1, iMax[g]+1) for g in range(G)])
                     for gn in range(G): # next leader group
                         slicesn = insert_slice(slices, ll, gn)
                         lsps = 1.0
                         for g in range(G):
                             lsps = lsps * s.get_LSP(last_seen[g], slicesn[g], g)
                         likelihoods[lidx,gn] = s.LSP[last_seen[gn],ll,0] * s.Prior[ll,gn] * mult_chain \
-                                                * np.sum(lsps * s.CPR[*slicesn])
+                                                * np.sum(lsps * s.CPR[slicesn])
                     mult_chain *= s.Prior[ll,G]
                 prob_sgs = np.sum(likelihoods, axis=0) / np.sum(likelihoods)
                 g = rng.choice(G, p=prob_sgs)
