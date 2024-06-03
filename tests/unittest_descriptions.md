@@ -17,7 +17,7 @@
 - Test merged distribution as well.
 
 ### Test PTBayes
-- Test that the correct assignment rate matches the assignment probabilities within statistical error for both gamma on and off. (NOT IMPLEMENTED YET)
+- Test that the correct assignment rate matches the assignment probabilities within statistical error for both gamma on and off.
 
 ### Test WigBayes
 - Test that False probabilities are zero when false level-density is zero.
