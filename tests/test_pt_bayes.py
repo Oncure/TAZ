@@ -1,6 +1,8 @@
-from ATARI.TAZ import TAZ
-from ATARI.TAZ.TAZ import analysis
+import sys
+sys.path.append('../TAZ')
+import TAZ
 from ATARI.ModelData.particle import Particle, Neutron
+from TAZ import analysis
 
 import numpy as np
 
@@ -55,6 +57,7 @@ class TestPTBayes(unittest.TestCase):
         of resonances with said probability within statistical error.
         """
 
+        # self.skipTest('Not implemented yet')
         probabilities, log_likelihood = TAZ.PTBayes(self.res_ladder, self.reaction, gamma_width_on=False)
 
         Qs = analysis.correlate_probabilities(probabilities, self.true_assignments)
@@ -71,7 +74,7 @@ Lowest probability density = {np.min(Q):.5f}.
         for g, Q in enumerate(Qs):
             errlim = 0.01
             self.assertTrue(np.all(Q > errlim), f"""
-PTBayes probabilities do not match the frequency of correct sampling to within {errlim} standard deviations for gamma width information on for group {g} of {self.num_groups}.
+PTBayes probabilities do not match the frequency of correct sampling to within {errlim} standard deviations for gamma width information off for group {g} of {self.num_groups}.
 Lowest probability density = {np.min(Q):.5f}.
 """)
 

@@ -1,4 +1,6 @@
-from ATARI.TAZ.TAZ import Theory
+import sys
+sys.path.append('../TAZ')
+from TAZ import Theory
 
 import numpy as np
 

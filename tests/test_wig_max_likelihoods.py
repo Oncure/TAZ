@@ -1,5 +1,6 @@
-from ATARI.TAZ import TAZ
-
+import sys
+sys.path.append('../TAZ')
+import TAZ
 from ATARI.ModelData.particle import Particle, Neutron
 
 from copy import copy
@@ -55,7 +56,7 @@ class TestBayesMaxLogLikelihoods(unittest.TestCase):
         best_spingroup_ladders_prior, best_log_likelihoods_prior = TAZ.PTMaxLogLikelihoods(prior, self.num_best)
 
         distributions = self.reaction.distributions(dist_type='Poisson')
-        best_spingroup_ladders_posterior, best_log_likelihoods_posterior = TAZ.RunMaster.WigMaxLikelihoods(self.E, self.EB, distributions, false_dens=self.false_dens, num_best=self.num_best, err=self.err, prior=prior)
+        best_spingroup_ladders_posterior, best_log_likelihoods_posterior = TAZ.RunMaster.WigMaxLikelihoods(self.E, self.EB, distributions, self.num_best, self.err, prior)
         best_spingroup_ladders_posterior = np.array(best_spingroup_ladders_posterior, dtype=np.int8)
 
         self.assertTrue(np.all(best_spingroup_ladders_posterior == best_spingroup_ladders_prior), """
@@ -104,7 +105,7 @@ class TestBayesMaxLogLikelihoodsSymmetric(unittest.TestCase):
         """
         prior, log_likelihood_prior = TAZ.PTBayes(self.res_ladder, self.reaction)
         distributions = self.reaction.distributions(dist_type='Wigner')
-        best_spingroup_ladders, best_log_likelihoods = TAZ.RunMaster.WigMaxLikelihoods(self.E, self.EB, distributions, false_dens=self.false_dens, num_best=self.num_best, err=self.err, prior=prior)
+        best_spingroup_ladders, best_log_likelihoods = TAZ.RunMaster.WigMaxLikelihoods(self.E, self.EB, distributions, self.num_best, self.err, prior)
 
         for i in range(self.num_best//2):
             self.assertTrue(np.all(best_spingroup_ladders[2*i] + best_spingroup_ladders[2*i+1] == 1), """

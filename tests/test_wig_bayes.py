@@ -1,7 +1,8 @@
-from ATARI.TAZ import TAZ
-from ATARI.TAZ.TAZ.analysis import correlate_probabilities
-
+import sys
+sys.path.append('../TAZ')
 from ATARI.ModelData.particle import Particle, Neutron
+import TAZ
+from TAZ.analysis import correlate_probabilities
 
 import numpy as np
 

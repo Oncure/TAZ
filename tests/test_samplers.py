@@ -1,9 +1,10 @@
-from ATARI.TAZ import TAZ
-from ATARI.TAZ.TAZ.Theory import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist, deltaMehta3, deltaMehtaPredict
-from ATARI.TAZ.TAZ.Theory import WignerGen, BrodyGen, MissingGen, HighOrderSpacingGen
-from utils import chi2_test, chi2_uniform_test
-
+import sys
+sys.path.append('../TAZ')
 from ATARI.ModelData.particle import Particle, Neutron
+import TAZ
+from TAZ.Theory import wigner_dist, lvl_spacing_ratio_dist, porter_thomas_dist, deltaMehta3, deltaMehtaPredict
+from TAZ.Theory import WignerGen, BrodyGen, MissingGen, HighOrderSpacingGen
+from utils import chi2_test, chi2_uniform_test
 
 import numpy as np
 from scipy.integrate import cumulative_trapezoid as cumtrapz

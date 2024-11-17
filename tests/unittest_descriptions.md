@@ -17,7 +17,7 @@
 - Test merged distribution as well.
 
 ### Test PTBayes
-- Test that the correct assignment rate matches the assignment probabilities within statistical error for both gamma on and off.
+- Test that the correct assignment rate matches the assignment probabilities within statistical error for both gamma on and off. (NOT IMPLEMENTED YET)
 
 ### Test WigBayes
 - Test that False probabilities are zero when false level-density is zero.
@@ -40,3 +40,6 @@
 
 ### Test Mean Parameter Estimation
 - Test that the value and uncertainty for each mean parameter is statistically valid. (NOT IMPLEMENTED YET)
+
+### Test Empirical False Width Distribution
+- ???

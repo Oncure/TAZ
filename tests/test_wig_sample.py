@@ -1,7 +1,8 @@
+import sys
 from ATARI.TAZ import TAZ
-from utils import chi2_test
-
 from ATARI.ModelData.particle import Particle, Neutron
+from utils import chi2_test
+import ATARI
 
 import numpy as np
 
@@ -9,6 +10,11 @@ import warnings
 warnings.filterwarnings('error', category=RuntimeWarning)
 
 import unittest
+
+print(dir(TAZ))
+
+print(dir(TAZ.ATARI_interface))
+
 
 class TestBayesSample1(unittest.TestCase):
     """
