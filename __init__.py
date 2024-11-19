@@ -1,8 +1,11 @@
-import os
-this_path = os.path.realpath(__file__)
-TAZ_directory = os.path.dirname(this_path)
 
-import sys
-sys.path.append(TAZ_directory)
+__doc__ = """
+This module contains the source code for TAZ, a spingroup assignment code.
+"""
 
-from .TAZ import *
+from .PTBayes import *
+from .wrapper import *
+from .Encore import *
+from .distributions import *
+
+from . import analysis
