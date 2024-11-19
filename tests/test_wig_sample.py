@@ -11,10 +11,6 @@ warnings.filterwarnings('error', category=RuntimeWarning)
 
 import unittest
 
-print(dir(TAZ))
-
-print(dir(TAZ.ATARI_interface))
-
 
 class TestBayesSample1(unittest.TestCase):
     """
